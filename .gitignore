@@ -1,0 +1,11 @@
+.DS_Store
+.ipynb_checkpoints/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
+*.py[cod]
+studies/*/.cache/
+studies/*/data/
+studies/*/output/
