@@ -1,5 +1,18 @@
-"""Recommender offline evaluation project package."""
+"""Public package surface for the recommender evaluation tool."""
 
-from .run_demo import refresh_canonical_artifacts, run_canonical_demo, run_demo
+from .config import DatasetSpec, EvaluationConfig, ModelSpec, load_evaluation_config
+from .run_demo import (
+    refresh_canonical_artifacts,
+    run_canonical_demo,
+    run_evaluation,
+)
 
-__all__ = ["run_demo", "run_canonical_demo", "refresh_canonical_artifacts"]
+__all__ = [
+    "DatasetSpec",
+    "EvaluationConfig",
+    "ModelSpec",
+    "load_evaluation_config",
+    "run_canonical_demo",
+    "run_evaluation",
+    "refresh_canonical_artifacts",
+]
