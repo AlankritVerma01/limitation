@@ -16,7 +16,7 @@ format:
 	.venv/bin/ruff format $(STUDY_SRC)
 
 run:
-	PYTHONPATH=$(STUDY_SRC) .venv/bin/python -m recommender_offline_eval
+	PYTHONPATH=$(STUDY_SRC) .venv/bin/python -m recommender_offline_eval $(if $(CONFIG),--config $(CONFIG),) $(if $(OUTPUT_DIR),--output-dir $(OUTPUT_DIR),)
 
 canonical:
 	PYTHONPATH=$(STUDY_SRC) .venv/bin/python -m recommender_offline_eval --refresh-canonical
