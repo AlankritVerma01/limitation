@@ -1,0 +1,412 @@
+{
+  "run_summary": {
+    "paragraph": "This canonical Phase 1 run evaluates MovieLens 100K with Model A (Popularity baseline) and Model B (Genre-profile recommender with popularity prior) across the fixed four user buckets to show where aggregate offline metrics hide segment-level and behavioral tradeoffs.",
+    "dataset": "MovieLens 100K",
+    "dataset_stats": {
+      "ratings": 99893,
+      "train_ratings": 98017,
+      "test_positive_rows": 1876,
+      "users": 938,
+      "items": 1682
+    },
+    "models": {
+      "Model A": "Popularity baseline",
+      "Model B": "Genre-profile recommender with popularity prior"
+    },
+    "buckets": [
+      {
+        "name": "Conservative mainstream",
+        "description": "Prefers familiar, high-exposure items and tolerates safe recommendations."
+      },
+      {
+        "name": "Explorer / novelty-seeking",
+        "description": "Values discovery and variety, and rewards recommendation sets that surface less familiar items."
+      },
+      {
+        "name": "Niche-interest",
+        "description": "Has narrower taste clusters and benefits when the model can match specialized catalog pockets."
+      },
+      {
+        "name": "Low-patience",
+        "description": "Needs good recommendations quickly and loses utility faster when sequences feel stale."
+      }
+    ],
+    "purpose": "Compare a baseline and candidate recommender in one reproducible run and surface hidden tradeoffs before launch."
+  },
+  "offline_metrics": {
+    "rows": [
+      {
+        "Model": "Model A",
+        "Recall@10": 0.088486,
+        "NDCG@10": 0.057105
+      },
+      {
+        "Model": "Model B",
+        "Recall@10": 0.057569,
+        "NDCG@10": 0.036194
+      }
+    ],
+    "metric_definitions": {
+      "Recall@10": "Mean recall on held-out positive items per eligible user.",
+      "NDCG@10": "Mean NDCG on held-out positive items per eligible user."
+    }
+  },
+  "bucket_utility": {
+    "bucket_definitions": [
+      {
+        "name": "Conservative mainstream",
+        "description": "Prefers familiar, high-exposure items and tolerates safe recommendations."
+      },
+      {
+        "name": "Explorer / novelty-seeking",
+        "description": "Values discovery and variety, and rewards recommendation sets that surface less familiar items."
+      },
+      {
+        "name": "Niche-interest",
+        "description": "Has narrower taste clusters and benefits when the model can match specialized catalog pockets."
+      },
+      {
+        "name": "Low-patience",
+        "description": "Needs good recommendations quickly and loses utility faster when sequences feel stale."
+      }
+    ],
+    "rows": [
+      {
+        "Bucket": "Conservative mainstream",
+        "Model A": 0.51937,
+        "Model B": 0.531572,
+        "Delta (B-A)": 0.012202
+      },
+      {
+        "Bucket": "Explorer / novelty-seeking",
+        "Model A": 0.338814,
+        "Model B": 0.522726,
+        "Delta (B-A)": 0.183912
+      },
+      {
+        "Bucket": "Niche-interest",
+        "Model A": 0.44323,
+        "Model B": 0.721956,
+        "Delta (B-A)": 0.278726
+      },
+      {
+        "Bucket": "Low-patience",
+        "Model A": 0.321101,
+        "Model B": 0.363795,
+        "Delta (B-A)": 0.042694
+      }
+    ],
+    "metric_definition": "Mean simulated per-step utility for a fixed bucket over the short canonical session."
+  },
+  "behavioral_diagnostics": {
+    "rows": [
+      {
+        "Model": "Model A",
+        "Novelty": 0.395147,
+        "Repetition": 0.278523,
+        "Catalog concentration": 1.0
+      },
+      {
+        "Model": "Model B",
+        "Novelty": 0.67763,
+        "Repetition": 0.663875,
+        "Catalog concentration": 0.717271
+      }
+    ],
+    "metric_definitions": {
+      "Novelty": "Mean of 1 - popularity_norm over recommended or consumed items.",
+      "Repetition": "Mean similarity to the user's recent consumed items.",
+      "Catalog concentration": "Share of recommendations that fall in the top popularity decile."
+    },
+    "chart": "bucket_utility_comparison.svg"
+  },
+  "key_takeaways": [
+    "Aggregate offline metrics favor Model A, which posts higher Recall@10 (0.088 vs 0.058) and NDCG@10 (0.057 vs 0.036).",
+    "Model B's strongest segment win is Niche-interest, where bucket utility improves by 0.279.",
+    "Behaviorally, Model B increases novelty (0.678 vs 0.395), reduces catalog concentration (0.717 vs 1.000), and has higher repetition (0.664 vs 0.279)."
+  ],
+  "trace_examples": [
+    {
+      "bucket": "Explorer / novelty-seeking",
+      "user_id": 366,
+      "utility_delta": 0.42713353741726806,
+      "Model A": {
+        "mean_utility": 0.1600021401761504,
+        "trace": [
+          {
+            "step": 1,
+            "title": "Raiders of the Lost Ark (1981)",
+            "utility": 0.17739643669503263,
+            "affinity": 0.15611906567150113,
+            "popularity": 0.6938775510204082,
+            "novelty": 0.30612244897959184,
+            "repetition_penalty": 0.0
+          },
+          {
+            "step": 2,
+            "title": "Fargo (1996)",
+            "utility": 0.13041766406588964,
+            "affinity": 0.23609442913839104,
+            "popularity": 0.8142857142857143,
+            "novelty": 0.18571428571428572,
+            "repetition_penalty": 0.20412414523193154
+          },
+          {
+            "step": 3,
+            "title": "Toy Story (1995)",
+            "utility": 0.16979223390558745,
+            "affinity": 0.08842718645686097,
+            "popularity": 0.6285714285714286,
+            "novelty": 0.37142857142857144,
+            "repetition_penalty": 0.0
+          },
+          {
+            "step": 4,
+            "title": "Return of the Jedi (1983)",
+            "utility": 0.16240222603809185,
+            "affinity": 0.1672430419894105,
+            "popularity": 0.7510204081632653,
+            "novelty": 0.24897959183673468,
+            "repetition_penalty": 0.0
+          }
+        ]
+      },
+      "Model B": {
+        "mean_utility": 0.5871356775934184,
+        "trace": [
+          {
+            "step": 1,
+            "title": "Prophecy, The (1995)",
+            "utility": 0.6315147826305835,
+            "affinity": 0.9316582265642558,
+            "popularity": 0.026530612244897958,
+            "novelty": 0.9734693877551021,
+            "repetition_penalty": 0.6422285251880867
+          },
+          {
+            "step": 2,
+            "title": "Cat People (1982)",
+            "utility": 0.5906783809781175,
+            "affinity": 0.9316582265642558,
+            "popularity": 0.022448979591836733,
+            "novelty": 0.9775510204081632,
+            "repetition_penalty": 0.8535533905932737
+          },
+          {
+            "step": 3,
+            "title": "Wes Craven's New Nightmare (1994)",
+            "utility": 0.5628176305253436,
+            "affinity": 0.9316582265642558,
+            "popularity": 0.018367346938775512,
+            "novelty": 0.9816326530612245,
+            "repetition_penalty": 1.0
+          },
+          {
+            "step": 4,
+            "title": "Relic, The (1997)",
+            "utility": 0.5635319162396293,
+            "affinity": 0.9316582265642558,
+            "popularity": 0.0163265306122449,
+            "novelty": 0.9836734693877551,
+            "repetition_penalty": 1.0
+          }
+        ]
+      }
+    },
+    {
+      "bucket": "Niche-interest",
+      "user_id": 366,
+      "utility_delta": 0.7362335010681929,
+      "Model A": {
+        "mean_utility": 0.10965174732270458,
+        "trace": [
+          {
+            "step": 1,
+            "title": "Fargo (1996)",
+            "utility": 0.12098038611115944,
+            "affinity": 0.23609442913839104,
+            "popularity": 0.8142857142857143,
+            "novelty": 0.18571428571428572,
+            "repetition_penalty": 0.37079081189859825
+          },
+          {
+            "step": 2,
+            "title": "Godfather, The (1972)",
+            "utility": 0.11952579115723727,
+            "affinity": 0.18503684451033894,
+            "popularity": 0.7,
+            "novelty": 0.30000000000000004,
+            "repetition_penalty": 0.5374574785652649
+          },
+          {
+            "step": 3,
+            "title": "Raiders of the Lost Ark (1981)",
+            "utility": 0.10112008066392836,
+            "affinity": 0.15611906567150113,
+            "popularity": 0.6938775510204082,
+            "novelty": 0.30612244897959184,
+            "repetition_penalty": 0.20412414523193154
+          },
+          {
+            "step": 4,
+            "title": "Contact (1997)",
+            "utility": 0.09698073135849329,
+            "affinity": 0.14058471826723531,
+            "popularity": 0.6714285714285714,
+            "novelty": 0.3285714285714286,
+            "repetition_penalty": 0.20412414523193154
+          }
+        ]
+      },
+      "Model B": {
+        "mean_utility": 0.8458852483908974,
+        "trace": [
+          {
+            "step": 1,
+            "title": "Prophecy, The (1995)",
+            "utility": 0.8442015749215096,
+            "affinity": 0.9316582265642558,
+            "popularity": 0.026530612244897958,
+            "novelty": 0.9734693877551021,
+            "repetition_penalty": 0.6422285251880867
+          },
+          {
+            "step": 2,
+            "title": "Cat People (1982)",
+            "utility": 0.845426064717428,
+            "affinity": 0.9316582265642558,
+            "popularity": 0.022448979591836733,
+            "novelty": 0.9775510204081632,
+            "repetition_penalty": 0.8535533905932737
+          },
+          {
+            "step": 3,
+            "title": "Wes Craven's New Nightmare (1994)",
+            "utility": 0.8466505545133464,
+            "affinity": 0.9316582265642558,
+            "popularity": 0.018367346938775512,
+            "novelty": 0.9816326530612245,
+            "repetition_penalty": 1.0
+          },
+          {
+            "step": 4,
+            "title": "Relic, The (1997)",
+            "utility": 0.8472627994113056,
+            "affinity": 0.9316582265642558,
+            "popularity": 0.0163265306122449,
+            "novelty": 0.9836734693877551,
+            "repetition_penalty": 1.0
+          }
+        ]
+      }
+    },
+    {
+      "bucket": "Low-patience",
+      "user_id": 208,
+      "utility_delta": 0.22767527965106,
+      "Model A": {
+        "mean_utility": 0.18968033876809554,
+        "trace": [
+          {
+            "step": 1,
+            "title": "Star Wars (1977)",
+            "utility": 0.16922602991227076,
+            "affinity": 0.2734905995288702,
+            "popularity": 1.0,
+            "novelty": 0.0,
+            "repetition_penalty": 0.31622776601683794
+          },
+          {
+            "step": 2,
+            "title": "Fargo (1996)",
+            "utility": 0.14323164138621466,
+            "affinity": 0.20506718921203781,
+            "popularity": 0.8142857142857143,
+            "novelty": 0.18571428571428572,
+            "repetition_penalty": 0.20412414523193154
+          },
+          {
+            "step": 3,
+            "title": "Return of the Jedi (1983)",
+            "utility": 0.08919640053364869,
+            "affinity": 0.2734905995288702,
+            "popularity": 0.7510204081632653,
+            "novelty": 0.24897959183673468,
+            "repetition_penalty": 0.5
+          },
+          {
+            "step": 4,
+            "title": "Toy Story (1995)",
+            "utility": 0.35706728324024795,
+            "affinity": 0.49035023397184185,
+            "popularity": 0.6285714285714286,
+            "novelty": 0.37142857142857144,
+            "repetition_penalty": 0.0
+          }
+        ]
+      },
+      "Model B": {
+        "mean_utility": 0.4173556184191555,
+        "trace": [
+          {
+            "step": 1,
+            "title": "Monty Python and the Holy Grail (1974)",
+            "utility": 0.5575460949189793,
+            "affinity": 0.8493115187425165,
+            "popularity": 0.47959183673469385,
+            "novelty": 0.5204081632653061,
+            "repetition_penalty": 0.0
+          },
+          {
+            "step": 2,
+            "title": "Full Monty, The (1997)",
+            "utility": 0.40183180920469364,
+            "affinity": 0.8493115187425165,
+            "popularity": 0.42244897959183675,
+            "novelty": 0.5775510204081633,
+            "repetition_penalty": 0.5
+          },
+          {
+            "step": 3,
+            "title": "American President, The (1995)",
+            "utility": 0.3829557598954497,
+            "affinity": 0.8939415371416509,
+            "popularity": 0.19795918367346937,
+            "novelty": 0.8020408163265307,
+            "repetition_penalty": 0.5773502691896258
+          },
+          {
+            "step": 4,
+            "title": "Truth About Cats & Dogs, The (1996)",
+            "utility": 0.3270888096574993,
+            "affinity": 0.878429809005353,
+            "popularity": 0.2857142857142857,
+            "novelty": 0.7142857142857143,
+            "repetition_penalty": 0.7618016810571369
+          }
+        ]
+      }
+    }
+  ],
+  "reproducibility": {
+    "dataset": "MovieLens 100K",
+    "fixed_buckets": [
+      "Conservative mainstream",
+      "Explorer / novelty-seeking",
+      "Niche-interest",
+      "Low-patience"
+    ],
+    "fixed_config": {
+      "top_k": 10,
+      "session_steps": 4,
+      "slate_size": 10,
+      "choice_pool": 5,
+      "popularity_weight": 0.25,
+      "diversity_weight": 0.35,
+      "shortlist_size": 75,
+      "train_test_split": "Chronological split with each eligible user's last 2 positive interactions held out.",
+      "eligibility_rule": "Users with at least 10 ratings and at least 5 positive ratings (rating >= 4)."
+    },
+    "seed": 0
+  }
+}
