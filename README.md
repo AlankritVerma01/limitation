@@ -44,6 +44,18 @@ Each run produces:
 - behavioral diagnostics
 - short trajectory examples
 
+The same flow now also supports:
+
+- config-driven baseline vs candidate comparisons
+- built-in MovieLens 100K runs
+- external CSV datasets that follow a documented schema
+
+## Canonical Vs Configurable
+
+- The canonical demo is the frozen public proof. It uses MovieLens 100K, fixed buckets, fixed metrics, fixed models, and committed artifacts.
+- Configurable runs use the same evaluation flow and report shape, but read dataset and model choices from JSON.
+- The public contract stays narrow: 1 dataset, 2 models, 1 report bundle.
+
 ## Canonical Result
 
 The official demo currently shows the core product value clearly:
@@ -71,13 +83,19 @@ Official artifact bundle:
 
 ## Run It
 
-Script path:
+Official demo:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 make install
 make run
+```
+
+Custom run with JSON config:
+
+```bash
+make run CONFIG=studies/01-recommender-offline-eval/examples/custom_csv_run.json
 ```
 
 Notebook path:
@@ -98,6 +116,21 @@ Run checks:
 make lint
 make test
 ```
+
+## Use Your Own Data
+
+Custom datasets use a simple CSV contract:
+
+- `interactions.csv` with `user_id`, `item_id`, `rating`, `timestamp`
+- `items.csv` with `item_id`, `title`, and optional numeric or boolean feature columns
+
+Feature columns are only required when you use the built-in `genre_profile` candidate model. Popularity-only comparisons can run without them.
+
+Example configs:
+
+- [Canonical JSON config](studies/01-recommender-offline-eval/examples/canonical_run.json)
+- [Custom CSV JSON config](studies/01-recommender-offline-eval/examples/custom_csv_run.json)
+- [Dataset schema](studies/01-recommender-offline-eval/docs/dataset-schema.md)
 
 ## Repo Guide
 

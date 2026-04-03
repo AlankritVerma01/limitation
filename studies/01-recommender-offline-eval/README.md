@@ -16,10 +16,24 @@ The study keeps the scope intentionally narrow:
 
 The canonical Phase 1 result is committed under `artifacts/canonical/` so the public proof can be read without rerunning the pipeline.
 
+This study can now also run config-driven comparisons on external CSV datasets while keeping the same report, bucket, and metric structure.
+
+## Code Map
+
+- `src/recommender_offline_eval/config.py`: JSON config loading and validation
+- `src/recommender_offline_eval/data.py`: MovieLens and CSV dataset loading, filtering, and split prep
+- `src/recommender_offline_eval/model_registry.py`: built-in model lookup from config
+- `src/recommender_offline_eval/evaluator.py`: offline metrics, bucket metrics, and trace selection
+- `src/recommender_offline_eval/report.py`: markdown, JSON, and chart artifact generation
+- `src/recommender_offline_eval/run_demo.py`: thin orchestration entrypoints and CLI
+
 ## Contents
 
 - [artifacts/canonical](artifacts/canonical): official report, JSON, and chart bundle
+- [examples/canonical_run.json](examples/canonical_run.json): JSON config for the official MovieLens run
+- [examples/custom_csv_run.json](examples/custom_csv_run.json): JSON config for a custom CSV dataset run
 - [docs/v1-product-spec.md](docs/v1-product-spec.md): locked product spec for the public tool
+- [docs/dataset-schema.md](docs/dataset-schema.md): CSV dataset contract for custom runs
 - [docs/article-draft.md](docs/article-draft.md): article draft
 - [docs/article-outline.md](docs/article-outline.md): article structure and notes
 - [docs/project-brief.md](docs/project-brief.md): original brief
@@ -50,6 +64,12 @@ From the repository root:
 make run
 ```
 
+With a config file:
+
+```bash
+make run CONFIG=studies/01-recommender-offline-eval/examples/custom_csv_run.json
+```
+
 Or directly:
 
 ```bash
@@ -61,6 +81,13 @@ Refresh the committed canonical bundle:
 ```bash
 make canonical
 ```
+
+Custom dataset contract:
+
+- `interactions.csv`: `user_id`, `item_id`, `rating`, `timestamp`
+- `items.csv`: `item_id`, `title`, and optional numeric or boolean feature columns
+
+`genre_profile` requires item feature columns. Popularity-only runs do not.
 
 ## Notebook
 
