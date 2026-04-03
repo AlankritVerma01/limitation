@@ -1,42 +1,77 @@
-# Testing ML Systems
+# limitation
 
-This repository is one ongoing project about making ML testing better.
+This repository is the public home for a focused v1:
 
-The core idea is simple: most ML systems are still tested too narrowly. We often check point metrics, benchmark scores, or one-step outcomes, but miss behavior over time, edge cases, failure modes, and the gap between offline evaluation and real system quality.
+> Behavioral QA for recommender systems
 
-This repo is where that larger project lives. It will grow through a sequence of studies, demos, notebooks, and writing pieces that each explore one part of the problem.
+This v1 is a public, reproducible test harness for comparing a baseline recommender against a candidate recommender and surfacing what aggregate offline metrics miss.
 
-## What This Repo Is
+It is built around a simple pre-launch question:
 
-This is not a collection of unrelated mini-projects.
+> Should I trust this new recommender before I ship it?
 
-It is one main project focused on:
+## The Problem
 
-- better evaluation for ML systems
-- better testing workflows for model-driven products
-- more realistic diagnostics than single aggregate metrics
-- practical demos and writing that make those ideas easy to understand
+Offline metrics like Recall@10 and NDCG@10 are useful, but they can hide important differences:
 
-## Current Structure
+- which user segments improve
+- which user segments regress
+- whether the candidate becomes more novel or more repetitive
+- whether it collapses toward head items
+- what short recommendation trajectories feel like
 
-- [studies/README.md](studies/README.md): index of the studies in this project
-- [studies/01-recommender-offline-eval](studies/01-recommender-offline-eval): the first study, about offline evaluation limits for recommender systems
-- [Makefile](Makefile): common developer commands
-- [requirements.txt](requirements.txt): shared tooling for the repo
+This repo turns that gap into one clean public proof on MovieLens 100K.
 
-Study-local datasets, caches, and generated outputs are intentionally ignored by git so the public repo stays cleaner and does not redistribute third-party data by default.
+## What The Tool Does
 
-## Study 01
+The canonical demo compares:
 
-The first study asks a concrete question:
+- `Model A`: popularity baseline
+- `Model B`: genre-profile recommender with popularity prior
 
-> What does offline evaluation miss when the system being evaluated shapes future user behavior?
+Across one fixed setup:
 
-https://dev.to/alankritverma/why-offline-evaluation-is-not-enough-for-recommendation-systems-15ii
+- MovieLens 100K
+- fixed train/test split
+- fixed 4 user buckets
+- fixed metrics
+- fixed seed/config
 
-It uses a small MovieLens-based recommender demo, a notebook walkthrough, and a linked article draft to show why aggregate offline metrics can be useful and still incomplete.
+Each run produces:
 
-## Quickstart
+- aggregate offline metrics
+- per-bucket results
+- behavioral diagnostics
+- short trajectory examples
+
+## Canonical Result
+
+The official demo currently shows the core product value clearly:
+
+- aggregate offline metrics favor `Model A`
+- the bucketed view shows `Model B` is much stronger for Explorer and Niche-interest users
+- `Model B` is more novel and less catalog-concentrated
+
+That is the hidden-tradeoff insight this tool is designed to catch.
+
+![Bucket utility comparison](studies/01-recommender-offline-eval/artifacts/canonical/bucket_utility_comparison.svg)
+
+Official artifact bundle:
+
+- [Report](studies/01-recommender-offline-eval/artifacts/canonical/official_demo_report.md)
+- [JSON results](studies/01-recommender-offline-eval/artifacts/canonical/official_demo_results.json)
+- [Chart](studies/01-recommender-offline-eval/artifacts/canonical/bucket_utility_comparison.svg)
+
+## Buckets
+
+- `Conservative mainstream`: prefers familiar, high-exposure items and tolerates safe recommendations.
+- `Explorer / novelty-seeking`: values discovery and variety, and rewards less familiar items.
+- `Niche-interest`: benefits when the model can match narrower parts of the catalog.
+- `Low-patience`: needs good recommendations quickly and degrades faster under stale sequences.
+
+## Run It
+
+Script path:
 
 ```bash
 python3 -m venv .venv
@@ -45,20 +80,36 @@ make install
 make run
 ```
 
-Open the current notebook:
+Notebook path:
 
 ```bash
 make notebook
+```
+
+Refresh the committed canonical bundle:
+
+```bash
+make canonical
 ```
 
 Run checks:
 
 ```bash
 make lint
+make test
 ```
 
-## Where This Is Going
+## Repo Guide
 
-The recommender write-up and demo are only the first slice of the project.
+- [studies/01-recommender-offline-eval](studies/01-recommender-offline-eval): study-local README, notebook, code, and artifact links
+- [studies/01-recommender-offline-eval/docs/v1-product-spec.md](studies/01-recommender-offline-eval/docs/v1-product-spec.md): locked product spec
+- [studies/README.md](studies/README.md): study index
+- [Makefile](Makefile): common commands
 
-Over time, this repo is meant to expand into a broader body of work around ML testing, including richer evaluation setups, stress tests, trajectory-aware diagnostics, and eventually more automated ways to test ML algorithms and ML-driven product behavior.
+Study-local `data/`, cache, and scratch `output/` directories stay ignored by git. The committed proof lives in `studies/01-recommender-offline-eval/artifacts/canonical/`.
+
+## Background
+
+The earlier write-up that motivated this direction is here:
+
+https://dev.to/alankritverma/why-offline-evaluation-is-not-enough-for-recommendation-systems-15ii

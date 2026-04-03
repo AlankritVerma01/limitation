@@ -1,9 +1,25 @@
-# Study 01: Recommender Offline Eval
+# Study 01: Recommender Behavior QA
 
-This project is a small, reproducible case study for a larger point: aggregate offline ranking metrics are useful, but they do not fully capture recommender quality when behavior unfolds over interaction trajectories.
+This study is the public v1 of the repository: a small, reproducible recommender evaluation tool that compares a baseline model against a candidate model and highlights what aggregate offline metrics miss.
+
+It is designed to help recommender, ranking, and ML engineers answer a pre-launch question:
+
+> Should I trust this new recommender before I ship it?
+
+The study keeps the scope intentionally narrow:
+
+- MovieLens as the first public dataset
+- exactly 2 models: baseline vs candidate
+- fixed user buckets
+- short trajectory diagnostics
+- one clean comparison report
+
+The canonical Phase 1 result is committed under `artifacts/canonical/` so the public proof can be read without rerunning the pipeline.
 
 ## Contents
 
+- [artifacts/canonical](artifacts/canonical): official report, JSON, and chart bundle
+- [docs/v1-product-spec.md](docs/v1-product-spec.md): locked product spec for the public tool
 - [docs/article-draft.md](docs/article-draft.md): article draft
 - [docs/article-outline.md](docs/article-outline.md): article structure and notes
 - [docs/project-brief.md](docs/project-brief.md): original brief
@@ -14,7 +30,17 @@ This project is a small, reproducible case study for a larger point: aggregate o
 Local-only directories:
 
 - `data/`: MovieLens dataset download/extract location
-- `output/`: generated report, metrics, and chart
+- `output/`: local generated report, metrics, and chart scratch space
+
+## What The Run Should Show
+
+Each run should make it easy to see:
+
+- who wins on Recall@10 and NDCG@10
+- which user buckets improve or regress
+- whether the candidate is more novel, repetitive, or head-heavy
+- where aggregate metrics hide important tradeoffs
+- what a few short example trajectories look like
 
 ## Run
 
@@ -28,6 +54,12 @@ Or directly:
 
 ```bash
 PYTHONPATH=studies/01-recommender-offline-eval/src .venv/bin/python -m recommender_offline_eval
+```
+
+Refresh the committed canonical bundle:
+
+```bash
+make canonical
 ```
 
 ## Notebook
