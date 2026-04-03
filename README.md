@@ -32,6 +32,8 @@ The first study asks a concrete question:
 
 > What does offline evaluation miss when the system being evaluated shapes future user behavior?
 
+https://dev.to/alankritverma/why-offline-evaluation-is-not-enough-for-recommendation-systems-15ii
+
 It uses a small MovieLens-based recommender demo, a notebook walkthrough, and a linked article draft to show why aggregate offline metrics can be useful and still incomplete.
 
 ## Quickstart
