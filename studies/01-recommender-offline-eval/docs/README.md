@@ -3,6 +3,7 @@
 This folder holds the writing and planning materials for the recommender behavior QA study.
 
 - [v1-product-spec.md](v1-product-spec.md): locked product spec for the public v1 tool
+- [dataset-schema.md](dataset-schema.md): CSV dataset contract for custom runs
 - [article-draft.md](article-draft.md): current article draft
 - [article-outline.md](article-outline.md): detailed structure and section notes
 - [project-brief.md](project-brief.md): original brief and scope

@@ -1,0 +1,32 @@
+{
+  "dataset": {
+    "type": "movielens_100k",
+    "name": "MovieLens 100K",
+    "dataset_id": "movielens-100k"
+  },
+  "baseline_model": {
+    "type": "popularity",
+    "label": "Popularity baseline",
+    "params": {}
+  },
+  "candidate_model": {
+    "type": "genre_profile",
+    "label": "Genre-profile recommender with popularity prior",
+    "params": {
+      "popularity_weight": 0.25,
+      "diversity_weight": 0.35,
+      "shortlist_size": 75
+    }
+  },
+  "output_dir": "../output",
+  "artifact_mode": "canonical",
+  "seed": 0,
+  "top_k": 10,
+  "session_steps": 4,
+  "slate_size": 10,
+  "choice_pool": 5,
+  "positive_rating_threshold": 4,
+  "min_user_ratings": 10,
+  "min_user_positive_ratings": 5,
+  "test_holdout_positive_count": 2
+}

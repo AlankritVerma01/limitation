@@ -1,0 +1,32 @@
+{
+  "dataset": {
+    "type": "csv",
+    "name": "Sample CSV Recommender Dataset",
+    "dataset_id": "sample-csv-dataset",
+    "path": "../tests/fixtures/sample_csv_dataset"
+  },
+  "baseline_model": {
+    "type": "popularity",
+    "label": "Popularity baseline",
+    "params": {}
+  },
+  "candidate_model": {
+    "type": "genre_profile",
+    "label": "Feature-aware candidate",
+    "params": {
+      "popularity_weight": 0.15,
+      "diversity_weight": 0.25,
+      "shortlist_size": 20
+    }
+  },
+  "output_dir": "../output/custom_csv_example",
+  "seed": 0,
+  "top_k": 10,
+  "session_steps": 4,
+  "slate_size": 10,
+  "choice_pool": 5,
+  "positive_rating_threshold": 4,
+  "min_user_ratings": 10,
+  "min_user_positive_ratings": 5,
+  "test_holdout_positive_count": 2
+}
