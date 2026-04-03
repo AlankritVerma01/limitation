@@ -1,0 +1,16 @@
+item_id,title,feature_action,feature_romance,feature_documentary,editorial_tag
+1,Action One,1,0,0,mainstream
+2,Action Two,1,0,0,mainstream
+3,Action Three,1,0,0,mainstream
+4,Action Four,1,0,0,tail
+5,Action Five,1,0,0,tail
+6,Romance One,0,1,0,mainstream
+7,Romance Two,0,1,0,mainstream
+8,Romance Three,0,1,0,tail
+9,Romance Four,0,1,0,tail
+10,Romance Five,0,1,0,tail
+11,Doc One,0,0,1,mainstream
+12,Doc Two,0,0,1,mainstream
+13,Doc Three,0,0,1,tail
+14,Doc Four,0,0,1,tail
+15,Doc Five,0,0,1,tail
