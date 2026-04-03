@@ -1,3 +1,5 @@
+"""Built-in recommenders used by the evaluation tool."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -11,17 +13,20 @@ class Recommender(ABC):
         self.name = name
         self.items = None
         self.user_seen_items = {}
+        self.item_feature_columns: list[str] = []
 
     def fit(
         self,
         train_ratings: pd.DataFrame,
         items: pd.DataFrame,
         user_profiles: dict[int, np.ndarray],
+        item_feature_columns: list[str] | None = None,
     ) -> "Recommender":
         self.items = items.set_index("item_id").copy()
         self.user_seen_items = (
             train_ratings.groupby("user_id")["item_id"].apply(set).to_dict()
         )
+        self.item_feature_columns = list(item_feature_columns or [])
         return self
 
     @abstractmethod
@@ -62,8 +67,8 @@ class Recommender(ABC):
 
 
 class PopularityRecommender(Recommender):
-    def __init__(self) -> None:
-        super().__init__(name="Model A")
+    def __init__(self, name: str = "Model A") -> None:
+        super().__init__(name=name)
         self.popularity_lookup = {}
 
     def fit(
@@ -71,8 +76,14 @@ class PopularityRecommender(Recommender):
         train_ratings: pd.DataFrame,
         items: pd.DataFrame,
         user_profiles: dict[int, np.ndarray],
+        item_feature_columns: list[str] | None = None,
     ) -> "PopularityRecommender":
-        super().fit(train_ratings, items, user_profiles)
+        super().fit(
+            train_ratings,
+            items,
+            user_profiles,
+            item_feature_columns=item_feature_columns,
+        )
         self.popularity_lookup = self.items["popularity_norm"].to_dict()
         return self
 
@@ -89,17 +100,18 @@ class PopularityRecommender(Recommender):
 class GenreProfileRecommender(Recommender):
     def __init__(
         self,
+        name: str = "Model B",
         popularity_weight: float = 0.25,
         diversity_weight: float = 0.35,
         shortlist_size: int = 75,
     ) -> None:
-        super().__init__(name="Model B")
+        super().__init__(name=name)
         self.popularity_weight = popularity_weight
         self.diversity_weight = diversity_weight
         self.shortlist_size = shortlist_size
         self.user_profiles = {}
         self.item_positions = {}
-        self.genre_matrix = None
+        self.feature_matrix = None
         self.popularity_vector = None
 
     def fit(
@@ -107,30 +119,29 @@ class GenreProfileRecommender(Recommender):
         train_ratings: pd.DataFrame,
         items: pd.DataFrame,
         user_profiles: dict[int, np.ndarray],
+        item_feature_columns: list[str] | None = None,
     ) -> "GenreProfileRecommender":
-        super().fit(train_ratings, items, user_profiles)
+        super().fit(
+            train_ratings,
+            items,
+            user_profiles,
+            item_feature_columns=item_feature_columns,
+        )
         self.user_profiles = user_profiles
         item_ids = [int(item_id) for item_id in self.items.index.tolist()]
         self.item_positions = {item_id: idx for idx, item_id in enumerate(item_ids)}
-        genre_cols = [
-            column
-            for column in self.items.columns
-            if column
-            not in {
-                "title",
-                "popularity_count",
-                "popularity_norm",
-                "top_popularity_decile",
-            }
-        ]
-        genre_cols = [column for column in genre_cols if column != "item_id"]
-        genre_cols = [
-            column for column in genre_cols if self.items[column].dtype != object
-        ]
-        self.genre_matrix = self.items.loc[item_ids, genre_cols].to_numpy(dtype=float)
-        norms = np.linalg.norm(self.genre_matrix, axis=1, keepdims=True)
+        feature_columns = list(item_feature_columns or self.item_feature_columns)
+        if not feature_columns:
+            raise ValueError(
+                "genre_profile requires at least one numeric or boolean item feature "
+                "column in items.csv."
+            )
+        self.feature_matrix = self.items.loc[item_ids, feature_columns].to_numpy(
+            dtype=float
+        )
+        norms = np.linalg.norm(self.feature_matrix, axis=1, keepdims=True)
         safe_norms = np.where(norms == 0, 1.0, norms)
-        self.genre_matrix = self.genre_matrix / safe_norms
+        self.feature_matrix = self.feature_matrix / safe_norms
         self.popularity_vector = self.items.loc[item_ids, "popularity_norm"].to_numpy(
             dtype=float
         )
@@ -139,11 +150,11 @@ class GenreProfileRecommender(Recommender):
     def score_user(self, user_id: int, candidate_item_ids: list[int]) -> np.ndarray:
         profile = self.user_profiles.get(user_id)
         if profile is None:
-            profile = np.zeros(self.genre_matrix.shape[1], dtype=float)
+            profile = np.zeros(self.feature_matrix.shape[1], dtype=float)
         candidate_positions = [
             self.item_positions[item_id] for item_id in candidate_item_ids
         ]
-        candidate_matrix = self.genre_matrix[candidate_positions]
+        candidate_matrix = self.feature_matrix[candidate_positions]
         popularity = self.popularity_vector[candidate_positions]
         affinity = candidate_matrix @ profile
         return affinity + self.popularity_weight * popularity
@@ -183,9 +194,7 @@ class GenreProfileRecommender(Recommender):
             best_index = 0
             best_score = None
             for index, row in enumerate(remaining):
-                item_vector = self.genre_matrix[
-                    self.item_positions[int(row["item_id"])]
-                ]
+                item_vector = self.feature_matrix[self.item_positions[int(row["item_id"])]]
                 diversity_penalty = 0.0
                 if selected_vectors:
                     diversity_penalty = float(
@@ -205,7 +214,7 @@ class GenreProfileRecommender(Recommender):
             chosen["score"] = best_score
             selected_rows.append(chosen)
             selected_vectors.append(
-                self.genre_matrix[self.item_positions[int(chosen["item_id"])]]
+                self.feature_matrix[self.item_positions[int(chosen["item_id"])]]
             )
 
         return pd.DataFrame(selected_rows)[["item_id", "score", "title"]]
