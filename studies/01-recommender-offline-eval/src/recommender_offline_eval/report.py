@@ -1,3 +1,9 @@
+"""Public artifact rendering for recommender evaluation runs.
+
+This module converts evaluated metrics into the stable public outputs: markdown,
+JSON, and one reusable SVG chart.
+"""
+
 from __future__ import annotations
 
 # ruff: noqa: E402
@@ -11,8 +17,8 @@ from .canonical import (
     BUCKET_ORDER,
     CANONICAL_RUN_CONFIG,
     METRIC_DEFINITIONS,
-    MODEL_LABELS,
 )
+from .config import EvaluationConfig
 from .paths import DEFAULT_CACHE_DIR, DEFAULT_OUTPUT_DIR
 
 cache_root = DEFAULT_CACHE_DIR
@@ -32,8 +38,32 @@ import numpy as np
 import pandas as pd
 
 CHART_FILENAME = "bucket_utility_comparison.svg"
-JSON_FILENAME = "official_demo_results.json"
-REPORT_FILENAME = "official_demo_report.md"
+DEFAULT_JSON_FILENAME = "results.json"
+DEFAULT_REPORT_FILENAME = "report.md"
+CANONICAL_JSON_FILENAME = "official_demo_results.json"
+CANONICAL_REPORT_FILENAME = "official_demo_report.md"
+
+
+def _is_canonical_run(config: EvaluationConfig) -> bool:
+    return config.artifact_mode == "canonical"
+
+
+def artifact_filenames(config: EvaluationConfig) -> dict[str, str]:
+    if _is_canonical_run(config):
+        return {
+            "chart": CHART_FILENAME,
+            "json": CANONICAL_JSON_FILENAME,
+            "report": CANONICAL_REPORT_FILENAME,
+        }
+    return {
+        "chart": CHART_FILENAME,
+        "json": DEFAULT_JSON_FILENAME,
+        "report": DEFAULT_REPORT_FILENAME,
+    }
+
+
+def _model_label(metrics: dict, model_name: str) -> str:
+    return metrics["model_specs"][model_name]["label"]
 
 
 def aggregate_metrics_table(metrics: dict) -> pd.DataFrame:
@@ -87,10 +117,7 @@ def _frame_rows(frame: pd.DataFrame) -> list[dict]:
     for record in frame.to_dict(orient="records"):
         rendered = {}
         for key, value in record.items():
-            if isinstance(value, float):
-                rendered[key] = round(value, 6)
-            else:
-                rendered[key] = value
+            rendered[key] = round(value, 6) if isinstance(value, float) else value
         rows.append(rendered)
     return rows
 
@@ -102,10 +129,7 @@ def _markdown_table(frame: pd.DataFrame) -> str:
         rendered = []
         for header in headers:
             value = record[header]
-            if isinstance(value, float):
-                rendered.append(f"{value:.3f}")
-            else:
-                rendered.append(str(value))
+            rendered.append(f"{value:.3f}" if isinstance(value, float) else str(value))
         rows.append(rendered)
     return "\n".join("| " + " | ".join(row) + " |" for row in rows)
 
@@ -119,23 +143,40 @@ def _json_default(value):
 
 
 def _bucket_glossary_lines() -> list[str]:
-    lines = []
-    for bucket_name in BUCKET_ORDER:
-        lines.append(f"- **{bucket_name}**: {BUCKET_DESCRIPTIONS[bucket_name]}")
-    return lines
+    return [
+        f"- **{bucket_name}**: {BUCKET_DESCRIPTIONS[bucket_name]}"
+        for bucket_name in BUCKET_ORDER
+    ]
 
 
 def _metric_definition_lines(metric_names: list[str]) -> list[str]:
     return [f"- **{name}**: {METRIC_DEFINITIONS[name]}" for name in metric_names]
 
 
-def _trace_markdown(example: dict) -> str:
+def _run_summary_paragraph(metrics: dict, config: EvaluationConfig) -> str:
+    baseline_label = _model_label(metrics, "Model A")
+    candidate_label = _model_label(metrics, "Model B")
+    if _is_canonical_run(config):
+        return (
+            f"This canonical Phase 1 run evaluates {config.dataset.name} with Model A "
+            f"({baseline_label}) and Model B ({candidate_label}) across the fixed four "
+            "user buckets to show where aggregate offline metrics hide segment-level "
+            "and behavioral tradeoffs."
+        )
+    return (
+        f"This run evaluates {config.dataset.name} with Model A ({baseline_label}) and "
+        f"Model B ({candidate_label}) across the fixed four user buckets using the same "
+        "behavioral QA report structure as the canonical demo."
+    )
+
+
+def _trace_markdown(example: dict, metrics: dict) -> str:
     lines = [
         f"### {example['bucket']} (user {example['user_id']}, delta {example['utility_delta']:.3f})",
         "",
     ]
     for model_name in ["Model A", "Model B"]:
-        lines.append(f"**{model_name} — {MODEL_LABELS[model_name]}**")
+        lines.append(f"**{model_name} — {_model_label(metrics, model_name)}**")
         lines.append("")
         lines.append(
             "| Step | Title | Utility | Affinity | Popularity | Novelty | Repetition penalty |"
@@ -192,26 +233,25 @@ def _plot_bucket_comparison(metrics: dict, output_path: Path) -> None:
     )
     plt.close(fig)
 
+    # Strip volatile metadata so the committed canonical SVG stays diff-stable.
     svg = output_path.read_text()
     svg = re.sub(r"<metadata>.*?</metadata>", "", svg, flags=re.DOTALL)
     output_path.write_text(svg)
 
 
-def build_public_results(metrics: dict, config=CANONICAL_RUN_CONFIG) -> dict:
-    aggregate_df = aggregate_metrics_table(metrics)
-    bucket_df = bucket_comparison_table(metrics)
-    behavior_df = behavior_metrics_table(metrics)
-
-    run_summary = {
-        "paragraph": (
-            f"This canonical Phase 1 run evaluates {config.dataset_name} with Model A "
-            f"({MODEL_LABELS['Model A']}) and Model B ({MODEL_LABELS['Model B']}) "
-            f"across the fixed four user buckets to show where aggregate offline metrics "
-            "hide segment-level and behavioral tradeoffs."
-        ),
-        "dataset": config.dataset_name,
-        "dataset_stats": metrics["dataset"],
-        "models": MODEL_LABELS,
+def _run_summary(metrics: dict, config: EvaluationConfig) -> dict:
+    dataset_source = metrics["dataset_source"]
+    return {
+        "paragraph": _run_summary_paragraph(metrics, config),
+        "dataset": config.dataset.name,
+        "dataset_type": dataset_source["dataset_type"],
+        "dataset_id": dataset_source["dataset_id"],
+        "dataset_path": dataset_source["dataset_path"],
+        "dataset_stats": metrics["dataset_summary"],
+        "models": {
+            "Model A": metrics["model_specs"]["Model A"],
+            "Model B": metrics["model_specs"]["Model B"],
+        },
         "buckets": [
             {"name": bucket_name, "description": BUCKET_DESCRIPTIONS[bucket_name]}
             for bucket_name in BUCKET_ORDER
@@ -222,22 +262,39 @@ def build_public_results(metrics: dict, config=CANONICAL_RUN_CONFIG) -> dict:
         ),
     }
 
-    reproducibility = {
-        "dataset": config.dataset_name,
+
+def _reproducibility_summary(metrics: dict, config: EvaluationConfig) -> dict:
+    dataset_source = metrics["dataset_source"]
+    return {
+        "dataset": config.dataset.name,
+        "dataset_type": dataset_source["dataset_type"],
+        "dataset_id": dataset_source["dataset_id"],
+        "dataset_path": dataset_source["dataset_path"],
         "fixed_buckets": BUCKET_ORDER,
-        "fixed_config": {
+        "baseline_model": metrics["model_specs"]["Model A"],
+        "candidate_model": metrics["model_specs"]["Model B"],
+        "effective_config": {
             "top_k": config.top_k,
             "session_steps": config.session_steps,
             "slate_size": config.slate_size,
             "choice_pool": config.choice_pool,
-            "popularity_weight": config.popularity_weight,
-            "diversity_weight": config.diversity_weight,
-            "shortlist_size": config.shortlist_size,
-            "train_test_split": config.train_test_split,
-            "eligibility_rule": config.eligibility_rule,
+            "positive_rating_threshold": config.positive_rating_threshold,
+            "min_user_ratings": config.min_user_ratings,
+            "min_user_positive_ratings": config.min_user_positive_ratings,
+            "test_holdout_positive_count": config.test_holdout_positive_count,
         },
         "seed": config.seed,
     }
+
+
+def build_public_results(
+    metrics: dict,
+    config: EvaluationConfig = CANONICAL_RUN_CONFIG,
+) -> dict:
+    aggregate_df = aggregate_metrics_table(metrics)
+    bucket_df = bucket_comparison_table(metrics)
+    behavior_df = behavior_metrics_table(metrics)
+    run_summary = _run_summary(metrics, config)
 
     return {
         "run_summary": run_summary,
@@ -266,34 +323,31 @@ def build_public_results(metrics: dict, config=CANONICAL_RUN_CONFIG) -> dict:
         },
         "key_takeaways": list(metrics["summaries"]),
         "trace_examples": metrics["trace_examples"],
-        "reproducibility": reproducibility,
+        "reproducibility": _reproducibility_summary(metrics, config),
     }
 
 
-def generate_report(
-    metrics: dict,
-    output_dir: str | Path = DEFAULT_OUTPUT_DIR,
-    config=CANONICAL_RUN_CONFIG,
-) -> dict:
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    aggregate_df = aggregate_metrics_table(metrics)
-    bucket_df = bucket_comparison_table(metrics)
-    behavior_df = behavior_metrics_table(metrics)
-    public_results = build_public_results(metrics=metrics, config=config)
-
-    chart_path = output_path / CHART_FILENAME
-    metrics_path = output_path / JSON_FILENAME
-    report_path = output_path / REPORT_FILENAME
-
-    _plot_bucket_comparison(metrics, chart_path)
-    metrics_path.write_text(
-        json.dumps(public_results, indent=2, default=_json_default) + "\n"
+def _report_title(config: EvaluationConfig) -> str:
+    return (
+        "# Official MovieLens Demo"
+        if _is_canonical_run(config)
+        else "# Recommender Evaluation Report"
     )
 
+
+def _render_markdown_report(
+    *,
+    metrics: dict,
+    public_results: dict,
+    aggregate_df: pd.DataFrame,
+    bucket_df: pd.DataFrame,
+    behavior_df: pd.DataFrame,
+    chart_name: str,
+    config: EvaluationConfig,
+) -> str:
+    dataset_path = public_results["reproducibility"]["dataset_path"] or "built-in dataset"
     sections = [
-        "# Official MovieLens Demo",
+        _report_title(config),
         "",
         "## Run summary",
         "",
@@ -326,38 +380,76 @@ def generate_report(
             "",
             _markdown_table(behavior_df),
             "",
-            f"See `{chart_path.name}` for the canonical bucket utility comparison chart.",
+            f"See `{chart_name}` for the bucket utility comparison chart.",
             "",
         ]
     )
     sections.extend(
-        _metric_definition_lines(
-            ["Novelty", "Repetition", "Catalog concentration"]
-        )
+        _metric_definition_lines(["Novelty", "Repetition", "Catalog concentration"])
     )
     sections.extend(["", "## Key takeaways", ""])
     sections.extend([f"- {summary}" for summary in public_results["key_takeaways"]])
     sections.extend(["", "## Short traces", ""])
-    sections.extend(_trace_markdown(example) for example in public_results["trace_examples"])
+    sections.extend(
+        _trace_markdown(example, metrics) for example in public_results["trace_examples"]
+    )
     sections.extend(
         [
             "## Reproducibility note",
             "",
-            f"- Fixed dataset: {config.dataset_name}",
+            f"- Dataset: {public_results['reproducibility']['dataset']} ({public_results['reproducibility']['dataset_type']})",
+            f"- Dataset id: {public_results['reproducibility']['dataset_id']}",
+            f"- Dataset path: {dataset_path}",
             f"- Fixed buckets: {', '.join(BUCKET_ORDER)}",
-            "- Fixed config: "
+            "- Effective config: "
             f"top_k={config.top_k}, session_steps={config.session_steps}, "
             f"slate_size={config.slate_size}, choice_pool={config.choice_pool}, "
-            f"popularity_weight={config.popularity_weight}, "
-            f"diversity_weight={config.diversity_weight}, "
-            f"shortlist_size={config.shortlist_size}",
-            f"- Fixed split: {config.train_test_split}",
+            f"positive_rating_threshold={config.positive_rating_threshold}, "
+            f"min_user_ratings={config.min_user_ratings}, "
+            f"min_user_positive_ratings={config.min_user_positive_ratings}, "
+            f"test_holdout_positive_count={config.test_holdout_positive_count}",
+            f"- Baseline model: {_model_label(metrics, 'Model A')} ({metrics['model_specs']['Model A']['type']})",
+            f"- Candidate model: {_model_label(metrics, 'Model B')} ({metrics['model_specs']['Model B']['type']})",
             f"- Fixed seed: {config.seed}",
             "",
         ]
     )
+    return "\n".join(sections)
 
-    report_path.write_text("\n".join(sections))
+
+def generate_report(
+    metrics: dict,
+    output_dir: str | Path = DEFAULT_OUTPUT_DIR,
+    config: EvaluationConfig = CANONICAL_RUN_CONFIG,
+) -> dict:
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    filenames = artifact_filenames(config)
+    aggregate_df = aggregate_metrics_table(metrics)
+    bucket_df = bucket_comparison_table(metrics)
+    behavior_df = behavior_metrics_table(metrics)
+    public_results = build_public_results(metrics=metrics, config=config)
+
+    chart_path = output_path / filenames["chart"]
+    metrics_path = output_path / filenames["json"]
+    report_path = output_path / filenames["report"]
+
+    _plot_bucket_comparison(metrics, chart_path)
+    metrics_path.write_text(
+        json.dumps(public_results, indent=2, default=_json_default) + "\n"
+    )
+    report_path.write_text(
+        _render_markdown_report(
+            metrics=metrics,
+            public_results=public_results,
+            aggregate_df=aggregate_df,
+            bucket_df=bucket_df,
+            behavior_df=behavior_df,
+            chart_name=chart_path.name,
+            config=config,
+        )
+    )
 
     return {
         "aggregate_table": aggregate_df,

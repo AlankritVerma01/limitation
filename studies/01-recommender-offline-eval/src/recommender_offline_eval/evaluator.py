@@ -1,3 +1,5 @@
+"""Metric computation and trace selection for recommender comparisons."""
+
 from __future__ import annotations
 
 import math
@@ -113,37 +115,61 @@ def _summary_sentences(metrics: dict) -> list[str]:
 
     a_aggregate = model_a["aggregate"]
     b_aggregate = model_b["aggregate"]
+    baseline_label = metrics["model_specs"]["Model A"]["label"]
+    candidate_label = metrics["model_specs"]["Model B"]["label"]
     if (
         a_aggregate["recall_at_10"] >= b_aggregate["recall_at_10"]
         and a_aggregate["ndcg_at_10"] >= b_aggregate["ndcg_at_10"]
     ):
         summaries.append(
-            "Aggregate offline metrics favor Model A, which posts higher Recall@10 "
+            f"Aggregate offline metrics favor Model A ({baseline_label}), which posts higher Recall@10 "
             f"({a_aggregate['recall_at_10']:.3f} vs {b_aggregate['recall_at_10']:.3f}) "
             f"and NDCG@10 ({a_aggregate['ndcg_at_10']:.3f} vs {b_aggregate['ndcg_at_10']:.3f})."
         )
+    elif (
+        b_aggregate["recall_at_10"] >= a_aggregate["recall_at_10"]
+        and b_aggregate["ndcg_at_10"] >= a_aggregate["ndcg_at_10"]
+    ):
+        summaries.append(
+            f"Aggregate offline metrics favor Model B ({candidate_label}), which posts higher Recall@10 "
+            f"({b_aggregate['recall_at_10']:.3f} vs {a_aggregate['recall_at_10']:.3f}) "
+            f"and NDCG@10 ({b_aggregate['ndcg_at_10']:.3f} vs {a_aggregate['ndcg_at_10']:.3f})."
+        )
     else:
         summaries.append(
-            "Aggregate offline metrics do not cleanly favor Model A; inspect the table "
-            "before using this run as the canonical Phase 1 proof."
+            f"Aggregate offline metrics are mixed between Model A ({baseline_label}) and "
+            f"Model B ({candidate_label}); inspect Recall@10 and NDCG@10 together."
         )
 
-    strongest_bucket = max(
-        BUCKET_ORDER,
-        key=lambda bucket_name: (
+    deltas_by_bucket = {
+        bucket_name: (
             model_b["buckets"][bucket_name]["bucket_mean_utility"]
-            - model_a["buckets"][bucket_name]["bucket_mean_utility"],
-            -BUCKET_ORDER.index(bucket_name),
-        ),
-    )
-    strongest_delta = (
-        model_b["buckets"][strongest_bucket]["bucket_mean_utility"]
-        - model_a["buckets"][strongest_bucket]["bucket_mean_utility"]
-    )
-    summaries.append(
-        f"Model B's strongest segment win is {strongest_bucket}, where bucket utility "
-        f"improves by {strongest_delta:.3f}."
-    )
+            - model_a["buckets"][bucket_name]["bucket_mean_utility"]
+        )
+        for bucket_name in BUCKET_ORDER
+    }
+    positive_bucket_deltas = {
+        bucket_name: delta
+        for bucket_name, delta in deltas_by_bucket.items()
+        if delta > 0
+    }
+    if positive_bucket_deltas:
+        strongest_bucket = max(
+            BUCKET_ORDER,
+            key=lambda bucket_name: (
+                positive_bucket_deltas.get(bucket_name, float("-inf")),
+                -BUCKET_ORDER.index(bucket_name),
+            ),
+        )
+        summaries.append(
+            f"Model B ({candidate_label}) posts its strongest segment win in {strongest_bucket}, "
+            f"where bucket utility improves by {positive_bucket_deltas[strongest_bucket]:.3f}."
+        )
+    else:
+        summaries.append(
+            f"Model B ({candidate_label}) does not improve bucket utility over Model A "
+            f"({baseline_label}) in any fixed bucket in this run."
+        )
 
     repetition_delta = (
         b_aggregate["repetition_score"] - a_aggregate["repetition_score"]
@@ -156,7 +182,8 @@ def _summary_sentences(metrics: dict) -> list[str]:
         else "matched repetition"
     )
     summaries.append(
-        "Behaviorally, Model B increases novelty "
+        f"Behaviorally, Model B ({candidate_label}) "
+        "increases novelty "
         f"({b_aggregate['novelty_score']:.3f} vs {a_aggregate['novelty_score']:.3f}), "
         f"reduces catalog concentration ({b_aggregate['catalog_concentration']:.3f} vs "
         f"{a_aggregate['catalog_concentration']:.3f}), and has {repetition_text} "
@@ -176,6 +203,9 @@ def _example_traces(session_results: dict) -> list[dict]:
             deltas.append((delta, user_id, result_a, result_b))
         positive_deltas = [row for row in deltas if row[0] > 0]
         chosen_rows = positive_deltas or deltas
+        # Prefer the clearest candidate win for each public trace bucket. If there is
+        # no positive win, fall back to the least-bad example with a deterministic tie
+        # break on user_id.
         delta, user_id, result_a, result_b = min(
             chosen_rows,
             key=lambda row: (-row[0], row[1]),
@@ -201,14 +231,21 @@ def _example_traces(session_results: dict) -> list[dict]:
 def evaluate_models(
     models: dict,
     dataset: dict,
+    model_specs: dict | None = None,
     k: int = 10,
     session_steps: int = CANONICAL_RUN_CONFIG.session_steps,
     slate_size: int = CANONICAL_RUN_CONFIG.slate_size,
     choice_pool: int = CANONICAL_RUN_CONFIG.choice_pool,
 ) -> dict:
     metrics = {
-        "dataset": dataset["summary"],
+        "dataset_summary": dataset["summary"],
+        "dataset_source": dataset["source"],
         "models": {},
+        "model_specs": model_specs
+        or {
+            "Model A": {"label": "Model A", "type": "unknown", "params": {}},
+            "Model B": {"label": "Model B", "type": "unknown", "params": {}},
+        },
     }
 
     session_results: dict[str, dict[str, dict[int, SessionResult]]] = {
