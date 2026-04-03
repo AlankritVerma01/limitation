@@ -39,7 +39,7 @@ Bucket glossary:
 | Model A | 0.395 | 0.279 | 1.000 |
 | Model B | 0.678 | 0.664 | 0.717 |
 
-See `bucket_utility_comparison.svg` for the canonical bucket utility comparison chart.
+See `bucket_utility_comparison.svg` for the bucket utility comparison chart.
 
 - **Novelty**: Mean of 1 - popularity_norm over recommended or consumed items.
 - **Repetition**: Mean similarity to the user's recent consumed items.
@@ -47,9 +47,9 @@ See `bucket_utility_comparison.svg` for the canonical bucket utility comparison 
 
 ## Key takeaways
 
-- Aggregate offline metrics favor Model A, which posts higher Recall@10 (0.088 vs 0.058) and NDCG@10 (0.057 vs 0.036).
-- Model B's strongest segment win is Niche-interest, where bucket utility improves by 0.279.
-- Behaviorally, Model B increases novelty (0.678 vs 0.395), reduces catalog concentration (0.717 vs 1.000), and has higher repetition (0.664 vs 0.279).
+- Aggregate offline metrics favor Model A (Popularity baseline), which posts higher Recall@10 (0.088 vs 0.058) and NDCG@10 (0.057 vs 0.036).
+- Model B (Genre-profile recommender with popularity prior) posts its strongest segment win in Niche-interest, where bucket utility improves by 0.279.
+- Behaviorally, Model B (Genre-profile recommender with popularity prior) increases novelty (0.678 vs 0.395), reduces catalog concentration (0.717 vs 1.000), and has higher repetition (0.664 vs 0.279).
 
 ## Short traces
 
@@ -115,8 +115,11 @@ See `bucket_utility_comparison.svg` for the canonical bucket utility comparison 
 
 ## Reproducibility note
 
-- Fixed dataset: MovieLens 100K
+- Dataset: MovieLens 100K (movielens_100k)
+- Dataset id: movielens-100k
+- Dataset path: built-in dataset
 - Fixed buckets: Conservative mainstream, Explorer / novelty-seeking, Niche-interest, Low-patience
-- Fixed config: top_k=10, session_steps=4, slate_size=10, choice_pool=5, popularity_weight=0.25, diversity_weight=0.35, shortlist_size=75
-- Fixed split: Chronological split with each eligible user's last 2 positive interactions held out.
+- Effective config: top_k=10, session_steps=4, slate_size=10, choice_pool=5, positive_rating_threshold=4, min_user_ratings=10, min_user_positive_ratings=5, test_holdout_positive_count=2
+- Baseline model: Popularity baseline (popularity)
+- Candidate model: Genre-profile recommender with popularity prior (genre_profile)
 - Fixed seed: 0

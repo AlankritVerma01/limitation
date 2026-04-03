@@ -2,6 +2,9 @@
   "run_summary": {
     "paragraph": "This canonical Phase 1 run evaluates MovieLens 100K with Model A (Popularity baseline) and Model B (Genre-profile recommender with popularity prior) across the fixed four user buckets to show where aggregate offline metrics hide segment-level and behavioral tradeoffs.",
     "dataset": "MovieLens 100K",
+    "dataset_type": "movielens_100k",
+    "dataset_id": "movielens-100k",
+    "dataset_path": null,
     "dataset_stats": {
       "ratings": 99893,
       "train_ratings": 98017,
@@ -10,8 +13,20 @@
       "items": 1682
     },
     "models": {
-      "Model A": "Popularity baseline",
-      "Model B": "Genre-profile recommender with popularity prior"
+      "Model A": {
+        "type": "popularity",
+        "label": "Popularity baseline",
+        "params": {}
+      },
+      "Model B": {
+        "type": "genre_profile",
+        "label": "Genre-profile recommender with popularity prior",
+        "params": {
+          "popularity_weight": 0.25,
+          "diversity_weight": 0.35,
+          "shortlist_size": 75
+        }
+      }
     },
     "buckets": [
       {
@@ -121,9 +136,9 @@
     "chart": "bucket_utility_comparison.svg"
   },
   "key_takeaways": [
-    "Aggregate offline metrics favor Model A, which posts higher Recall@10 (0.088 vs 0.058) and NDCG@10 (0.057 vs 0.036).",
-    "Model B's strongest segment win is Niche-interest, where bucket utility improves by 0.279.",
-    "Behaviorally, Model B increases novelty (0.678 vs 0.395), reduces catalog concentration (0.717 vs 1.000), and has higher repetition (0.664 vs 0.279)."
+    "Aggregate offline metrics favor Model A (Popularity baseline), which posts higher Recall@10 (0.088 vs 0.058) and NDCG@10 (0.057 vs 0.036).",
+    "Model B (Genre-profile recommender with popularity prior) posts its strongest segment win in Niche-interest, where bucket utility improves by 0.279.",
+    "Behaviorally, Model B (Genre-profile recommender with popularity prior) increases novelty (0.678 vs 0.395), reduces catalog concentration (0.717 vs 1.000), and has higher repetition (0.664 vs 0.279)."
   ],
   "trace_examples": [
     {
@@ -390,22 +405,38 @@
   ],
   "reproducibility": {
     "dataset": "MovieLens 100K",
+    "dataset_type": "movielens_100k",
+    "dataset_id": "movielens-100k",
+    "dataset_path": null,
     "fixed_buckets": [
       "Conservative mainstream",
       "Explorer / novelty-seeking",
       "Niche-interest",
       "Low-patience"
     ],
-    "fixed_config": {
+    "baseline_model": {
+      "type": "popularity",
+      "label": "Popularity baseline",
+      "params": {}
+    },
+    "candidate_model": {
+      "type": "genre_profile",
+      "label": "Genre-profile recommender with popularity prior",
+      "params": {
+        "popularity_weight": 0.25,
+        "diversity_weight": 0.35,
+        "shortlist_size": 75
+      }
+    },
+    "effective_config": {
       "top_k": 10,
       "session_steps": 4,
       "slate_size": 10,
       "choice_pool": 5,
-      "popularity_weight": 0.25,
-      "diversity_weight": 0.35,
-      "shortlist_size": 75,
-      "train_test_split": "Chronological split with each eligible user's last 2 positive interactions held out.",
-      "eligibility_rule": "Users with at least 10 ratings and at least 5 positive ratings (rating >= 4)."
+      "positive_rating_threshold": 4,
+      "min_user_ratings": 10,
+      "min_user_positive_ratings": 5,
+      "test_holdout_positive_count": 2
     },
     "seed": 0
   }
