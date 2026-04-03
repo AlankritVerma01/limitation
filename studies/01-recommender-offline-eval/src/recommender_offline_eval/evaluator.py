@@ -5,11 +5,11 @@ import math
 import numpy as np
 
 from .buckets import (
-    BUCKET_WEIGHTS,
     SessionResult,
     list_repetition_score,
     simulate_session,
 )
+from .canonical import BUCKET_ORDER, CANONICAL_RUN_CONFIG, TRACE_BUCKET_ORDER
 
 
 def recall_at_k(recommended_ids: list[int], relevant_ids: list[int], k: int) -> float:
@@ -33,11 +33,29 @@ def ndcg_at_k(recommended_ids: list[int], relevant_ids: list[int], k: int) -> fl
     return dcg / ideal_dcg
 
 
+def novelty_score(popularity_values: list[float]) -> float:
+    if not popularity_values:
+        return 0.0
+    return float(np.mean([1.0 - popularity for popularity in popularity_values]))
+
+
+def repetition_score(item_vectors: list[np.ndarray]) -> float:
+    if not item_vectors:
+        return 0.0
+    return list_repetition_score(item_vectors)
+
+
+def catalog_concentration_score(top_decile_flags: list[bool]) -> float:
+    if not top_decile_flags:
+        return 0.0
+    return float(np.mean([1.0 if flag else 0.0 for flag in top_decile_flags]))
+
+
 def _aggregate_recommendation_metrics(model, dataset: dict, k: int) -> dict:
     recalls = []
     ndcgs = []
     novelty_scores = []
-    overlap_repetition_scores = []
+    repetition_scores = []
     concentration_scores = []
     item_vectors = dataset["item_vector_lookup"]
     item_popularity = dataset["item_popularity_lookup"]
@@ -50,50 +68,38 @@ def _aggregate_recommendation_metrics(model, dataset: dict, k: int) -> dict:
         recalls.append(recall_at_k(recommended_ids, relevant_ids, k))
         ndcgs.append(ndcg_at_k(recommended_ids, relevant_ids, k))
         novelty_scores.append(
-            float(
-                np.mean([1.0 - item_popularity[item_id] for item_id in recommended_ids])
-            )
+            novelty_score([item_popularity[item_id] for item_id in recommended_ids])
         )
-        overlap_repetition_scores.append(
-            list_repetition_score(
-                [item_vectors[item_id] for item_id in recommended_ids]
-            )
+        repetition_scores.append(
+            repetition_score([item_vectors[item_id] for item_id in recommended_ids])
         )
         concentration_scores.append(
-            float(
-                np.mean(
-                    [
-                        1.0 if item_top_decile[item_id] else 0.0
-                        for item_id in recommended_ids
-                    ]
-                )
+            catalog_concentration_score(
+                [item_top_decile[item_id] for item_id in recommended_ids]
             )
         )
-
-    mean_overlap = float(np.mean(overlap_repetition_scores))
-    mean_concentration = float(np.mean(concentration_scores))
 
     return {
         "recall_at_10": float(np.mean(recalls)),
         "ndcg_at_10": float(np.mean(ndcgs)),
         "novelty_score": float(np.mean(novelty_scores)),
-        "repetition_score": 0.45 * mean_overlap + 0.55 * mean_concentration,
-        "catalog_concentration": mean_concentration,
+        "repetition_score": float(np.mean(repetition_scores)),
+        "catalog_concentration": float(np.mean(concentration_scores)),
     }
 
 
 def _session_metrics(results: list[SessionResult]) -> dict:
-    mean_overlap = float(np.mean([result.repetition_score for result in results]))
-    mean_concentration = float(
-        np.mean([result.catalog_concentration for result in results])
-    )
     return {
         "bucket_mean_utility": float(
             np.mean([result.mean_utility for result in results])
         ),
         "novelty_score": float(np.mean([result.novelty_score for result in results])),
-        "repetition_score": 0.45 * mean_overlap + 0.55 * mean_concentration,
-        "catalog_concentration": mean_concentration,
+        "repetition_score": float(
+            np.mean([result.repetition_score for result in results])
+        ),
+        "catalog_concentration": float(
+            np.mean([result.catalog_concentration for result in results])
+        ),
         "session_fatigue_proxy": float(
             np.mean([result.session_fatigue_proxy for result in results])
         ),
@@ -103,30 +109,58 @@ def _session_metrics(results: list[SessionResult]) -> dict:
 def _summary_sentences(metrics: dict) -> list[str]:
     model_a = metrics["models"]["Model A"]
     model_b = metrics["models"]["Model B"]
-    summaries = []
+    summaries: list[str] = []
 
-    explorer_a = model_a["buckets"]["Explorer / novelty-seeking"]
-    explorer_b = model_b["buckets"]["Explorer / novelty-seeking"]
+    a_aggregate = model_a["aggregate"]
+    b_aggregate = model_b["aggregate"]
+    if (
+        a_aggregate["recall_at_10"] >= b_aggregate["recall_at_10"]
+        and a_aggregate["ndcg_at_10"] >= b_aggregate["ndcg_at_10"]
+    ):
+        summaries.append(
+            "Aggregate offline metrics favor Model A, which posts higher Recall@10 "
+            f"({a_aggregate['recall_at_10']:.3f} vs {b_aggregate['recall_at_10']:.3f}) "
+            f"and NDCG@10 ({a_aggregate['ndcg_at_10']:.3f} vs {b_aggregate['ndcg_at_10']:.3f})."
+        )
+    else:
+        summaries.append(
+            "Aggregate offline metrics do not cleanly favor Model A; inspect the table "
+            "before using this run as the canonical Phase 1 proof."
+        )
+
+    strongest_bucket = max(
+        BUCKET_ORDER,
+        key=lambda bucket_name: (
+            model_b["buckets"][bucket_name]["bucket_mean_utility"]
+            - model_a["buckets"][bucket_name]["bucket_mean_utility"],
+            -BUCKET_ORDER.index(bucket_name),
+        ),
+    )
+    strongest_delta = (
+        model_b["buckets"][strongest_bucket]["bucket_mean_utility"]
+        - model_a["buckets"][strongest_bucket]["bucket_mean_utility"]
+    )
     summaries.append(
-        "Explorer users favored Model B: "
-        f"bucket utility rose from {explorer_a['bucket_mean_utility']:.3f} to {explorer_b['bucket_mean_utility']:.3f}, "
-        f"with novelty increasing from {explorer_a['novelty_score']:.3f} to {explorer_b['novelty_score']:.3f}."
+        f"Model B's strongest segment win is {strongest_bucket}, where bucket utility "
+        f"improves by {strongest_delta:.3f}."
     )
 
-    niche_a = model_a["buckets"]["Niche-interest"]
-    niche_b = model_b["buckets"]["Niche-interest"]
-    summaries.append(
-        "Niche-interest users also favored Model B: "
-        f"mean utility improved by {niche_b['bucket_mean_utility'] - niche_a['bucket_mean_utility']:.3f}, "
-        "showing that the personalized model is better at matching narrower taste profiles."
+    repetition_delta = (
+        b_aggregate["repetition_score"] - a_aggregate["repetition_score"]
     )
-
-    low_patience_a = model_a["buckets"]["Low-patience"]
-    low_patience_b = model_b["buckets"]["Low-patience"]
+    repetition_text = (
+        "lower repetition"
+        if repetition_delta < -1e-12
+        else "higher repetition"
+        if repetition_delta > 1e-12
+        else "matched repetition"
+    )
     summaries.append(
-        "Low-patience users reacted strongly to stale slates: "
-        f"Model A's repetition score was {low_patience_a['repetition_score']:.3f} versus {low_patience_b['repetition_score']:.3f} for Model B, "
-        f"while Model B still delivered higher utility ({low_patience_b['bucket_mean_utility']:.3f} vs {low_patience_a['bucket_mean_utility']:.3f})."
+        "Behaviorally, Model B increases novelty "
+        f"({b_aggregate['novelty_score']:.3f} vs {a_aggregate['novelty_score']:.3f}), "
+        f"reduces catalog concentration ({b_aggregate['catalog_concentration']:.3f} vs "
+        f"{a_aggregate['catalog_concentration']:.3f}), and has {repetition_text} "
+        f"({b_aggregate['repetition_score']:.3f} vs {a_aggregate['repetition_score']:.3f})."
     )
 
     return summaries
@@ -134,18 +168,18 @@ def _summary_sentences(metrics: dict) -> list[str]:
 
 def _example_traces(session_results: dict) -> list[dict]:
     examples = []
-    for bucket_name in [
-        "Explorer / novelty-seeking",
-        "Niche-interest",
-        "Low-patience",
-    ]:
+    for bucket_name in TRACE_BUCKET_ORDER:
         deltas = []
         for user_id, result_b in session_results["Model B"][bucket_name].items():
             result_a = session_results["Model A"][bucket_name][user_id]
             delta = result_b.mean_utility - result_a.mean_utility
             deltas.append((delta, user_id, result_a, result_b))
-        deltas.sort(key=lambda row: row[0], reverse=True)
-        delta, user_id, result_a, result_b = deltas[0]
+        positive_deltas = [row for row in deltas if row[0] > 0]
+        chosen_rows = positive_deltas or deltas
+        delta, user_id, result_a, result_b = min(
+            chosen_rows,
+            key=lambda row: (-row[0], row[1]),
+        )
         examples.append(
             {
                 "bucket": bucket_name,
@@ -164,21 +198,28 @@ def _example_traces(session_results: dict) -> list[dict]:
     return examples
 
 
-def evaluate_models(models: dict, dataset: dict, k: int = 10) -> dict:
+def evaluate_models(
+    models: dict,
+    dataset: dict,
+    k: int = 10,
+    session_steps: int = CANONICAL_RUN_CONFIG.session_steps,
+    slate_size: int = CANONICAL_RUN_CONFIG.slate_size,
+    choice_pool: int = CANONICAL_RUN_CONFIG.choice_pool,
+) -> dict:
     metrics = {
         "dataset": dataset["summary"],
         "models": {},
     }
 
     session_results: dict[str, dict[str, dict[int, SessionResult]]] = {
-        model_name: {bucket: {} for bucket in BUCKET_WEIGHTS} for model_name in models
+        model_name: {bucket: {} for bucket in BUCKET_ORDER} for model_name in models
     }
 
     for model_name, model in models.items():
         aggregate_metrics = _aggregate_recommendation_metrics(model, dataset, k)
         bucket_metrics = {}
 
-        for bucket_name in BUCKET_WEIGHTS:
+        for bucket_name in BUCKET_ORDER:
             results = []
             for user_id in dataset["eligible_users"]:
                 session = simulate_session(
@@ -186,6 +227,9 @@ def evaluate_models(models: dict, dataset: dict, k: int = 10) -> dict:
                     recommender=model,
                     bucket_name=bucket_name,
                     dataset=dataset,
+                    steps=session_steps,
+                    slate_size=slate_size,
+                    choice_pool=choice_pool,
                 )
                 session_results[model_name][bucket_name][user_id] = session
                 results.append(session)
