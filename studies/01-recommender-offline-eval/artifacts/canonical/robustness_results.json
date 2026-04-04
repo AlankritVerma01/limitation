@@ -1,0 +1,161 @@
+{
+  "frozen_demo": {
+    "dataset": "MovieLens 100K",
+    "buckets": [
+      "Conservative mainstream",
+      "Explorer / novelty-seeking",
+      "Niche-interest",
+      "Low-patience"
+    ],
+    "models": {
+      "Model A": "Popularity baseline",
+      "Model B": "Genre-profile recommender with popularity prior"
+    },
+    "seed": 0,
+    "test_holdout_positive_count": 2
+  },
+  "what_is_diagnostic": [
+    "Bucket utility, novelty, repetition, and catalog concentration are behavioral diagnostics meant to make tradeoffs legible.",
+    "Short traces are compact examples of how the two recommenders behave over a four-step sequence.",
+    "These diagnostics do not replace online evaluation or claim to predict long-term production outcomes exactly."
+  ],
+  "stability_checks": {
+    "seed_rows_identical": true,
+    "core_story_stable": true,
+    "checked_seeds": [
+      0,
+      1,
+      2
+    ],
+    "checked_split_variation": {
+      "test_holdout_positive_count": 1
+    }
+  },
+  "variants": [
+    {
+      "name": "canonical_seed_0",
+      "label": "Canonical config (seed 0)",
+      "config_overrides": {
+        "seed": 0,
+        "test_holdout_positive_count": 2
+      },
+      "offline_metrics": {
+        "model_a_recall_at_10": 0.088486,
+        "model_b_recall_at_10": 0.057569,
+        "model_a_ndcg_at_10": 0.057105,
+        "model_b_ndcg_at_10": 0.036194
+      },
+      "bucket_deltas": {
+        "explorer": 0.183912,
+        "niche_interest": 0.278726,
+        "low_patience": 0.042694
+      },
+      "behavioral_metrics": {
+        "model_a_catalog_concentration": 1.0,
+        "model_b_catalog_concentration": 0.717271
+      },
+      "core_story_checks": {
+        "aggregate_offline_favors_model_a": true,
+        "explorer_favors_model_b": true,
+        "niche_interest_favors_model_b": true,
+        "candidate_lowers_concentration": true
+      }
+    },
+    {
+      "name": "canonical_seed_1",
+      "label": "Canonical config (seed 1)",
+      "config_overrides": {
+        "seed": 1,
+        "test_holdout_positive_count": 2
+      },
+      "offline_metrics": {
+        "model_a_recall_at_10": 0.088486,
+        "model_b_recall_at_10": 0.057569,
+        "model_a_ndcg_at_10": 0.057105,
+        "model_b_ndcg_at_10": 0.036194
+      },
+      "bucket_deltas": {
+        "explorer": 0.183912,
+        "niche_interest": 0.278726,
+        "low_patience": 0.042694
+      },
+      "behavioral_metrics": {
+        "model_a_catalog_concentration": 1.0,
+        "model_b_catalog_concentration": 0.717271
+      },
+      "core_story_checks": {
+        "aggregate_offline_favors_model_a": true,
+        "explorer_favors_model_b": true,
+        "niche_interest_favors_model_b": true,
+        "candidate_lowers_concentration": true
+      }
+    },
+    {
+      "name": "canonical_seed_2",
+      "label": "Canonical config (seed 2)",
+      "config_overrides": {
+        "seed": 2,
+        "test_holdout_positive_count": 2
+      },
+      "offline_metrics": {
+        "model_a_recall_at_10": 0.088486,
+        "model_b_recall_at_10": 0.057569,
+        "model_a_ndcg_at_10": 0.057105,
+        "model_b_ndcg_at_10": 0.036194
+      },
+      "bucket_deltas": {
+        "explorer": 0.183912,
+        "niche_interest": 0.278726,
+        "low_patience": 0.042694
+      },
+      "behavioral_metrics": {
+        "model_a_catalog_concentration": 1.0,
+        "model_b_catalog_concentration": 0.717271
+      },
+      "core_story_checks": {
+        "aggregate_offline_favors_model_a": true,
+        "explorer_favors_model_b": true,
+        "niche_interest_favors_model_b": true,
+        "candidate_lowers_concentration": true
+      }
+    },
+    {
+      "name": "holdout_positive_1",
+      "label": "Hold out the last positive interaction",
+      "config_overrides": {
+        "seed": 0,
+        "test_holdout_positive_count": 1
+      },
+      "offline_metrics": {
+        "model_a_recall_at_10": 0.094883,
+        "model_b_recall_at_10": 0.056503,
+        "model_a_ndcg_at_10": 0.049827,
+        "model_b_ndcg_at_10": 0.029611
+      },
+      "bucket_deltas": {
+        "explorer": 0.184805,
+        "niche_interest": 0.27987,
+        "low_patience": 0.041872
+      },
+      "behavioral_metrics": {
+        "model_a_catalog_concentration": 1.0,
+        "model_b_catalog_concentration": 0.713753
+      },
+      "core_story_checks": {
+        "aggregate_offline_favors_model_a": true,
+        "explorer_favors_model_b": true,
+        "niche_interest_favors_model_b": true,
+        "candidate_lowers_concentration": true
+      }
+    }
+  ],
+  "summary": {
+    "seed_sensitivity": "Seed 0, 1, and 2 produced identical results in this pipeline.",
+    "split_sensitivity": "A smaller holdout split shifted the magnitudes slightly, but the same directional conclusion held."
+  },
+  "out_of_scope": [
+    "The robustness pass does not claim external validity beyond MovieLens 100K.",
+    "The bucket lenses remain simplified evaluation constructs rather than discovered user segments.",
+    "The supporting checks do not substitute for live online experiments."
+  ]
+}

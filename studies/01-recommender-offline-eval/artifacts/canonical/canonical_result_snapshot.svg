@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="520" viewBox="0 0 1080 520">
+<rect width="1080" height="520" fill="#fbf8f1"/>
+<text x="40" y="56" fill="#1f2937" font-size="30" font-family="Georgia, serif" font-weight="700">Canonical Result Snapshot</text>
+<text x="40" y="92" fill="#5b6471" font-size="18" font-family="Helvetica, Arial, sans-serif">A small public proof that aggregate offline metrics are useful but incomplete.</text>
+<rect x="40" y="140" width="480" height="300" rx="18" fill="#fffdf8" stroke="#d6cbb8" stroke-width="2"/>
+<text x="64" y="182" fill="#b45309" font-size="20" font-family="Helvetica, Arial, sans-serif" font-weight="700">Behavioral shift</text>
+<text x="64" y="222" fill="#1f2937" font-size="24" font-family="Helvetica, Arial, sans-serif" font-weight="700">Novelty 0.395 -&gt; 0.678</text>
+<text x="64" y="262" fill="#1f2937" font-size="24" font-family="Helvetica, Arial, sans-serif" font-weight="700">Repetition 0.279 -&gt; 0.664</text>
+<text x="64" y="302" fill="#1f2937" font-size="24" font-family="Helvetica, Arial, sans-serif" font-weight="700">Concentration 1.000 -&gt; 0.717</text>
+<text x="64" y="352" fill="#0f766e" font-size="18" font-family="Helvetica, Arial, sans-serif">Model B is more novel and less concentrated.</text>
+<text x="64" y="380" fill="#0f766e" font-size="18" font-family="Helvetica, Arial, sans-serif">It is also more repetitive in this diagnostic.</text>
+<rect x="560" y="140" width="480" height="300" rx="18" fill="#fffdf8" stroke="#d6cbb8" stroke-width="2"/>
+<text x="584" y="182" fill="#b45309" font-size="20" font-family="Helvetica, Arial, sans-serif" font-weight="700">Trust note</text>
+<text x="584" y="222" fill="#1f2937" font-size="24" font-family="Helvetica, Arial, sans-serif" font-weight="700">Frozen: MovieLens, 2 models, 4 buckets, fixed report.</text>
+<text x="584" y="262" fill="#1f2937" font-size="24" font-family="Helvetica, Arial, sans-serif" font-weight="700">Diagnostic: bucket utility and short traces are proxies.</text>
+<text x="584" y="302" fill="#1f2937" font-size="24" font-family="Helvetica, Arial, sans-serif" font-weight="700">Stability: seeds 0/1/2 were identical.</text>
+<text x="584" y="342" fill="#1f2937" font-size="24" font-family="Helvetica, Arial, sans-serif" font-weight="700">Split check: the same directional story held.</text>
+<text x="584" y="392" fill="#0f766e" font-size="18" font-family="Helvetica, Arial, sans-serif">A smaller holdout split shifted the magnitudes slightly, but the same directional conclusion held.</text>
+</svg>

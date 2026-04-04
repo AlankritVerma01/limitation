@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="520" viewBox="0 0 1080 520">
+<rect width="1080" height="520" fill="#fbf8f1"/>
+<text x="40" y="56" fill="#1f2937" font-size="30" font-family="Georgia, serif" font-weight="700">What Offline Metrics Missed</text>
+<text x="40" y="92" fill="#5b6471" font-size="18" font-family="Helvetica, Arial, sans-serif">The canonical MovieLens run looks one way in aggregate and another way by user bucket.</text>
+<rect x="40" y="140" width="480" height="300" rx="18" fill="#fffdf8" stroke="#d6cbb8" stroke-width="2"/>
+<text x="64" y="182" fill="#b45309" font-size="20" font-family="Helvetica, Arial, sans-serif" font-weight="700">Aggregate offline view</text>
+<text x="64" y="222" fill="#1f2937" font-size="24" font-family="Helvetica, Arial, sans-serif" font-weight="700">Model A Recall@10 0.088</text>
+<text x="64" y="262" fill="#1f2937" font-size="24" font-family="Helvetica, Arial, sans-serif" font-weight="700">Model B Recall@10 0.058</text>
+<text x="64" y="302" fill="#1f2937" font-size="24" font-family="Helvetica, Arial, sans-serif" font-weight="700">Model A NDCG@10 0.057</text>
+<text x="64" y="342" fill="#1f2937" font-size="24" font-family="Helvetica, Arial, sans-serif" font-weight="700">Model B NDCG@10 0.036</text>
+<text x="64" y="392" fill="#0f766e" font-size="18" font-family="Helvetica, Arial, sans-serif">Aggregate offline metrics favor Model A.</text>
+<rect x="560" y="140" width="480" height="300" rx="18" fill="#fffdf8" stroke="#d6cbb8" stroke-width="2"/>
+<text x="584" y="182" fill="#b45309" font-size="20" font-family="Helvetica, Arial, sans-serif" font-weight="700">Bucket-level view</text>
+<text x="584" y="222" fill="#1f2937" font-size="24" font-family="Helvetica, Arial, sans-serif" font-weight="700">Explorer delta +0.184</text>
+<text x="584" y="262" fill="#1f2937" font-size="24" font-family="Helvetica, Arial, sans-serif" font-weight="700">Niche delta +0.279</text>
+<text x="584" y="302" fill="#1f2937" font-size="24" font-family="Helvetica, Arial, sans-serif" font-weight="700">Low-patience delta +0.043</text>
+<text x="584" y="352" fill="#0f766e" font-size="18" font-family="Helvetica, Arial, sans-serif">Model B is stronger for Explorer and Niche-interest users.</text>
+<text x="584" y="380" fill="#0f766e" font-size="18" font-family="Helvetica, Arial, sans-serif">That is the hidden tradeoff this tool surfaces.</text>
+</svg>
