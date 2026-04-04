@@ -108,7 +108,15 @@ def refresh_canonical_artifacts(
     output_dir: str | Path = DEFAULT_CANONICAL_ARTIFACTS_DIR,
     data_dir: str | Path = DEFAULT_DATA_DIR,
 ) -> dict:
-    return run_canonical_demo(output_dir=output_dir, data_dir=data_dir)
+    result = run_canonical_demo(output_dir=output_dir, data_dir=data_dir)
+    from .supporting_artifacts import write_supporting_artifacts
+
+    result["supporting_artifacts"] = write_supporting_artifacts(
+        result["public_results"],
+        output_dir=output_dir,
+        data_dir=data_dir,
+    )
+    return result
 
 
 def _build_parser() -> argparse.ArgumentParser:
