@@ -4,82 +4,74 @@ This repository is the public home for a focused v1:
 
 > Behavioral QA for recommender systems
 
-This v1 is a public, reproducible test harness for comparing a baseline recommender against a candidate recommender and surfacing what aggregate offline metrics miss.
+It is a small, reproducible evaluation tool for comparing a baseline recommender against a candidate recommender and surfacing what aggregate offline metrics miss.
 
-It is built around a simple pre-launch question:
+The product question is simple:
 
 > Should I trust this new recommender before I ship it?
 
 ## The Problem
 
-Offline metrics like Recall@10 and NDCG@10 are useful, but they can hide important differences:
+Offline metrics like `Recall@10` and `NDCG@10` are useful, but they can hide important differences:
 
 - which user segments improve
 - which user segments regress
 - whether the candidate becomes more novel or more repetitive
-- whether it collapses toward head items
-- what short recommendation trajectories feel like
-
-This repo turns that gap into one clean public proof on MovieLens 100K.
-
-## What The Tool Does
-
-The canonical demo compares:
-
-- `Model A`: popularity baseline
-- `Model B`: genre-profile recommender with popularity prior
-
-Across one fixed setup:
-
-- MovieLens 100K
-- fixed train/test split
-- fixed 4 user buckets
-- fixed metrics
-- fixed seed/config
-
-Each run produces:
-
-- aggregate offline metrics
-- per-bucket results
-- behavioral diagnostics
-- short trajectory examples
-
-The same flow now also supports:
-
-- config-driven baseline vs candidate comparisons
-- built-in MovieLens 100K runs
-- external CSV datasets that follow a documented schema
-
-## Canonical Vs Configurable
-
-- The canonical demo is the frozen public proof. It uses MovieLens 100K, fixed buckets, fixed metrics, fixed models, and committed artifacts.
-- Configurable runs use the same evaluation flow and report shape, but read dataset and model choices from JSON.
-- The public contract stays narrow: 1 dataset, 2 models, 1 report bundle.
+- whether recommendations collapse toward head items
+- what short recommendation trajectories actually look like
 
 ## Canonical Result
 
-The official demo currently shows the core product value clearly:
+The official MovieLens 100K demo shows the core product value clearly:
 
-- aggregate offline metrics favor `Model A`
-- the bucketed view shows `Model B` is much stronger for Explorer and Niche-interest users
+- aggregate offline metrics favor `Model A`, the popularity baseline
+- bucketed diagnostics show `Model B` is much stronger for Explorer and Niche-interest users
 - `Model B` is more novel and less catalog-concentrated
 
 That is the hidden-tradeoff insight this tool is designed to catch.
 
-![Bucket utility comparison](studies/01-recommender-offline-eval/artifacts/canonical/bucket_utility_comparison.svg)
+## What Offline Metrics Missed
 
-Official artifact bundle:
+![Offline versus bucket story](studies/01-recommender-offline-eval/artifacts/canonical/offline_vs_bucket_story.svg)
 
-- [Report](studies/01-recommender-offline-eval/artifacts/canonical/official_demo_report.md)
-- [JSON results](studies/01-recommender-offline-eval/artifacts/canonical/official_demo_results.json)
-- [Chart](studies/01-recommender-offline-eval/artifacts/canonical/bucket_utility_comparison.svg)
+## Official Artifacts
 
-## Buckets
+- [Canonical report](studies/01-recommender-offline-eval/artifacts/canonical/official_demo_report.md)
+- [Canonical JSON results](studies/01-recommender-offline-eval/artifacts/canonical/official_demo_results.json)
+- [Bucket utility chart](studies/01-recommender-offline-eval/artifacts/canonical/bucket_utility_comparison.svg)
+- [Canonical result snapshot](studies/01-recommender-offline-eval/artifacts/canonical/canonical_result_snapshot.svg)
+- [Robustness note](studies/01-recommender-offline-eval/artifacts/canonical/robustness_summary.md)
+- [Robustness JSON](studies/01-recommender-offline-eval/artifacts/canonical/robustness_results.json)
 
-- `Conservative mainstream`: prefers familiar, high-exposure items and tolerates safe recommendations.
-- `Explorer / novelty-seeking`: values discovery and variety, and rewards less familiar items.
-- `Niche-interest`: benefits when the model can match narrower parts of the catalog.
-- `Low-patience`: needs good recommendations quickly and degrades faster under stale sequences.
+## Trust Note
+
+- Frozen: MovieLens 100K, 2 models, 4 fixed buckets, fixed report structure, fixed canonical config.
+- Diagnostic: bucket utility, novelty, repetition, concentration, and short traces are meant to make tradeoffs legible before launch.
+- Stability checked: seeds `0`, `1`, and `2` were identical in this pipeline; a smaller holdout split preserved the same directional story.
+- Out of scope: this is not a claim about all recommenders, all datasets, or online production truth.
+
+## How To Interpret The Metrics
+
+- `Recall@10` and `NDCG@10` are standard offline ranking metrics on held-out positives. They tell us how well each model recovers historical relevance under the evaluation split.
+- `Bucket utility` is a short-session diagnostic. It asks whether a fixed evaluation lens, such as Explorer or Niche-interest, experiences the sequence as more useful.
+- `Novelty` is higher when recommendations move away from the most exposed catalog items.
+- `Repetition` is higher when recommendations stay closer to the user’s recent consumed items. Higher is not always better or worse on its own.
+- `Catalog concentration` measures how much of the list comes from the most popular slice of the catalog.
+- These behavioral metrics are useful diagnostics, not substitutes for online experiments.
+
+## What The Buckets Are, And Are Not
+
+- The 4 buckets are fixed v1 evaluation lenses: `Conservative mainstream`, `Explorer / novelty-seeking`, `Niche-interest`, and `Low-patience`.
+- They are designed to make tradeoffs easy to see in one reproducible report.
+- They are not meant to claim that all real users fall neatly into four true population segments.
+- They are simplified, product-facing evaluation perspectives, not a full model of human behavior.
+
+## Limitations Of This V1
+
+- MovieLens 100K is one public benchmark, not the whole recommender world.
+- The buckets are synthetic and intentionally simplified.
+- The short traces are diagnostic illustrations, not full user simulations.
+- The tool is strong for surfacing tradeoffs, but it does not replace online testing.
 
 ## Run It
 
@@ -98,19 +90,19 @@ Custom run with JSON config:
 make run CONFIG=studies/01-recommender-offline-eval/examples/custom_csv_run.json
 ```
 
+Refresh the full committed proof bundle:
+
+```bash
+make canonical
+```
+
 Notebook path:
 
 ```bash
 make notebook
 ```
 
-Refresh the committed canonical bundle:
-
-```bash
-make canonical
-```
-
-Run checks:
+Checks:
 
 ```bash
 make lint
@@ -124,9 +116,9 @@ Custom datasets use a simple CSV contract:
 - `interactions.csv` with `user_id`, `item_id`, `rating`, `timestamp`
 - `items.csv` with `item_id`, `title`, and optional numeric or boolean feature columns
 
-Feature columns are only required when you use the built-in `genre_profile` candidate model. Popularity-only comparisons can run without them.
+Feature columns are required when you use the built-in `genre_profile` model. Popularity-only comparisons can run without them.
 
-Example configs:
+Useful links:
 
 - [Canonical JSON config](studies/01-recommender-offline-eval/examples/canonical_run.json)
 - [Custom CSV JSON config](studies/01-recommender-offline-eval/examples/custom_csv_run.json)
@@ -134,12 +126,14 @@ Example configs:
 
 ## Repo Guide
 
-- [studies/01-recommender-offline-eval](studies/01-recommender-offline-eval): study-local README, notebook, code, and artifact links
-- [studies/01-recommender-offline-eval/docs/v1-product-spec.md](studies/01-recommender-offline-eval/docs/v1-product-spec.md): locked product spec
-- [studies/README.md](studies/README.md): study index
-- [Makefile](Makefile): common commands
+- [Study 01 README](studies/01-recommender-offline-eval/README.md)
+- [V1 product spec](studies/01-recommender-offline-eval/docs/v1-product-spec.md)
+- [Canonical artifacts](studies/01-recommender-offline-eval/artifacts/canonical)
+- [Source code](studies/01-recommender-offline-eval/src/recommender_offline_eval)
+- [Tests](studies/01-recommender-offline-eval/tests)
+- [Makefile](Makefile)
 
-Study-local `data/`, cache, and scratch `output/` directories stay ignored by git. The committed proof lives in `studies/01-recommender-offline-eval/artifacts/canonical/`.
+Study-local `data/`, cache, and scratch `output/` directories stay ignored by git. The committed public proof lives in `studies/01-recommender-offline-eval/artifacts/canonical/`.
 
 ## Background
 

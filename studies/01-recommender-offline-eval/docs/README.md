@@ -1,18 +1,10 @@
 # Documentation Guide
 
-This folder holds the writing and planning materials for the recommender behavior QA study.
+This folder holds the public supporting docs for the recommender behavior QA study.
 
 - [v1-product-spec.md](v1-product-spec.md): locked product spec for the public v1 tool
 - [dataset-schema.md](dataset-schema.md): CSV dataset contract for custom runs
-- [article-draft.md](article-draft.md): current article draft
-- [article-outline.md](article-outline.md): detailed structure and section notes
-- [project-brief.md](project-brief.md): original brief and scope
 
 Canonical public artifacts live one level up in [../artifacts/canonical](../artifacts/canonical).
 
-Recommended reading order:
-
-1. `v1-product-spec.md`
-2. `project-brief.md`
-3. `article-outline.md`
-4. `article-draft.md`
+Non-public working materials should live in the ignored `docs-private/` study folder instead of `docs/`.

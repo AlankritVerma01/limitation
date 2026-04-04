@@ -9,3 +9,4 @@ __pycache__/
 studies/*/.cache/
 studies/*/data/
 studies/*/output/
+studies/*/docs-private/

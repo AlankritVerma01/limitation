@@ -1,22 +1,15 @@
 # Study 01: Recommender Behavior QA
 
-This study is the public v1 of the repository: a small, reproducible recommender evaluation tool that compares a baseline model against a candidate model and highlights what aggregate offline metrics miss.
+This study is the public v1 of the repository: a narrow recommender evaluation tool that compares a baseline model against a candidate model and highlights what aggregate offline metrics miss.
 
-It is designed to help recommender, ranking, and ML engineers answer a pre-launch question:
+The public-facing landing page is the repository root [README](../../README.md). This study README is the developer and contributor companion.
 
-> Should I trust this new recommender before I ship it?
+## What Lives Here
 
-The study keeps the scope intentionally narrow:
-
-- MovieLens as the first public dataset
-- exactly 2 models: baseline vs candidate
-- fixed user buckets
-- short trajectory diagnostics
-- one clean comparison report
-
-The canonical Phase 1 result is committed under `artifacts/canonical/` so the public proof can be read without rerunning the pipeline.
-
-This study can now also run config-driven comparisons on external CSV datasets while keeping the same report, bucket, and metric structure.
+- the frozen canonical MovieLens proof
+- the config-driven run path for custom comparisons
+- the code that loads datasets, builds models, evaluates them, and renders artifacts
+- the writing and planning materials for the public narrative
 
 ## Code Map
 
@@ -25,36 +18,29 @@ This study can now also run config-driven comparisons on external CSV datasets w
 - `src/recommender_offline_eval/model_registry.py`: built-in model lookup from config
 - `src/recommender_offline_eval/evaluator.py`: offline metrics, bucket metrics, and trace selection
 - `src/recommender_offline_eval/report.py`: markdown, JSON, and chart artifact generation
+- `src/recommender_offline_eval/supporting_artifacts.py`: robustness note and launch-ready canonical support assets
 - `src/recommender_offline_eval/run_demo.py`: thin orchestration entrypoints and CLI
 
-## Contents
+## Canonical Proof Bundle
 
-- [artifacts/canonical](artifacts/canonical): official report, JSON, and chart bundle
-- [examples/canonical_run.json](examples/canonical_run.json): JSON config for the official MovieLens run
-- [examples/custom_csv_run.json](examples/custom_csv_run.json): JSON config for a custom CSV dataset run
-- [docs/v1-product-spec.md](docs/v1-product-spec.md): locked product spec for the public tool
-- [docs/dataset-schema.md](docs/dataset-schema.md): CSV dataset contract for custom runs
-- [docs/article-draft.md](docs/article-draft.md): article draft
-- [docs/article-outline.md](docs/article-outline.md): article structure and notes
-- [docs/project-brief.md](docs/project-brief.md): original brief
-- [docs/README.md](docs/README.md): writing guide
-- [notebooks/offline_eval_demo.ipynb](notebooks/offline_eval_demo.ipynb): notebook walkthrough
-- [src/recommender_offline_eval](src/recommender_offline_eval): Python package for the demo
+The public proof is committed under `artifacts/canonical/` so it can be read without rerunning the pipeline.
 
-Local-only directories:
+- `official_demo_report.md`: frozen canonical report
+- `official_demo_results.json`: frozen canonical metrics
+- `bucket_utility_comparison.svg`: reusable chart
+- `offline_vs_bucket_story.svg`: shareable “what offline metrics missed” visual
+- `canonical_result_snapshot.svg`: compact result + trust snapshot
+- `robustness_summary.md`: medium-depth credibility note
+- `robustness_results.json`: machine-readable robustness outputs
 
-- `data/`: MovieLens dataset download/extract location
-- `output/`: local generated report, metrics, and chart scratch space
+## Trust And Interpretation
 
-## What The Run Should Show
+Use the root README for the short public framing. For study work, keep these distinctions in mind:
 
-Each run should make it easy to see:
-
-- who wins on Recall@10 and NDCG@10
-- which user buckets improve or regress
-- whether the candidate is more novel, repetitive, or head-heavy
-- where aggregate metrics hide important tradeoffs
-- what a few short example trajectories look like
+- `Recall@10` and `NDCG@10` are standard offline ranking metrics on held-out positives.
+- `Bucket utility`, `Novelty`, `Repetition`, and `Catalog concentration` are diagnostic proxies that help make tradeoffs visible.
+- The four buckets are fixed v1 evaluation lenses, not claims about true user ontology.
+- The canonical result is frozen; the robustness note is supporting evidence, not a second official benchmark.
 
 ## Run
 
@@ -64,23 +50,25 @@ From the repository root:
 make run
 ```
 
-With a config file:
+With a custom config:
 
 ```bash
 make run CONFIG=studies/01-recommender-offline-eval/examples/custom_csv_run.json
 ```
 
-Or directly:
-
-```bash
-PYTHONPATH=studies/01-recommender-offline-eval/src .venv/bin/python -m recommender_offline_eval
-```
-
-Refresh the committed canonical bundle:
+Refresh the committed canonical proof bundle:
 
 ```bash
 make canonical
 ```
+
+Open the notebook:
+
+```bash
+make notebook
+```
+
+## Dataset Contract
 
 Custom dataset contract:
 
@@ -89,10 +77,15 @@ Custom dataset contract:
 
 `genre_profile` requires item feature columns. Popularity-only runs do not.
 
-## Notebook
+## Writing And Planning Docs
 
-From the repository root:
+- [docs/v1-product-spec.md](docs/v1-product-spec.md): locked product spec
+- [docs/dataset-schema.md](docs/dataset-schema.md): custom dataset contract
+- [docs/README.md](docs/README.md): writing guide
 
-```bash
-make notebook
-```
+## Local-Only Directories
+
+- `data/`: MovieLens download and extract location
+- `output/`: local generated scratch artifacts
+- `docs-private/`: ignored local workspace for drafts, outreach notes, and blog planning
+- `docs-private/`: ignored local workspace for drafts, notes, feedback packets, and blog prep
