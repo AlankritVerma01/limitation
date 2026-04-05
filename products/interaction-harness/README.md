@@ -33,6 +33,7 @@ Today it is recommender-first. Over time, the same core is meant to support broa
 - deterministic judging, cohort analysis, and failure surfacing
 - rerun-based regression comparisons with deterministic `pass` / `warn` /
   `fail` decisions
+- structured AI-authored scenario packs with saved portable contracts
 - markdown, JSON, trace, and chart artifacts
 
 ## How It Differs From The Existing Study
@@ -59,6 +60,8 @@ The product remains independent from the study package. Ideas are reused, but th
   - single-run orchestration
 - `src/interaction_harness/regression.py`
   - reruns and baseline-vs-candidate orchestration
+- `src/interaction_harness/scenario_generation.py`
+  - scenario-pack generation, validation, storage, and recommender projection
 - `src/interaction_harness/services/`
   - local reference service, mock fixture, and reference artifacts
 - `src/interaction_harness/adapters/`
@@ -86,6 +89,32 @@ Run one scenario only:
 
 ```bash
 PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --scenario returning-user-home-feed --seed 7 --service-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/demo
+```
+
+Generate a saved scenario pack from a brief with the deterministic fixture path:
+
+```bash
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --generate-scenarios --generation-mode fixture --scenario-brief "test recommendation quality for sparse-history users who still want novelty" --output-dir products/interaction-harness/output/generated-scenarios
+```
+
+Generate a saved scenario pack through the provider-backed path:
+
+```bash
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --generate-scenarios --generation-mode provider --scenario-brief "test trust and exploration balance for returning users" --scenario-pack-path products/interaction-harness/output/generated-scenarios/provider-pack.json
+```
+
+Provider mode will auto-read a root `.env` when present. Useful environment
+variables:
+
+- `OPENAI_API_KEY`
+- `OPENAI_BASE_URL`
+- `OPENAI_TIMEOUT_SECONDS`
+- `OPENAI_RETRY_COUNT`
+
+Reuse a saved scenario pack in a normal audit run:
+
+```bash
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --scenario-pack-path products/interaction-harness/output/generated-scenarios/provider-pack.json --service-mode mock --output-dir products/interaction-harness/output/generated-pack-run
 ```
 
 Use the mock fixture explicitly:
@@ -120,6 +149,7 @@ Single-run audit bundles include:
 - `results.json`: machine-readable run result plus a top-level summary block
 - `traces.jsonl`: full trace bundle for deeper inspection
 - `cohort_summary_chart.svg`: simple cohort utility chart
+- scenario-pack-backed runs also carry scenario-pack metadata in the run result
 
 Regression compare bundles include:
 
@@ -133,6 +163,8 @@ Regression compare bundles include:
 
 - synthetic users are still hand-authored and parameterized
 - scenario coverage is still narrow
+- generated scenario packs are real now, but only the recommender projection is
+  implemented today
 - regression policy is real now, but still early and not the final long-term
   gating model
 - no LLM judge or LLM agents are in the critical path

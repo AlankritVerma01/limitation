@@ -22,6 +22,7 @@ It currently includes:
 - deterministic judging, cohort analysis, and failure surfacing
 - baseline-vs-candidate regression runs across reruns with deterministic
   `pass` / `warn` / `fail` policy output
+- saved structured scenario packs with fixture and provider generation paths
 - polished markdown, JSON, and trace artifacts
 
 The study remains the proof. The interaction harness is the product direction.
