@@ -3,6 +3,7 @@
 from .audit import run_recommender_audit
 from .config import build_default_run_config
 from .regression import run_regression_audit
+from .scenario_generation import generate_scenario_pack, load_scenario_pack
 from .schema import (
     Action,
     ActionDecision,
@@ -15,6 +16,7 @@ from .schema import (
     DecisionExplanation,
     FailureMode,
     FailureModeCount,
+    GeneratedScenario,
     MetricDelta,
     MetricSummary,
     Observation,
@@ -30,6 +32,9 @@ from .schema import (
     RuntimeItemSignals,
     ScenarioConfig,
     ScenarioContext,
+    ScenarioGeneratorMode,
+    ScenarioPack,
+    ScenarioPackMetadata,
     SessionTrace,
     Slate,
     SlateItem,
@@ -52,6 +57,7 @@ __all__ = [
     "DecisionExplanation",
     "FailureMode",
     "FailureModeCount",
+    "GeneratedScenario",
     "MetricDelta",
     "MetricSummary",
     "Observation",
@@ -67,6 +73,9 @@ __all__ = [
     "RunResult",
     "ScenarioConfig",
     "ScenarioContext",
+    "ScenarioGeneratorMode",
+    "ScenarioPack",
+    "ScenarioPackMetadata",
     "SessionTrace",
     "Slate",
     "SlateItem",
@@ -76,6 +85,8 @@ __all__ = [
     "TraceStep",
     "UtilityBreakdown",
     "build_default_run_config",
+    "generate_scenario_pack",
+    "load_scenario_pack",
     "run_regression_audit",
     "run_recommender_audit",
 ]

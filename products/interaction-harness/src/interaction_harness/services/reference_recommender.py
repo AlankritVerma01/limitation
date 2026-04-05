@@ -37,6 +37,7 @@ def _handler_for_backend(backend: ReferenceRecommendationBackend):
                     request_id=str(payload["request_id"]),
                     agent_id=str(payload["agent_id"]),
                     scenario_name=str(payload["scenario_name"]),
+                    scenario_profile=str(payload.get("scenario_profile", payload["scenario_name"])),
                     step_index=int(payload["step_index"]),
                     history_depth=int(payload["history_depth"]),
                     history_item_ids=tuple(payload["history_item_ids"]),

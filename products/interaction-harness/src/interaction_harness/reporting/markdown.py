@@ -69,9 +69,13 @@ class MarkdownReportWriter:
         """Render the scenario pack used for this run."""
         lines = ["", "## Scenario Coverage", ""]
         for scenario in run_result.run_config.scenarios:
+            risk_tags = ", ".join(scenario.risk_focus_tags) or "n/a"
+            context_hint = scenario.context_hint or "n/a"
             lines.append(
                 f"- `{scenario.name}`: {scenario.description} "
-                f"(history depth `{scenario.history_depth}`, max steps `{scenario.max_steps}`)"
+                f"(history depth `{scenario.history_depth}`, max steps `{scenario.max_steps}`, "
+                f"goal `{scenario.test_goal or 'n/a'}`, risk tags `{risk_tags}`, "
+                f"context hint `{context_hint}`)"
             )
         return lines
 
@@ -137,6 +141,7 @@ class MarkdownReportWriter:
             "- The judge consumes completed traces only and does not call the system under test.",
             f"- Service artifact dir: `{run_result.metadata.get('service_artifact_dir', '') or 'n/a'}`",
             f"- Artifact ID: `{run_result.metadata.get('artifact_id', 'unknown')}`",
+            f"- Scenario pack ID: `{run_result.metadata.get('scenario_pack_id', 'n/a')}`",
         ]
 
     def _trace_score_lines(self, run_result: RunResult) -> list[str]:

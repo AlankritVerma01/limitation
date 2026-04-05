@@ -80,8 +80,8 @@ class ReferenceRecommendationBackend:
                 exposure_penalty = 0.0
             history_similarity = similarity_cache.get(item.item_id, 0.0)
             genre_match = len(set(item.genres).intersection(preferred_genres)) / max(1, len(item.genres))
-            scenario_name = request.scenario_name
-            if scenario_name == "returning-user-home-feed":
+            scenario_profile = request.scenario_profile or request.scenario_name
+            if scenario_profile == "returning-user-home-feed":
                 score = (
                     (0.42 * history_similarity)
                     + (0.2 * genre_match)

@@ -20,6 +20,10 @@ class RecommenderScenario:
     def name(self) -> str:
         return self.config.name
 
+    @property
+    def scenario_id(self) -> str:
+        return self.config.scenario_id or self.config.name
+
     def initialize(self, agent_seed: AgentSeed, run_config: RunConfig) -> Observation:
         if run_config.rollout.service_mode == "reference":
             artifact_dir = str(
@@ -37,12 +41,15 @@ class RecommenderScenario:
             )
         context = ScenarioContext(
             scenario_name=self.config.name,
+            runtime_profile=self.config.runtime_profile or self.config.name,
             history_depth=self.config.history_depth,
             history_item_ids=history_item_ids,
             description=self.config.description,
+            scenario_id=self.scenario_id,
+            context_hint=self.config.context_hint,
         )
         return Observation(
-            session_id=f"{self.config.name}-{agent_seed.agent_id}",
+            session_id=f"{self.scenario_id}-{agent_seed.agent_id}",
             step_index=0,
             max_steps=self.config.max_steps,
             available_actions=self.config.allowed_actions,
@@ -82,4 +89,4 @@ def build_scenarios(
         "returning-user-home-feed": ReturningUserHomeFeedScenario,
         "sparse-history-home-feed": SparseHistoryHomeFeedScenario,
     }
-    return tuple(scenario_map[config.name](config) for config in scenario_configs)
+    return tuple(scenario_map.get(config.name, RecommenderScenario)(config) for config in scenario_configs)

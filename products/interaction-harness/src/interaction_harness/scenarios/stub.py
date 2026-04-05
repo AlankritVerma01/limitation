@@ -8,6 +8,14 @@ from ..schema import AgentSeed, Observation, RunConfig
 class StubScenario:
     """A short session with click, skip, and abandon actions."""
 
+    @property
+    def scenario_id(self) -> str:
+        return "stub-scenario"
+
+    @property
+    def name(self) -> str:
+        return "stub-scenario"
+
     def initialize(self, agent_seed: AgentSeed, run_config: RunConfig) -> Observation:
         return Observation(
             session_id=f"{run_config.run_name}-{agent_seed.agent_id}",

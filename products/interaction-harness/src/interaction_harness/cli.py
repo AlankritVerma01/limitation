@@ -5,7 +5,14 @@ from __future__ import annotations
 import argparse
 
 from .audit import run_recommender_audit
+from .config import DEFAULT_OUTPUT_DIR
 from .regression import run_regression_audit
+from .scenario_generation import (
+    DEFAULT_PROVIDER_MODEL,
+    build_default_scenario_pack_path,
+    generate_scenario_pack,
+    write_scenario_pack,
+)
 from .schema import RegressionTarget
 
 
@@ -51,6 +58,38 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Optional display name override for single-run audit mode.",
     )
     parser.add_argument(
+        "--scenario-pack-path",
+        default=None,
+        help="Saved scenario-pack path for single-run mode, or output path in generation mode.",
+    )
+    parser.add_argument(
+        "--generate-scenarios",
+        action="store_true",
+        help="Generate and save a structured scenario pack instead of running an audit.",
+    )
+    parser.add_argument(
+        "--scenario-brief",
+        default=None,
+        help="Short brief used when generating structured scenario packs.",
+    )
+    parser.add_argument(
+        "--generation-mode",
+        default="fixture",
+        choices=("fixture", "provider"),
+        help="Scenario generation mode for --generate-scenarios.",
+    )
+    parser.add_argument(
+        "--generation-model",
+        default=DEFAULT_PROVIDER_MODEL,
+        help="Provider model name used in scenario generation mode.",
+    )
+    parser.add_argument(
+        "--scenario-count",
+        type=int,
+        default=3,
+        help="Number of scenarios to generate in scenario-generation mode.",
+    )
+    parser.add_argument(
         "--compare",
         action="store_true",
         help="Run compare/regression mode against baseline and candidate artifact bundles.",
@@ -94,6 +133,32 @@ def main(argv: list[str] | None = None) -> dict[str, str | int]:
     """Run the CLI entrypoint and return the generated artifact paths."""
     args = _build_parser().parse_args(argv)
     scenario_names = None if args.scenario == "all" else (args.scenario,)
+    if args.generate_scenarios:
+        if args.compare:
+            raise SystemExit("--generate-scenarios cannot be combined with --compare.")
+        if args.scenario_brief is None:
+            raise SystemExit("--generate-scenarios requires --scenario-brief.")
+        output_root = args.output_dir or str(DEFAULT_OUTPUT_DIR)
+        scenario_pack_path = args.scenario_pack_path or build_default_scenario_pack_path(
+            output_root,
+            brief=args.scenario_brief,
+            generator_mode=args.generation_mode,
+        )
+        pack = generate_scenario_pack(
+            args.scenario_brief,
+            generator_mode=args.generation_mode,
+            scenario_count=args.scenario_count,
+            model_name=args.generation_model,
+        )
+        saved_path = write_scenario_pack(pack, scenario_pack_path)
+        print("Scenario generation artifacts:")
+        print(f"  Pack ID: {pack.metadata.pack_id}")
+        print(f"  Scenario pack: {saved_path}")
+        return {
+            "scenario_pack_path": saved_path,
+            "pack_id": pack.metadata.pack_id,
+            "scenario_count": len(pack.scenarios),
+        }
     if args.compare:
         if args.baseline_artifact_dir is None or args.candidate_artifact_dir is None:
             raise SystemExit(
@@ -126,6 +191,7 @@ def main(argv: list[str] | None = None) -> dict[str, str | int]:
         seed=args.seed,
         output_dir=args.output_dir,
         scenario_names=scenario_names,
+        scenario_pack_path=args.scenario_pack_path,
         service_mode=args.service_mode,
         service_artifact_dir=args.service_artifact_dir,
         adapter_base_url=args.adapter_base_url,

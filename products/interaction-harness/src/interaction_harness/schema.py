@@ -9,6 +9,7 @@ ActionName = Literal["click", "skip", "abandon"]
 RiskSeverity = Literal["low", "medium", "high"]
 TargetMode = Literal["reference_artifact", "external_url"]
 RegressionDecisionStatus = Literal["pass", "warn", "fail"]
+ScenarioGeneratorMode = Literal["provider", "fixture"]
 FailureMode = Literal[
     "trust_collapse",
     "low_relevance",
@@ -160,6 +161,9 @@ class ScenarioContext:
     history_depth: int
     history_item_ids: tuple[str, ...]
     description: str
+    scenario_id: str = ""
+    runtime_profile: str = ""
+    context_hint: str = ""
 
 
 @dataclass(frozen=True)
@@ -181,6 +185,7 @@ class AdapterRequest:
     history_item_ids: tuple[str, ...]
     recent_exposure_ids: tuple[str, ...]
     preferred_genres: tuple[str, ...]
+    scenario_profile: str = ""
 
 
 @dataclass(frozen=True)
@@ -210,6 +215,7 @@ class SessionTrace:
     steps: tuple[TraceStep, ...]
     abandoned: bool
     completed_steps: int
+    scenario_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -219,6 +225,40 @@ class ScenarioConfig:
     allowed_actions: tuple[ActionName, ...]
     history_depth: int
     description: str
+    scenario_id: str = ""
+    test_goal: str = ""
+    risk_focus_tags: tuple[str, ...] = ()
+    runtime_profile: str = ""
+    context_hint: str = ""
+
+
+@dataclass(frozen=True)
+class ScenarioPackMetadata:
+    pack_id: str
+    brief: str
+    generator_mode: ScenarioGeneratorMode
+    generated_at_utc: str
+    domain_label: str
+    provider_name: str = ""
+    model_name: str = ""
+
+
+@dataclass(frozen=True)
+class GeneratedScenario:
+    scenario_id: str
+    name: str
+    description: str
+    test_goal: str
+    risk_focus_tags: tuple[str, ...]
+    max_steps: int
+    allowed_actions: tuple[str, ...]
+    adapter_hints: dict[str, dict[str, str | int | float | bool | list[str]]]
+
+
+@dataclass(frozen=True)
+class ScenarioPack:
+    metadata: ScenarioPackMetadata
+    scenarios: tuple[GeneratedScenario, ...]
 
 
 @dataclass(frozen=True)

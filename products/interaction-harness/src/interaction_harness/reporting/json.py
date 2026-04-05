@@ -54,6 +54,8 @@ class JsonReportWriter:
             payload["metadata"]["adapter_base_url"] = "<normalized>"
         if "service_artifact_dir" in payload["metadata"]:
             payload["metadata"]["service_artifact_dir"] = "<normalized>"
+        if "scenario_pack_path" in payload["metadata"]:
+            payload["metadata"]["scenario_pack_path"] = "<normalized>"
         if "generated_at_utc" in payload["metadata"]:
             payload["metadata"]["generated_at_utc"] = "<normalized>"
         if "generated_at_utc" in payload["summary"]:

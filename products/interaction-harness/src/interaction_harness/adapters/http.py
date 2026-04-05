@@ -32,9 +32,10 @@ class HttpRecommenderAdapter:
         scenario_config: ScenarioConfig,
     ) -> Slate:
         adapter_request = AdapterRequest(
-            request_id=f"{agent_state.agent_id}-{observation.scenario_context.scenario_name}-{observation.step_index}",
+            request_id=f"{agent_state.agent_id}-{observation.scenario_context.scenario_id or observation.scenario_context.scenario_name}-{observation.step_index}",
             agent_id=agent_state.agent_id,
             scenario_name=observation.scenario_context.scenario_name,
+            scenario_profile=observation.scenario_context.runtime_profile,
             step_index=observation.step_index,
             history_depth=observation.scenario_context.history_depth,
             history_item_ids=agent_state.history_item_ids,
@@ -51,7 +52,7 @@ class HttpRecommenderAdapter:
         body = self._request_json(req)
         adapter_response = self._normalize_response(body)
         return Slate(
-            slate_id=f"{scenario_config.name}-{agent_state.agent_id}-{observation.step_index}",
+            slate_id=f"{scenario_config.scenario_id or scenario_config.name}-{agent_state.agent_id}-{observation.step_index}",
             step_index=observation.step_index,
             items=adapter_response.items,
         )

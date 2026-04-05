@@ -19,13 +19,13 @@ def run_rollouts(
 ) -> tuple[SessionTrace, ...]:
     """Run seeded traces without scoring or report generation."""
     traces: list[SessionTrace] = []
-    scenario_config_by_name = {
-        config.name: config for config in run_config.scenarios
+    scenario_config_by_id = {
+        (config.scenario_id or config.name): config for config in run_config.scenarios
     }
     for scenario_index, scenario in enumerate(scenarios):
-        matching_config = scenario_config_by_name.get(scenario.name)
+        matching_config = scenario_config_by_id.get(scenario.scenario_id)
         if matching_config is None:
-            raise ValueError(f"Missing scenario config for scenario '{scenario.name}'.")
+            raise ValueError(f"Missing scenario config for scenario '{scenario.scenario_id}'.")
         for agent_index, agent_seed in enumerate(run_config.agent_seeds):
             trace_seed = run_config.rollout.seed + (scenario_index * 100) + agent_index
             rng = Random(trace_seed)
@@ -76,9 +76,10 @@ def run_rollouts(
 
             traces.append(
                 SessionTrace(
-                    trace_id=f"{scenario.name}-{agent_seed.agent_id}",
+                    trace_id=f"{scenario.scenario_id}-{agent_seed.agent_id}",
                     seed=trace_seed,
                     agent_seed=agent_seed,
+                    scenario_id=scenario.scenario_id,
                     scenario_name=scenario.name,
                     steps=tuple(trace_steps),
                     abandoned=abandoned,

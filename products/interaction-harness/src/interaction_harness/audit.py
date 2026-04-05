@@ -17,6 +17,7 @@ from .reporting.chart import CohortChartWriter
 from .reporting.json import JsonReportWriter
 from .reporting.markdown import MarkdownReportWriter
 from .rollout.engine import run_rollouts
+from .scenario_generation import load_scenario_pack
 from .scenarios.recommender import build_scenarios
 from .schema import RunResult
 from .services.mock_recommender import run_mock_recommender_service
@@ -29,6 +30,7 @@ def execute_recommender_audit(
     seed: int = 0,
     output_dir: str | None = None,
     scenario_names: tuple[str, ...] | None = None,
+    scenario_pack_path: str | None = None,
     service_mode: str = "reference",
     service_artifact_dir: str | None = None,
     adapter_base_url: str | None = None,
@@ -36,10 +38,12 @@ def execute_recommender_audit(
 ) -> RunResult:
     """Run one recommender audit and return the in-memory result."""
     resolved_service_mode = "external" if adapter_base_url is not None else service_mode
+    scenario_pack = load_scenario_pack(scenario_pack_path) if scenario_pack_path is not None else None
     run_config = build_default_run_config(
         seed=seed,
         output_dir=output_dir,
         scenario_names=scenario_names,
+        scenario_pack_path=scenario_pack_path,
         service_mode=resolved_service_mode,
         service_artifact_dir=service_artifact_dir,
         adapter_base_url=adapter_base_url,
@@ -70,6 +74,16 @@ def execute_recommender_audit(
             judge=judge,
             analyzer=analyzer,
             adapter_base_url=base_url,
+            scenario_pack_metadata=(
+                {
+                    "scenario_pack_id": scenario_pack.metadata.pack_id,
+                    "scenario_pack_mode": scenario_pack.metadata.generator_mode,
+                    "scenario_pack_domain": scenario_pack.metadata.domain_label,
+                    "scenario_pack_path": scenario_pack_path,
+                }
+                if scenario_pack is not None and scenario_pack_path is not None
+                else None
+            ),
         )
 
 
@@ -87,6 +101,7 @@ def run_recommender_audit(
     seed: int = 0,
     output_dir: str | None = None,
     scenario_names: tuple[str, ...] | None = None,
+    scenario_pack_path: str | None = None,
     service_mode: str = "reference",
     service_artifact_dir: str | None = None,
     adapter_base_url: str | None = None,
@@ -97,6 +112,7 @@ def run_recommender_audit(
         seed=seed,
         output_dir=output_dir,
         scenario_names=scenario_names,
+        scenario_pack_path=scenario_pack_path,
         service_mode=service_mode,
         service_artifact_dir=service_artifact_dir,
         adapter_base_url=adapter_base_url,
@@ -113,6 +129,7 @@ def _execute_with_adapter(
     judge,
     analyzer,
     adapter_base_url: str,
+    scenario_pack_metadata: dict[str, str] | None = None,
 ) -> RunResult:
     """Execute one audit end-to-end against an already running adapter."""
     adapter = HttpRecommenderAdapter(
@@ -142,6 +159,7 @@ def _execute_with_adapter(
             "judge": "RecommenderJudge",
             "analyzer": "RecommenderAnalyzer",
             **service_metadata,
+            **(scenario_pack_metadata or {}),
         },
     )
 

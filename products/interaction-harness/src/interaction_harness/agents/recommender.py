@@ -115,7 +115,10 @@ def initial_state_from_seed(
     scenario_context,
 ) -> AgentState:
     """Build explicit initial state from the seed and scenario context."""
-    is_sparse = scenario_context.scenario_name == "sparse-history-home-feed"
+    runtime_profile = (
+        getattr(scenario_context, "runtime_profile", "") or scenario_context.scenario_name
+    )
+    is_sparse = runtime_profile == "sparse-history-home-feed"
     click_threshold = 0.56 + (0.14 * agent_seed.abandonment_sensitivity)
     base_trust = 0.74 - (0.08 * agent_seed.abandonment_sensitivity)
     if is_sparse:
@@ -246,8 +249,10 @@ class RecommenderAgentPolicy:
         exposed_ids = tuple(item.item_id for item in slate.items)
         recent_exposure_ids = (*agent_state.recent_exposure_ids, *exposed_ids)[-12:]
         next_step = observation.step_index + 1
-        scenario_name = observation.scenario_context.scenario_name
-        is_sparse = scenario_name == "sparse-history-home-feed"
+        runtime_profile = (
+            observation.scenario_context.runtime_profile or observation.scenario_context.scenario_name
+        )
+        is_sparse = runtime_profile == "sparse-history-home-feed"
         top_utility = decision.explanation.top_candidate_utility
         threshold_gap = max(0.0, decision.explanation.action_threshold - top_utility)
 
@@ -290,7 +295,7 @@ class RecommenderAgentPolicy:
 
         if action.name == "skip":
             scenario_penalty = 0.08 if is_sparse else 0.06
-            trust_penalty = 0.07 if scenario_name == "returning-user-home-feed" else 0.05
+            trust_penalty = 0.07 if runtime_profile == "returning-user-home-feed" else 0.05
             confidence_penalty = 0.06 if is_sparse else 0.02
             return replace(
                 agent_state,
@@ -374,8 +379,10 @@ class RecommenderAgentPolicy:
         rng: Random,
     ) -> UtilityBreakdown:
         """Compute the deterministic utility components for one candidate item."""
-        scenario_name = observation.scenario_context.scenario_name
-        is_sparse = scenario_name == "sparse-history-home-feed"
+        runtime_profile = (
+            observation.scenario_context.runtime_profile or observation.scenario_context.scenario_name
+        )
+        is_sparse = runtime_profile == "sparse-history-home-feed"
         genre_match = 1.0 if signals.genre in agent_state.preferred_genres else 0.0
         repeated_count = agent_state.recent_exposure_ids.count(signals.item_id)
         repeated_penalty = (
@@ -401,7 +408,7 @@ class RecommenderAgentPolicy:
         )
         quality = 0.17 * signals.quality_signal * agent_state.quality_sensitivity
 
-        if scenario_name == "returning-user-home-feed":
+        if runtime_profile == "returning-user-home-feed":
             scenario_adjustment = (
                 (0.08 * genre_match * agent_state.history_reliance)
                 - (0.06 * (1.0 - genre_match) * agent_state.history_reliance)
@@ -445,7 +452,10 @@ class RecommenderAgentPolicy:
         observation: Observation,
     ) -> float:
         """Raise or lower the click threshold based on current state and scenario."""
-        is_sparse = observation.scenario_context.scenario_name == "sparse-history-home-feed"
+        runtime_profile = (
+            observation.scenario_context.runtime_profile or observation.scenario_context.scenario_name
+        )
+        is_sparse = runtime_profile == "sparse-history-home-feed"
         threshold = (
             agent_state.click_threshold
             + (agent_state.frustration * 0.18)

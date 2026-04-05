@@ -11,6 +11,9 @@ class Scenario(Protocol):
     """Initializes observations and decides when a rollout should stop."""
 
     @property
+    def scenario_id(self) -> str: ...
+
+    @property
     def name(self) -> str: ...
 
     def initialize(self, agent_seed: AgentSeed, run_config: RunConfig) -> Observation: ...

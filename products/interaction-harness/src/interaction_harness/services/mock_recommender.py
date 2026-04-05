@@ -15,14 +15,14 @@ def build_recommendation(payload: dict) -> dict:
     preferred_genres = tuple(payload["preferred_genres"])
     history_ids = set(payload["history_item_ids"])
     recent_exposure_ids = set(payload["recent_exposure_ids"])
-    scenario_name = payload["scenario_name"]
+    scenario_profile = payload.get("scenario_profile", payload["scenario_name"])
     step_index = payload["step_index"]
 
     ranked_items = []
     for item in CATALOG:
         genre_match = 1.0 if item.genre in preferred_genres else 0.15
-        popularity_weight = 0.48 if scenario_name == "sparse-history-home-feed" else 0.28
-        novelty_weight = 0.07 if scenario_name == "sparse-history-home-feed" else 0.18
+        popularity_weight = 0.48 if scenario_profile == "sparse-history-home-feed" else 0.28
+        novelty_weight = 0.07 if scenario_profile == "sparse-history-home-feed" else 0.18
         history_bonus = 0.08 if item.item_id in history_ids else 0.0
         exposure_penalty = 0.12 if item.item_id in recent_exposure_ids else 0.0
         score = (
