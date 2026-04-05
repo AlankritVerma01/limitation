@@ -1,0 +1,505 @@
+"""Regression orchestration for reruns and baseline-vs-candidate comparisons."""
+
+from __future__ import annotations
+
+import json
+from collections import Counter, defaultdict
+from datetime import datetime, timezone
+from hashlib import sha1
+from pathlib import Path
+
+from .audit import execute_recommender_audit, write_run_artifacts
+from .config import DEFAULT_OUTPUT_DIR, slugify_name
+from .reporting.regression import RegressionJsonWriter, RegressionMarkdownWriter
+from .schema import (
+    CohortDelta,
+    FailureMode,
+    FailureModeCount,
+    MetricDelta,
+    MetricSummary,
+    RegressionDiff,
+    RegressionTarget,
+    RerunSummary,
+    RiskFlagDelta,
+    RunArtifactPaths,
+    RunResult,
+    TraceDelta,
+)
+
+_SUMMARY_METRICS = (
+    "mean_session_utility",
+    "abandonment_rate",
+    "mean_engagement",
+    "mean_frustration",
+    "mean_trust_delta",
+    "mean_skip_rate",
+    "high_risk_cohort_count",
+)
+
+_RISK_ORDER = {"low": 0, "medium": 1, "high": 2}
+
+
+def build_seed_schedule(base_seed: int, rerun_count: int) -> tuple[int, ...]:
+    """Return a deterministic seed schedule for regression reruns."""
+    return tuple(base_seed + offset for offset in range(rerun_count))
+
+
+def run_regression_audit(
+    *,
+    baseline_target: RegressionTarget,
+    candidate_target: RegressionTarget,
+    base_seed: int = 0,
+    rerun_count: int = 3,
+    output_dir: str | None = None,
+    scenario_names: tuple[str, ...] | None = None,
+) -> dict[str, str]:
+    """Run rerun summaries and baseline-vs-candidate diff artifacts."""
+    default_output_dir = (
+        DEFAULT_OUTPUT_DIR
+        / "regression"
+        / f"{slugify_name(baseline_target.label)}-vs-{slugify_name(candidate_target.label)}"
+        / f"seed-{base_seed}"
+    )
+    resolved_output_dir = Path(output_dir or default_output_dir)
+    resolved_output_dir.mkdir(parents=True, exist_ok=True)
+    baseline_summary, baseline_runs = _run_target_reruns(
+        target=baseline_target,
+        base_seed=base_seed,
+        rerun_count=rerun_count,
+        scenario_names=scenario_names,
+        output_dir=resolved_output_dir / "baseline",
+    )
+    candidate_summary, candidate_runs = _run_target_reruns(
+        target=candidate_target,
+        base_seed=base_seed,
+        rerun_count=rerun_count,
+        scenario_names=scenario_names,
+        output_dir=resolved_output_dir / "candidate",
+    )
+    regression_diff = RegressionDiff(
+        gating_mode="report_only",
+        baseline_summary=baseline_summary,
+        candidate_summary=candidate_summary,
+        metric_deltas=_build_metric_deltas(baseline_summary, candidate_summary),
+        cohort_deltas=_build_cohort_deltas(baseline_runs, candidate_runs),
+        risk_flag_deltas=_build_risk_flag_deltas(baseline_runs, candidate_runs),
+        notable_trace_deltas=_build_trace_deltas(baseline_runs, candidate_runs),
+        metadata={
+            "regression_id": _build_regression_id(
+                baseline_target,
+                candidate_target,
+                base_seed,
+                rerun_count,
+                scenario_names,
+                baseline_summary.metadata,
+                candidate_summary.metadata,
+            ),
+            "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+            "display_name": f"{baseline_target.label} vs {candidate_target.label}",
+            "base_seed": base_seed,
+            "rerun_count": rerun_count,
+            "seed_schedule": ",".join(str(seed) for seed in baseline_summary.seed_schedule),
+            "baseline_label": baseline_target.label,
+            "candidate_label": candidate_target.label,
+        },
+    )
+    markdown_paths = RegressionMarkdownWriter().write(regression_diff, resolved_output_dir)
+    json_paths = RegressionJsonWriter().write(regression_diff, resolved_output_dir)
+    return {**markdown_paths, **json_paths}
+
+
+def _run_target_reruns(
+    *,
+    target: RegressionTarget,
+    base_seed: int,
+    rerun_count: int,
+    scenario_names: tuple[str, ...] | None,
+    output_dir: Path,
+) -> tuple[RerunSummary, tuple[RunResult, ...]]:
+    if target.mode != "reference_artifact":
+        raise NotImplementedError("Only reference_artifact targets are supported in Chunk 6.")
+
+    seed_schedule = build_seed_schedule(base_seed, rerun_count)
+    run_results: list[RunResult] = []
+    run_artifacts: list[RunArtifactPaths] = []
+    for seed in seed_schedule:
+        run_output_dir = output_dir / f"seed-{seed}"
+        run_result = execute_recommender_audit(
+            seed=seed,
+            output_dir=str(run_output_dir),
+            scenario_names=scenario_names,
+            service_mode="reference",
+            service_artifact_dir=target.service_artifact_dir,
+            run_name=f"chunk-06-regression-{target.label}-seed-{seed}",
+        )
+        artifact_paths = write_run_artifacts(run_result)
+        run_results.append(run_result)
+        run_artifacts.append(
+            RunArtifactPaths(
+                seed=seed,
+                output_dir=str(run_output_dir),
+                report_path=artifact_paths["report_path"],
+                results_path=artifact_paths["results_path"],
+                traces_path=artifact_paths["traces_path"],
+                chart_path=artifact_paths["chart_path"],
+            )
+        )
+
+    return (
+        _summarize_target_runs(
+            target=target,
+            run_results=tuple(run_results),
+            seed_schedule=seed_schedule,
+            run_artifacts=tuple(run_artifacts),
+        ),
+        tuple(run_results),
+    )
+
+
+def _summarize_target_runs(
+    *,
+    target: RegressionTarget,
+    run_results: tuple[RunResult, ...],
+    seed_schedule: tuple[int, ...],
+    run_artifacts: tuple[RunArtifactPaths, ...],
+) -> RerunSummary:
+    metric_values = {metric_name: [] for metric_name in _SUMMARY_METRICS}
+    failure_mode_counts: Counter[FailureMode] = Counter()
+    for run_result in run_results:
+        metrics = _summary_metrics_for_run(run_result)
+        for metric_name, value in metrics.items():
+            metric_values[metric_name].append(value)
+        failure_mode_counts.update(score.dominant_failure_mode for score in run_result.trace_scores)
+
+    metric_summaries = tuple(
+        _build_metric_summary(metric_name, tuple(values))
+        for metric_name, values in metric_values.items()
+    )
+    metadata = dict(run_results[0].metadata if run_results else {})
+    metadata["target_label"] = target.label
+    metadata["target_mode"] = target.mode
+    return RerunSummary(
+        target=target,
+        run_count=len(run_results),
+        seed_schedule=seed_schedule,
+        metric_summaries=metric_summaries,
+        high_risk_cohort_count_mean=_summary_metric_value(metric_summaries, "high_risk_cohort_count"),
+        dominant_failure_mode_counts=tuple(
+            FailureModeCount(failure_mode=mode, count=count)
+            for mode, count in failure_mode_counts.most_common()
+        ),
+        metadata=metadata,
+        run_artifacts=run_artifacts,
+    )
+
+
+def _summary_metrics_for_run(run_result: RunResult) -> dict[str, float]:
+    trace_scores = run_result.trace_scores
+    cohort_summaries = run_result.cohort_summaries
+    return {
+        "mean_session_utility": _mean(score.session_utility for score in trace_scores),
+        "abandonment_rate": _mean(1.0 if score.abandoned else 0.0 for score in trace_scores),
+        "mean_engagement": _mean(score.engagement for score in trace_scores),
+        "mean_frustration": _mean(score.frustration for score in trace_scores),
+        "mean_trust_delta": _mean(score.trust_delta for score in trace_scores),
+        "mean_skip_rate": _mean(score.skip_rate for score in trace_scores),
+        "high_risk_cohort_count": float(
+            sum(1 for cohort in cohort_summaries if cohort.risk_level == "high")
+        ),
+    }
+
+
+def _build_metric_summary(metric_name: str, values: tuple[float, ...]) -> MetricSummary:
+    if not values:
+        return MetricSummary(metric_name=metric_name, mean=0.0, minimum=0.0, maximum=0.0, spread=0.0)
+    minimum = min(values)
+    maximum = max(values)
+    mean = sum(values) / len(values)
+    return MetricSummary(
+        metric_name=metric_name,
+        mean=round(mean, 6),
+        minimum=round(minimum, 6),
+        maximum=round(maximum, 6),
+        spread=round(maximum - minimum, 6),
+    )
+
+
+def _build_metric_deltas(
+    baseline_summary: RerunSummary,
+    candidate_summary: RerunSummary,
+) -> tuple[MetricDelta, ...]:
+    baseline_lookup = {metric.metric_name: metric for metric in baseline_summary.metric_summaries}
+    candidate_lookup = {metric.metric_name: metric for metric in candidate_summary.metric_summaries}
+    metric_names = sorted(set(baseline_lookup).intersection(candidate_lookup))
+    return tuple(
+        MetricDelta(
+            metric_name=name,
+            baseline_mean=baseline_lookup[name].mean,
+            candidate_mean=candidate_lookup[name].mean,
+            delta=round(candidate_lookup[name].mean - baseline_lookup[name].mean, 6),
+        )
+        for name in metric_names
+    )
+
+
+def _build_cohort_deltas(
+    baseline_runs: tuple[RunResult, ...],
+    candidate_runs: tuple[RunResult, ...],
+) -> tuple[CohortDelta, ...]:
+    baseline_lookup = _aggregate_cohorts(baseline_runs)
+    candidate_lookup = _aggregate_cohorts(candidate_runs)
+    deltas: list[CohortDelta] = []
+    for key in sorted(set(baseline_lookup).union(candidate_lookup)):
+        baseline = baseline_lookup.get(key, _empty_cohort_aggregate())
+        candidate = candidate_lookup.get(key, _empty_cohort_aggregate())
+        scenario_name, archetype_label = key
+        deltas.append(
+            CohortDelta(
+                scenario_name=scenario_name,
+                archetype_label=archetype_label,
+                baseline_risk_level=baseline["risk_level"],
+                candidate_risk_level=candidate["risk_level"],
+                baseline_failure_mode=baseline["dominant_failure_mode"],
+                candidate_failure_mode=candidate["dominant_failure_mode"],
+                baseline_mean_session_utility=baseline["mean_session_utility"],
+                candidate_mean_session_utility=candidate["mean_session_utility"],
+                session_utility_delta=round(
+                    candidate["mean_session_utility"] - baseline["mean_session_utility"], 6
+                ),
+                abandonment_rate_delta=round(
+                    candidate["abandonment_rate"] - baseline["abandonment_rate"], 6
+                ),
+                trust_delta_delta=round(
+                    candidate["mean_trust_delta"] - baseline["mean_trust_delta"], 6
+                ),
+                skip_rate_delta=round(
+                    candidate["mean_skip_rate"] - baseline["mean_skip_rate"], 6
+                ),
+            )
+        )
+    deltas.sort(
+        key=lambda delta: (
+            abs(delta.session_utility_delta)
+            + abs(delta.abandonment_rate_delta)
+            + abs(delta.trust_delta_delta)
+            + abs(delta.skip_rate_delta)
+        ),
+        reverse=True,
+    )
+    return tuple(deltas)
+
+
+def _build_risk_flag_deltas(
+    baseline_runs: tuple[RunResult, ...],
+    candidate_runs: tuple[RunResult, ...],
+) -> tuple[RiskFlagDelta, ...]:
+    baseline_lookup = _aggregate_risk_flags(baseline_runs)
+    candidate_lookup = _aggregate_risk_flags(candidate_runs)
+    deltas: list[RiskFlagDelta] = []
+    for key in sorted(set(baseline_lookup).union(candidate_lookup)):
+        baseline = baseline_lookup.get(key, {"count": 0, "top_severity": None})
+        candidate = candidate_lookup.get(key, {"count": 0, "top_severity": None})
+        scenario_name, archetype_label = key
+        deltas.append(
+            RiskFlagDelta(
+                scenario_name=scenario_name,
+                archetype_label=archetype_label,
+                baseline_count=int(baseline["count"]),
+                candidate_count=int(candidate["count"]),
+                delta=int(candidate["count"] - baseline["count"]),
+                baseline_top_severity=baseline["top_severity"],
+                candidate_top_severity=candidate["top_severity"],
+            )
+        )
+    deltas.sort(key=lambda delta: (abs(delta.delta), _risk_rank(delta.candidate_top_severity)), reverse=True)
+    return tuple(deltas)
+
+
+def _build_trace_deltas(
+    baseline_runs: tuple[RunResult, ...],
+    candidate_runs: tuple[RunResult, ...],
+) -> tuple[TraceDelta, ...]:
+    baseline_lookup = _aggregate_trace_scores(baseline_runs)
+    candidate_lookup = _aggregate_trace_scores(candidate_runs)
+    deltas: list[TraceDelta] = []
+    for trace_id in sorted(set(baseline_lookup).union(candidate_lookup)):
+        baseline = baseline_lookup.get(trace_id, _empty_trace_aggregate(trace_id))
+        candidate = candidate_lookup.get(trace_id, _empty_trace_aggregate(trace_id))
+        deltas.append(
+            TraceDelta(
+                trace_id=trace_id,
+                scenario_name=candidate["scenario_name"] or baseline["scenario_name"],
+                archetype_label=candidate["archetype_label"] or baseline["archetype_label"],
+                baseline_mean_utility=baseline["mean_session_utility"],
+                candidate_mean_utility=candidate["mean_session_utility"],
+                session_utility_delta=round(
+                    candidate["mean_session_utility"] - baseline["mean_session_utility"], 6
+                ),
+                baseline_mean_risk_score=baseline["mean_trace_risk_score"],
+                candidate_mean_risk_score=candidate["mean_trace_risk_score"],
+                trace_risk_score_delta=round(
+                    candidate["mean_trace_risk_score"] - baseline["mean_trace_risk_score"], 6
+                ),
+                baseline_failure_mode=baseline["dominant_failure_mode"],
+                candidate_failure_mode=candidate["dominant_failure_mode"],
+            )
+        )
+    deltas.sort(
+        key=lambda delta: abs(delta.session_utility_delta) + abs(delta.trace_risk_score_delta),
+        reverse=True,
+    )
+    return tuple(deltas[:12])
+
+
+def _aggregate_cohorts(run_results: tuple[RunResult, ...]) -> dict[tuple[str, str], dict[str, object]]:
+    aggregate: dict[tuple[str, str], dict[str, object]] = defaultdict(
+        lambda: {
+            "mean_session_utility_values": [],
+            "abandonment_rate_values": [],
+            "mean_trust_delta_values": [],
+            "mean_skip_rate_values": [],
+            "risk_levels": Counter(),
+            "failure_modes": Counter(),
+        }
+    )
+    for run_result in run_results:
+        for cohort in run_result.cohort_summaries:
+            key = (cohort.scenario_name, cohort.archetype_label)
+            bucket = aggregate[key]
+            bucket["mean_session_utility_values"].append(cohort.mean_session_utility)
+            bucket["abandonment_rate_values"].append(cohort.abandonment_rate)
+            bucket["mean_trust_delta_values"].append(cohort.mean_trust_delta)
+            bucket["mean_skip_rate_values"].append(cohort.mean_skip_rate)
+            bucket["risk_levels"][cohort.risk_level] += 1
+            bucket["failure_modes"][cohort.dominant_failure_mode] += 1
+    resolved: dict[tuple[str, str], dict[str, object]] = {}
+    for key, bucket in aggregate.items():
+        resolved[key] = {
+            "mean_session_utility": round(_mean(bucket["mean_session_utility_values"]), 6),
+            "abandonment_rate": round(_mean(bucket["abandonment_rate_values"]), 6),
+            "mean_trust_delta": round(_mean(bucket["mean_trust_delta_values"]), 6),
+            "mean_skip_rate": round(_mean(bucket["mean_skip_rate_values"]), 6),
+            "risk_level": _top_risk_level(bucket["risk_levels"]),
+            "dominant_failure_mode": _top_failure_mode(bucket["failure_modes"]),
+        }
+    return resolved
+
+
+def _aggregate_risk_flags(run_results: tuple[RunResult, ...]) -> dict[tuple[str, str], dict[str, object]]:
+    aggregate: dict[tuple[str, str], dict[str, object]] = defaultdict(
+        lambda: {"count": 0, "top_severity": None}
+    )
+    for run_result in run_results:
+        for flag in run_result.risk_flags:
+            key = (flag.scenario_name, flag.archetype_label)
+            aggregate[key]["count"] += 1
+            current = aggregate[key]["top_severity"]
+            if current is None or _risk_rank(flag.severity) > _risk_rank(current):
+                aggregate[key]["top_severity"] = flag.severity
+    return dict(aggregate)
+
+
+def _aggregate_trace_scores(run_results: tuple[RunResult, ...]) -> dict[str, dict[str, object]]:
+    aggregate: dict[str, dict[str, object]] = defaultdict(
+        lambda: {
+            "scenario_name": "",
+            "archetype_label": "",
+            "session_utility_values": [],
+            "trace_risk_score_values": [],
+            "failure_modes": Counter(),
+        }
+    )
+    for run_result in run_results:
+        for score in run_result.trace_scores:
+            bucket = aggregate[score.trace_id]
+            bucket["scenario_name"] = score.scenario_name
+            bucket["archetype_label"] = score.archetype_label
+            bucket["session_utility_values"].append(score.session_utility)
+            bucket["trace_risk_score_values"].append(score.trace_risk_score)
+            bucket["failure_modes"][score.dominant_failure_mode] += 1
+    resolved: dict[str, dict[str, object]] = {}
+    for trace_id, bucket in aggregate.items():
+        resolved[trace_id] = {
+            "scenario_name": bucket["scenario_name"],
+            "archetype_label": bucket["archetype_label"],
+            "mean_session_utility": round(_mean(bucket["session_utility_values"]), 6),
+            "mean_trace_risk_score": round(_mean(bucket["trace_risk_score_values"]), 6),
+            "dominant_failure_mode": _top_failure_mode(bucket["failure_modes"]),
+        }
+    return resolved
+
+
+def _empty_cohort_aggregate() -> dict[str, object]:
+    return {
+        "mean_session_utility": 0.0,
+        "abandonment_rate": 0.0,
+        "mean_trust_delta": 0.0,
+        "mean_skip_rate": 0.0,
+        "risk_level": "low",
+        "dominant_failure_mode": "no_major_failure",
+    }
+
+
+def _empty_trace_aggregate(trace_id: str) -> dict[str, object]:
+    del trace_id
+    return {
+        "scenario_name": "",
+        "archetype_label": "",
+        "mean_session_utility": 0.0,
+        "mean_trace_risk_score": 0.0,
+        "dominant_failure_mode": "no_major_failure",
+    }
+
+
+def _summary_metric_value(metric_summaries: tuple[MetricSummary, ...], metric_name: str) -> float:
+    for metric in metric_summaries:
+        if metric.metric_name == metric_name:
+            return metric.mean
+    return 0.0
+
+
+def _top_risk_level(counts: Counter[str]) -> str:
+    if not counts:
+        return "low"
+    return max(counts, key=lambda value: (counts[value], _risk_rank(value)))
+
+
+def _top_failure_mode(counts: Counter[FailureMode]) -> FailureMode:
+    if not counts:
+        return "no_major_failure"
+    return max(counts, key=lambda value: (counts[value], value != "no_major_failure"))
+
+
+def _risk_rank(severity: str | None) -> int:
+    if severity is None:
+        return -1
+    return _RISK_ORDER.get(severity, -1)
+
+
+def _mean(values) -> float:
+    values = tuple(values)
+    if not values:
+        return 0.0
+    return sum(values) / len(values)
+
+
+def _build_regression_id(
+    baseline_target: RegressionTarget,
+    candidate_target: RegressionTarget,
+    base_seed: int,
+    rerun_count: int,
+    scenario_names: tuple[str, ...] | None,
+    baseline_metadata: dict[str, str | int | float],
+    candidate_metadata: dict[str, str | int | float],
+) -> str:
+    payload = {
+        "baseline_label": baseline_target.label,
+        "candidate_label": candidate_target.label,
+        "base_seed": base_seed,
+        "rerun_count": rerun_count,
+        "scenarios": list(scenario_names or ()),
+        "baseline_artifact_id": baseline_metadata.get("artifact_id", ""),
+        "candidate_artifact_id": candidate_metadata.get("artifact_id", ""),
+    }
+    digest = sha1(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:12]
+    return f"reg-{digest}"
