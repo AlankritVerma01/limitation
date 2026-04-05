@@ -114,6 +114,7 @@ def _execute_with_adapter(
     analyzer,
     adapter_base_url: str,
 ) -> RunResult:
+    """Execute one audit end-to-end against an already running adapter."""
     adapter = HttpRecommenderAdapter(
         adapter_base_url,
         timeout_seconds=run_config.rollout.service_timeout_seconds,
@@ -146,6 +147,7 @@ def _execute_with_adapter(
 
 
 def _build_run_id(run_config, service_metadata: dict[str, str | int | float]) -> str:
+    """Build a short stable run identifier from config and service metadata."""
     payload = {
         "run_name": run_config.run_name,
         "seed": run_config.rollout.seed,

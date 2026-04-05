@@ -136,6 +136,7 @@ class RecommenderAnalyzer:
         )
 
     def _dominant_failure_mode(self, scores: list[TraceScore]) -> FailureMode:
+        """Choose the dominant failure mode, weighted by trace severity."""
         weighted_counts: Counter[FailureMode] = Counter()
         for score in scores:
             if score.dominant_failure_mode == "no_major_failure":
@@ -156,6 +157,7 @@ class RecommenderAnalyzer:
         mean_concentration: float,
         trace_scores: list[TraceScore],
     ) -> float:
+        """Blend cohort-level and worst-trace signals into one risk score."""
         base = 0.0
         base += 0.35 * abandonment_rate
         base += max(0.0, 0.58 - mean_session_utility) * 0.45
@@ -187,6 +189,7 @@ class RecommenderAnalyzer:
         scores: list[TraceScore],
         dominant_failure_mode: FailureMode,
     ) -> TraceScore | None:
+        """Pick the highest-severity trace inside the cohort's main failure mode."""
         candidates = [
             score
             for score in scores
@@ -204,6 +207,7 @@ class RecommenderAnalyzer:
         self,
         scores: list[TraceScore],
     ) -> TraceScore | None:
+        """Pick the strongest healthy trace for side-by-side inspection."""
         candidates = [
             score
             for score in scores

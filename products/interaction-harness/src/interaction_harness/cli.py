@@ -10,6 +10,7 @@ from .schema import RegressionTarget
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Build the CLI parser for single-run and compare modes."""
     parser = argparse.ArgumentParser(
         description=(
             "Run a single recommender audit or compare two artifact-backed systems "
@@ -84,6 +85,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> dict[str, str]:
+    """Run the CLI entrypoint and return the generated artifact paths."""
     args = _build_parser().parse_args(argv)
     scenario_names = None if args.scenario == "all" else (args.scenario,)
     if args.compare:

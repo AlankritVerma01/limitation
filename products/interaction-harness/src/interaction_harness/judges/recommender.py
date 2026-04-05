@@ -209,6 +209,7 @@ class RecommenderJudge:
         frustration_delta: float,
         abandonment_step: int | None,
     ) -> FailureMode:
+        """Pick one deterministic failure label using the trace evidence precedence."""
         if session_trace.abandoned and abandonment_step is not None and abandonment_step <= 2:
             return "early_abandonment"
         if (
@@ -242,6 +243,7 @@ class RecommenderJudge:
         frustration_delta: float,
         dominant_failure_mode: FailureMode,
     ) -> float:
+        """Convert trace-level failures into one bounded risk score."""
         score = 0.0
         if session_trace.abandoned:
             score += 0.34
@@ -270,6 +272,7 @@ class RecommenderJudge:
         novelty_intensity: float,
         mean_top_candidate_utility: float,
     ) -> str:
+        """Return a short evidence string that explains the dominant failure label."""
         if dominant_failure_mode == "early_abandonment":
             return (
                 f"abandoned at step {abandonment_step} after "
@@ -300,6 +303,7 @@ class RecommenderJudge:
         )
 
     def _top_candidate_novelty(self, step) -> float | None:
+        """Look up novelty for the top-ranked candidate referenced in the explanation."""
         top_item_id = (
             step.decision_explanation.top_candidate_item_id
             if step.decision_explanation is not None
