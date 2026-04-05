@@ -1,4 +1,4 @@
-"""Config defaults for the first real recommender slice."""
+"""Default run configuration for the interaction harness."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from .services.reference_artifacts import DEFAULT_REFERENCE_ARTIFACT_DIR
 DEFAULT_OUTPUT_DIR = (
     Path(__file__).resolve().parents[4] / "products" / "interaction-harness" / "output"
 )
+DEFAULT_RUN_NAME = "interaction-harness-audit"
 
 
 def slugify_name(value: str) -> str:
@@ -29,8 +30,8 @@ def build_default_run_config(
     adapter_base_url: str | None = None,
     run_name: str | None = None,
 ) -> RunConfig:
-    """Build the default config for the reference-service recommender audit."""
-    resolved_run_name = run_name or "chunk-07-polished-audit"
+    """Build the default single-run config for the recommender harness."""
+    resolved_run_name = run_name or DEFAULT_RUN_NAME
     selected = scenario_names or (
         "returning-user-home-feed",
         "sparse-history-home-feed",
@@ -51,6 +52,11 @@ def build_default_run_config(
             description="Sparse-history home-feed session with limited prior behavior.",
         ),
     }
+    unknown_scenarios = sorted(set(selected).difference(scenario_map))
+    if unknown_scenarios:
+        raise ValueError(
+            f"Unknown scenario names: {', '.join(unknown_scenarios)}."
+        )
     rollout = RolloutConfig(
         seed=seed,
         output_dir=str(

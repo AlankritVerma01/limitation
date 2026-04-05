@@ -158,6 +158,7 @@ def normalize_runtime_item_signals(slate: Slate) -> tuple[RuntimeItemSignals, ..
 
 
 def _to_runtime_signals(item: SlateItem) -> RuntimeItemSignals:
+    """Project a slate item onto the smaller signal set used by the runtime."""
     return RuntimeItemSignals(
         item_id=item.item_id,
         rank=item.rank,
@@ -178,10 +179,10 @@ class RecommenderAgentPolicy:
         agent_state: AgentState,
         slate: Slate,
         observation: Observation,
-        scenario_config: ScenarioConfig,
+        _scenario_config: ScenarioConfig,
         rng: Random,
     ) -> ActionDecision:
-        del scenario_config
+        """Choose click, skip, or abandon from the current slate and state."""
         evaluations = self._evaluate_candidates(agent_state, slate, observation, rng)
         if not evaluations:
             action = Action("abandon", None, "empty_slate")
@@ -238,9 +239,9 @@ class RecommenderAgentPolicy:
         decision: ActionDecision,
         slate: Slate,
         observation: Observation,
-        rng: Random,
+        _rng: Random,
     ) -> AgentState:
-        del rng
+        """Apply the chosen action and return the next explicit user state."""
         action = decision.action
         exposed_ids = tuple(item.item_id for item in slate.items)
         recent_exposure_ids = (*agent_state.recent_exposure_ids, *exposed_ids)[-12:]
@@ -327,9 +328,9 @@ class RecommenderAgentPolicy:
         before: AgentState,
         after: AgentState,
         decision: ActionDecision,
-        observation: Observation,
+        _observation: Observation,
     ) -> str:
-        del observation
+        """Return a short human-readable summary of the state transition."""
         fragments = [
             f"trust {before.trust:.2f}->{after.trust:.2f}",
             f"confidence {before.confidence:.2f}->{after.confidence:.2f}",
@@ -351,6 +352,7 @@ class RecommenderAgentPolicy:
         observation: Observation,
         rng: Random,
     ) -> list[CandidateEvaluation]:
+        """Score and rank slate items from best to worst for this step."""
         evaluations: list[CandidateEvaluation] = []
         for signals in normalize_runtime_item_signals(slate):
             breakdown = self._utility_breakdown(agent_state, signals, observation, rng)
@@ -371,6 +373,7 @@ class RecommenderAgentPolicy:
         observation: Observation,
         rng: Random,
     ) -> UtilityBreakdown:
+        """Compute the deterministic utility components for one candidate item."""
         scenario_name = observation.scenario_context.scenario_name
         is_sparse = scenario_name == "sparse-history-home-feed"
         genre_match = 1.0 if signals.genre in agent_state.preferred_genres else 0.0
@@ -441,6 +444,7 @@ class RecommenderAgentPolicy:
         agent_state: AgentState,
         observation: Observation,
     ) -> float:
+        """Raise or lower the click threshold based on current state and scenario."""
         is_sparse = observation.scenario_context.scenario_name == "sparse-history-home-feed"
         threshold = (
             agent_state.click_threshold
@@ -464,6 +468,7 @@ class RecommenderAgentPolicy:
         best: CandidateEvaluation,
         threshold: float,
     ) -> DecisionExplanation:
+        """Record why the runtime chose the final action for this step."""
         chosen_utility = best.breakdown.total if action.name == "click" else 0.0
         return DecisionExplanation(
             chosen_item_id=action.selected_item_id,
@@ -477,6 +482,7 @@ class RecommenderAgentPolicy:
         )
 
     def _dominant_component(self, breakdown: UtilityBreakdown) -> str:
+        """Return the strongest positive or negative utility component."""
         weights = {
             "base_relevance": breakdown.base_relevance,
             "affinity": breakdown.affinity,

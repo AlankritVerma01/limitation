@@ -85,6 +85,20 @@ def test_http_adapter_normalizes_service_response() -> None:
     assert slate.items[0].rank == 1
 
 
+def test_default_run_config_uses_product_run_name() -> None:
+    run_config = build_default_run_config()
+    assert run_config.run_name == "interaction-harness-audit"
+
+
+def test_unknown_scenario_names_raise_clear_error() -> None:
+    try:
+        build_default_run_config(scenario_names=("unknown-scenario",))
+    except ValueError as exc:
+        assert "Unknown scenario names" in str(exc)
+    else:
+        raise AssertionError("Expected build_default_run_config to reject unknown scenarios.")
+
+
 def test_scenarios_initialize_differently() -> None:
     run_config = build_default_run_config(seed=3)
     scenarios = {scenario.name: scenario for scenario in build_scenarios(run_config.scenarios)}
@@ -589,8 +603,8 @@ def test_report_writers_consume_precomputed_result_only(tmp_path: Path) -> None:
     assert Path(results_paths["traces_path"]).exists()
     report_body = Path(report_paths["report_path"]).read_text(encoding="utf-8")
     assert "## Launch Risks" in report_body
-    assert "Failure trace" in report_body
-    assert "Success trace" in report_body
+    assert "trace-failure" in report_body
+    assert "trace-success" in report_body
 
 
 def test_json_output_includes_enriched_score_fields(tmp_path: Path) -> None:
