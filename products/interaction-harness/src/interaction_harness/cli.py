@@ -81,10 +81,16 @@ def _build_parser() -> argparse.ArgumentParser:
         default="candidate",
         help="Display label for the candidate target in compare mode.",
     )
+    parser.add_argument(
+        "--policy-mode",
+        default="default",
+        choices=("default", "report_only"),
+        help="Regression policy mode for compare runs.",
+    )
     return parser
 
 
-def main(argv: list[str] | None = None) -> dict[str, str]:
+def main(argv: list[str] | None = None) -> dict[str, str | int]:
     """Run the CLI entrypoint and return the generated artifact paths."""
     args = _build_parser().parse_args(argv)
     scenario_names = None if args.scenario == "all" else (args.scenario,)
@@ -108,8 +114,10 @@ def main(argv: list[str] | None = None) -> dict[str, str]:
             rerun_count=args.rerun_count,
             output_dir=args.output_dir,
             scenario_names=scenario_names,
+            policy_mode=args.policy_mode,
         )
         print("Compare audit artifacts:")
+        print(f"  Decision: {str(result['decision_status']).upper()}")
         print(f"  Regression report: {result['regression_report_path']}")
         print(f"  Regression summary: {result['regression_summary_path']}")
         print(f"  Regression traces: {result['regression_traces_path']}")

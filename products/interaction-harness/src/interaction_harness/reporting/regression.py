@@ -63,6 +63,7 @@ class RegressionMarkdownWriter:
         output_dir.mkdir(parents=True, exist_ok=True)
         report_path = output_dir / "regression_report.md"
         lines = ["# Interaction Harness Regression Audit"]
+        lines.extend(self._decision_lines(regression_diff))
         lines.extend(self._executive_summary_lines(regression_diff))
         lines.extend(self._metric_delta_lines(regression_diff))
         lines.extend(self._variance_lines(regression_diff))
@@ -72,6 +73,26 @@ class RegressionMarkdownWriter:
 
         report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         return {"regression_report_path": str(report_path)}
+
+    def _decision_lines(self, regression_diff: RegressionDiff) -> list[str]:
+        """Render the policy decision and the top triggered checks first."""
+        decision = regression_diff.decision
+        if decision is None:
+            return []
+        lines = [
+            "",
+            "## Decision",
+            "",
+            f"- Result: `{decision.status}`",
+            f"- Exit code: `{decision.exit_code}`",
+            f"- Policy mode: `{regression_diff.gating_mode}`",
+        ]
+        if not decision.reasons:
+            lines.append("- No warn or fail checks were triggered.")
+            return lines
+        lines.append("- Triggered checks:")
+        lines.extend(f"  - {reason}" for reason in decision.reasons[:5])
+        return lines
 
     def _executive_summary_lines(self, regression_diff: RegressionDiff) -> list[str]:
         """Render the opening regression summary and high-signal changes."""
@@ -87,7 +108,7 @@ class RegressionMarkdownWriter:
             f"- Cohorts improved: `{summary['improved_cohort_count']}`; regressed: `{summary['regressed_cohort_count']}`",
             f"- Risk flags added: `{summary['added_risk_flag_count']}`; removed: `{summary['removed_risk_flag_count']}`",
             f"- Variance confidence: {summary['variance_note']}",
-            f"- Regression mode: `{regression_diff.gating_mode}`; severity is informational in this version and no hard failure thresholds are enforced.",
+            f"- Regression mode: `{regression_diff.gating_mode}`.",
             "",
             "## Most Important Changes",
             "",
@@ -310,11 +331,16 @@ class RegressionJsonWriter:
         """Build one normalized payload shared by both regression JSON artifacts."""
         payload = _normalize_regression_payload(_serialize(regression_diff))
         payload["summary"] = self._build_summary(regression_diff)
+        decision = payload.get("decision") or {}
+        payload["decision_status"] = decision.get("status", "pass")
+        payload["decision_reasons"] = decision.get("reasons", [])
+        payload["checks"] = decision.get("checks", [])
         return _normalize_regression_payload(payload)
 
     def _build_summary(self, regression_diff: RegressionDiff) -> dict[str, object]:
         """Build the top-level summary block stored in regression_summary.json."""
         markdown_summary = RegressionMarkdownWriter().build_summary(regression_diff)
+        decision = regression_diff.decision
         return {
             "display_name": str(
                 regression_diff.metadata.get(
@@ -326,6 +352,9 @@ class RegressionJsonWriter:
             "generated_at_utc": str(regression_diff.metadata.get("generated_at_utc", "")),
             "baseline_label": regression_diff.baseline_summary.target.label,
             "candidate_label": regression_diff.candidate_summary.target.label,
+            "decision": decision.status if decision is not None else "pass",
+            "exit_code": decision.exit_code if decision is not None else 0,
+            "decision_reasons": list(decision.reasons) if decision is not None else [],
             "overall_direction": markdown_summary["overall_direction"],
             "improved_cohort_count": markdown_summary["improved_cohort_count"],
             "regressed_cohort_count": markdown_summary["regressed_cohort_count"],

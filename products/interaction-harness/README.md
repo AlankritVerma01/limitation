@@ -31,7 +31,8 @@ Today it is recommender-first. Over time, the same core is meant to support broa
 - four seeded synthetic archetypes
 - explicit agent state and decision explanations
 - deterministic judging, cohort analysis, and failure surfacing
-- rerun-based regression comparisons
+- rerun-based regression comparisons with deterministic `pass` / `warn` /
+  `fail` decisions
 - markdown, JSON, trace, and chart artifacts
 
 ## How It Differs From The Existing Study
@@ -123,7 +124,8 @@ Single-run audit bundles include:
 Regression compare bundles include:
 
 - `regression_report.md`: human-readable baseline-vs-candidate summary
-- `regression_summary.json`: machine-readable regression diff plus top-level summary block
+- `regression_summary.json`: machine-readable regression diff plus top-level
+  summary block, decision, reasons, and checks
 - `regression_traces.json`: notable trace-level changes
 - nested `baseline/` and `candidate/` rerun directories with per-seed audit bundles
 
@@ -131,7 +133,8 @@ Regression compare bundles include:
 
 - synthetic users are still hand-authored and parameterized
 - scenario coverage is still narrow
-- regression is still informational and not a hard gate
+- regression policy is real now, but still early and not the final long-term
+  gating model
 - no LLM judge or LLM agents are in the critical path
 - external service integrations are still early
 

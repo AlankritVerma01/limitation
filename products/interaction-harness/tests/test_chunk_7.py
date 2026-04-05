@@ -66,6 +66,7 @@ def test_cli_help_mentions_compare_and_run_name() -> None:
     assert "--run-name" in help_text
     assert "--baseline-label" in help_text
     assert "--candidate-label" in help_text
+    assert "--policy-mode" in help_text
 
 
 def test_compare_mode_accepts_label_overrides(tmp_path: Path) -> None:

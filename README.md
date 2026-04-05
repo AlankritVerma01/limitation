@@ -13,8 +13,6 @@ Today the active implementation is recommender-first, but the longer-term goal i
 
 ## Current Product State
 
-The interaction harness is now a real working product skeleton, not just a plan.
-
 It currently includes:
 
 - a real HTTP-shaped system boundary
@@ -22,7 +20,8 @@ It currently includes:
 - a mock service kept only for narrow tests
 - seeded synthetic users with explicit multi-step state
 - deterministic judging, cohort analysis, and failure surfacing
-- report-only baseline-vs-candidate regression runs across reruns
+- baseline-vs-candidate regression runs across reruns with deterministic
+  `pass` / `warn` / `fail` policy output
 - polished markdown, JSON, and trace artifacts
 
 The study remains the proof. The interaction harness is the product direction.

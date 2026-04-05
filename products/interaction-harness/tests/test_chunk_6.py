@@ -120,4 +120,5 @@ def test_cli_compare_mode_writes_regression_artifacts(tmp_path: Path) -> None:
     assert Path(result["regression_traces_path"]).exists()
     report_body = Path(result["regression_report_path"]).read_text(encoding="utf-8")
     assert "Regression Audit" in report_body
-    assert "informational in this version" in report_body
+    assert "## Decision" in report_body
+    assert result["decision_status"] == "pass"
