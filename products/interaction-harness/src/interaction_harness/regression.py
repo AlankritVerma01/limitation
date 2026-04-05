@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .audit import execute_recommender_audit, write_run_artifacts
 from .config import DEFAULT_OUTPUT_DIR, slugify_name
+from .regression_policy import default_regression_policy, evaluate_regression_policy
 from .reporting.regression import RegressionJsonWriter, RegressionMarkdownWriter
 from .schema import (
     CohortDelta,
@@ -18,6 +19,8 @@ from .schema import (
     MetricDelta,
     MetricSummary,
     RegressionDiff,
+    RegressionPolicy,
+    RegressionPolicyOverride,
     RegressionTarget,
     RerunSummary,
     RiskFlagDelta,
@@ -54,7 +57,11 @@ def run_regression_audit(
     rerun_count: int = 3,
     output_dir: str | None = None,
     scenario_names: tuple[str, ...] | None = None,
-) -> dict[str, str]:
+    policy_mode: str = "default",
+    policy: RegressionPolicy | None = None,
+    metric_overrides: tuple[RegressionPolicyOverride, ...] = (),
+    cohort_overrides: tuple[RegressionPolicyOverride, ...] = (),
+) -> dict[str, str | int]:
     """Run rerun summaries and baseline-vs-candidate diff artifacts."""
     default_output_dir = _default_regression_output_dir(
         baseline_target=baseline_target,
@@ -77,14 +84,19 @@ def run_regression_audit(
         scenario_names=scenario_names,
         output_dir=resolved_output_dir / "candidate",
     )
+    resolved_policy = policy or default_regression_policy(
+        metric_overrides=metric_overrides,
+        cohort_overrides=cohort_overrides,
+    )
     regression_diff = RegressionDiff(
-        gating_mode="report_only",
+        gating_mode=policy_mode,
         baseline_summary=baseline_summary,
         candidate_summary=candidate_summary,
         metric_deltas=_build_metric_deltas(baseline_summary, candidate_summary),
         cohort_deltas=_build_cohort_deltas(baseline_runs, candidate_runs),
         risk_flag_deltas=_build_risk_flag_deltas(baseline_runs, candidate_runs),
         notable_trace_deltas=_build_trace_deltas(baseline_runs, candidate_runs),
+        decision=None,
         metadata=_build_regression_metadata(
             baseline_target=baseline_target,
             candidate_target=candidate_target,
@@ -93,11 +105,34 @@ def run_regression_audit(
             scenario_names=scenario_names,
             baseline_summary=baseline_summary,
             candidate_summary=candidate_summary,
+            policy_name=resolved_policy.name,
+            policy_mode=policy_mode,
         ),
+    )
+    regression_diff = RegressionDiff(
+        gating_mode=regression_diff.gating_mode,
+        baseline_summary=regression_diff.baseline_summary,
+        candidate_summary=regression_diff.candidate_summary,
+        metric_deltas=regression_diff.metric_deltas,
+        cohort_deltas=regression_diff.cohort_deltas,
+        risk_flag_deltas=regression_diff.risk_flag_deltas,
+        notable_trace_deltas=regression_diff.notable_trace_deltas,
+        decision=evaluate_regression_policy(
+            regression_diff,
+            resolved_policy,
+            gating_mode=policy_mode,
+        ),
+        metadata=regression_diff.metadata,
     )
     markdown_paths = RegressionMarkdownWriter().write(regression_diff, resolved_output_dir)
     json_paths = RegressionJsonWriter().write(regression_diff, resolved_output_dir)
-    return {**markdown_paths, **json_paths}
+    decision = regression_diff.decision
+    return {
+        **markdown_paths,
+        **json_paths,
+        "decision_status": decision.status if decision is not None else "pass",
+        "exit_code": decision.exit_code if decision is not None else 0,
+    }
 
 
 def _default_regression_output_dir(
@@ -124,6 +159,8 @@ def _build_regression_metadata(
     scenario_names: tuple[str, ...] | None,
     baseline_summary: RerunSummary,
     candidate_summary: RerunSummary,
+    policy_name: str,
+    policy_mode: str,
 ) -> dict[str, str | int]:
     """Build stable metadata for a regression comparison bundle."""
     return {
@@ -143,6 +180,8 @@ def _build_regression_metadata(
         "seed_schedule": ",".join(str(seed) for seed in baseline_summary.seed_schedule),
         "baseline_label": baseline_target.label,
         "candidate_label": candidate_target.label,
+        "policy_name": policy_name,
+        "policy_mode": policy_mode,
     }
 
 

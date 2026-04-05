@@ -8,6 +8,7 @@ from typing import Literal
 ActionName = Literal["click", "skip", "abandon"]
 RiskSeverity = Literal["low", "medium", "high"]
 TargetMode = Literal["reference_artifact", "external_url"]
+RegressionDecisionStatus = Literal["pass", "warn", "fail"]
 FailureMode = Literal[
     "trust_collapse",
     "low_relevance",
@@ -331,6 +332,70 @@ class RegressionTarget:
 
 
 @dataclass(frozen=True)
+class RegressionPolicyScope:
+    metric_name: str | None = None
+    scenario_name: str | None = None
+    archetype_label: str | None = None
+
+
+@dataclass(frozen=True)
+class RegressionMetricPolicy:
+    metric_name: str
+    worse_direction: Literal["higher", "lower"]
+    warn_delta: float
+    fail_delta: float
+
+
+@dataclass(frozen=True)
+class RegressionPolicyOverride:
+    scope: RegressionPolicyScope
+    warn_delta: float
+    fail_delta: float
+
+
+@dataclass(frozen=True)
+class RegressionPolicy:
+    name: str
+    metric_policies: tuple[RegressionMetricPolicy, ...]
+    metric_overrides: tuple[RegressionPolicyOverride, ...] = ()
+    cohort_warn_delta: float = 0.05
+    cohort_fail_delta: float = 0.15
+    cohort_overrides: tuple[RegressionPolicyOverride, ...] = ()
+    warn_regressed_cohort_count: int = 1
+    fail_regressed_cohort_count: int = 2
+    warn_added_high_risk_cohort_count: int = 1
+    fail_added_high_risk_cohort_count: int = 2
+    warn_added_risk_flag_count: int = 1
+    fail_added_risk_flag_count: int = 2
+    fail_new_high_severity_risk_flag_count: int = 1
+    warn_trace_regression_count: int = 2
+    fail_trace_regression_count: int = 5
+    trace_utility_drop_threshold: float = 0.05
+    trace_risk_increase_threshold: float = 0.05
+    warn_variance_spread: float = 0.03
+    fail_variance_spread: float = 0.08
+
+
+@dataclass(frozen=True)
+class RegressionCheckResult:
+    check_id: str
+    severity: RegressionDecisionStatus
+    scope: RegressionPolicyScope
+    message: str
+    value: str
+    threshold: str
+    details: dict[str, str | int | float] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class RegressionDecision:
+    status: RegressionDecisionStatus
+    reasons: tuple[str, ...]
+    checks: tuple[RegressionCheckResult, ...]
+    exit_code: int
+
+
+@dataclass(frozen=True)
 class MetricSummary:
     metric_name: str
     mean: float
@@ -426,4 +491,5 @@ class RegressionDiff:
     cohort_deltas: tuple[CohortDelta, ...]
     risk_flag_deltas: tuple[RiskFlagDelta, ...]
     notable_trace_deltas: tuple[TraceDelta, ...]
+    decision: RegressionDecision | None = None
     metadata: dict[str, str | int | float] = field(default_factory=dict)
