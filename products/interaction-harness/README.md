@@ -1,30 +1,42 @@
 # Interaction Harness
 
-This package is the new product-facing area for the next stage of the project.
+This package is the active product track for the repository.
 
-It is intentionally separate from the existing
-`studies/01-recommender-offline-eval` study package.
+It is intentionally separate from the older
+`studies/01-recommender-offline-eval` proof package.
 
-## What This Package Is
+## What It Is
 
-The package now contains Chunk 7: a stronger deterministic audit layer, a first
-reproducibility and regression harness, and a more polished product-facing
-artifact surface on top of the real reference recommender service.
+Interaction Harness is a deterministic interaction-testing tool.
 
-It proves:
+In the current build, it audits recommender systems by:
 
-- a service-shaped adapter boundary through a real local reference service
-- two real scenarios: returning user and sparse-history home feed
-- seeded archetypes reused from the public recommender study
-- an artifact-backed backend built from local MovieLens 100K data
-- richer deterministic trace scoring, cohort summaries, and failure surfacing
-- rerun summaries and baseline-vs-candidate regression artifacts
-- clearer markdown and JSON summaries, run metadata, and a simple chart artifact bundle
+1. calling a system under test through a normalized adapter
+2. running seeded synthetic users through short scenarios
+3. recording the full session trace
+4. judging the completed trace deterministically
+5. summarizing cohort-level risks and representative traces
+6. optionally comparing baseline vs candidate systems across reruns
+
+Today it is recommender-first. Long term, the framework is meant to generalize to broader non-deterministic systems without throwing away the core rollout, judging, and regression machinery.
+
+## What Is Real Today
+
+- a real local reference recommender service
+- an HTTP recommender adapter
+- a local mock service kept only for narrow tests
+- two recommender scenarios:
+  - returning-user home feed
+  - sparse-history home feed
+- four seeded synthetic archetypes
+- explicit agent state and decision explanations
+- deterministic judging, cohort analysis, and failure surfacing
+- rerun-based regression comparisons
+- markdown, JSON, trace, and chart artifacts
 
 ## How It Differs From The Existing Study
 
-The current study package is a public proof centered on offline recommender
-evaluation and behavioral diagnostics.
+The existing study package is a public offline-evaluation proof.
 
 This new package is the foundation for a broader interaction-testing product:
 
@@ -36,30 +48,30 @@ This new package is the foundation for a broader interaction-testing product:
 - reproducibility harness
 - report
 
-## Chunk 7 Status
+The product remains independent from the study package. Ideas are reused, but the new runtime does not import the old `recommender_offline_eval` code.
 
-Implemented here:
+## Package Layout
 
-- offline reference artifact build flow
-- artifact-backed reference recommender service
-- local mock recommender fixture for narrow tests only
-- HTTP recommender adapter
-- returning-user and sparse-history scenarios
-- parameter-driven seeded archetypes
-- normalized runtime item signals
-- richer recommender-aware runtime policy
-- step-level decision explanations in traces
-- stronger deterministic judge and cohort analyzer
-- explicit failure modes, risk flags, and representative success/failure traces
-- report-only regression diffs across two artifact-backed systems
-- deterministic rerun summaries with simple variance reporting
-- polished reports with executive summaries and compact trace inspection sections
-- clearer run IDs, generated-at metadata, and more consistent output bundles
-- report, results, traces, and chart outputs
-
-The product remains independent from the existing study package. Ideas are
-reused intentionally, but the new package does not import the old
-`recommender_offline_eval` code.
+- `src/interaction_harness/cli.py`
+  - CLI entrypoint for single-run and compare modes
+- `src/interaction_harness/audit.py`
+  - single-run orchestration
+- `src/interaction_harness/regression.py`
+  - reruns and baseline-vs-candidate orchestration
+- `src/interaction_harness/services/`
+  - local reference service, mock fixture, and reference artifacts
+- `src/interaction_harness/adapters/`
+  - system-under-test adapter layer
+- `src/interaction_harness/agents/`
+  - seeded synthetic user policies
+- `src/interaction_harness/rollout/`
+  - session execution loop
+- `src/interaction_harness/judges/`
+  - deterministic trace scoring
+- `src/interaction_harness/analysis/`
+  - cohort-level summarization and risk surfacing
+- `src/interaction_harness/reporting/`
+  - markdown, JSON, and chart writers
 
 ## Run The Recommender Audit
 
@@ -81,7 +93,7 @@ Use the mock fixture explicitly:
 PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --service-mode mock
 ```
 
-Run the new regression compare mode:
+Run compare mode against two artifact-backed targets:
 
 ```bash
 PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
@@ -91,6 +103,12 @@ Use custom labels in compare mode:
 
 ```bash
 PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --baseline-label current-prod --candidate-label next-build
+```
+
+See all CLI options:
+
+```bash
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --help
 ```
 
 ## How To Read The Output
@@ -109,16 +127,24 @@ Regression compare bundles include:
 - `regression_traces.json`: notable trace-level changes
 - nested `baseline/` and `candidate/` rerun directories with per-seed audit bundles
 
-## What Is Real Today
-
-- a real local reference recommender service
-- seeded synthetic agents with multi-step state transitions
-- deterministic trace scoring and cohort analysis
-- report-only regression comparisons across reruns
-
 ## What Is Still Simplified
 
 - synthetic users are still hand-authored and parameterized
 - scenario coverage is still narrow
 - regression is still informational and not a hard gate
 - no LLM judge or LLM agents are in the critical path
+- external service integrations are still early
+
+## Development
+
+Run checks from the repository root:
+
+```bash
+PYTHONPATH=products/interaction-harness/src .venv/bin/ruff check products/interaction-harness
+PYTHONPATH=products/interaction-harness/src .venv/bin/pytest products/interaction-harness/tests -q
+```
+
+## Planning
+
+The active roadmap for this package lives under
+[plans/interaction-harness-v0](../plans/interaction-harness-v0/README.md).
