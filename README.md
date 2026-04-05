@@ -1,28 +1,29 @@
 # limitation
 
-This repository is the public home for a focused v1:
+This repository contains:
 
-> Behavioral QA for recommender systems
+- a public recommender-evaluation proof under [studies/01-recommender-offline-eval](studies/01-recommender-offline-eval/README.md)
+- the active product build under [products/interaction-harness](products/interaction-harness/README.md)
 
-It is a small, reproducible evaluation tool for comparing a baseline recommender against a candidate recommender and surfacing what aggregate offline metrics miss.
+The short product thesis is:
 
-The product question is simple:
+> evaluate non-deterministic systems through interaction, not just offline metrics
 
-> Should I trust this new recommender before I ship it?
+Today the active implementation is recommender-first, but the longer-term goal is broader: a reusable interaction-testing harness for systems that need scenario-based, trajectory-level evaluation.
 
-## Current Build Direction
+## Current Product State
 
-The original public proof still lives under
-`studies/01-recommender-offline-eval/`.
+The interaction harness is now a real working product skeleton, not just a plan.
 
-The active product build now lives under
-[`products/interaction-harness/`](products/interaction-harness/README.md).
-That package is the new interaction-testing track:
+It currently includes:
 
-- real HTTP-shaped system boundary
-- seeded synthetic users over trajectories
-- deterministic judge and cohort analysis
-- report-only regression comparisons across reruns
+- a real HTTP-shaped system boundary
+- a local artifact-backed reference recommender service
+- a mock service kept only for narrow tests
+- seeded synthetic users with explicit multi-step state
+- deterministic judging, cohort analysis, and failure surfacing
+- report-only baseline-vs-candidate regression runs across reruns
+- polished markdown, JSON, and trace artifacts
 
 The study remains the proof. The interaction harness is the product direction.
 
@@ -45,6 +46,17 @@ The official MovieLens 100K demo shows the core product value clearly:
 - `Model B` is more novel and less catalog-concentrated
 
 That is the hidden-tradeoff insight this tool is designed to catch.
+
+## Where To Start
+
+If you want the active product:
+
+- read [products/interaction-harness/README.md](products/interaction-harness/README.md)
+- then read the active roadmap in [plans/interaction-harness-v0/README.md](plans/interaction-harness-v0/README.md)
+
+If you want the original public proof:
+
+- read [studies/01-recommender-offline-eval/README.md](studies/01-recommender-offline-eval/README.md)
 
 ## What Offline Metrics Missed
 
@@ -142,6 +154,8 @@ Useful links:
 
 ## Repo Guide
 
+- [Interaction Harness README](products/interaction-harness/README.md)
+- [Interaction Harness plans](plans/interaction-harness-v0/README.md)
 - [Study 01 README](studies/01-recommender-offline-eval/README.md)
 - [V1 product spec](studies/01-recommender-offline-eval/docs/v1-product-spec.md)
 - [Canonical artifacts](studies/01-recommender-offline-eval/artifacts/canonical)
