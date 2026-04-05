@@ -10,6 +10,22 @@ The product question is simple:
 
 > Should I trust this new recommender before I ship it?
 
+## Current Build Direction
+
+The original public proof still lives under
+`studies/01-recommender-offline-eval/`.
+
+The active product build now lives under
+[`products/interaction-harness/`](products/interaction-harness/README.md).
+That package is the new interaction-testing track:
+
+- real HTTP-shaped system boundary
+- seeded synthetic users over trajectories
+- deterministic judge and cohort analysis
+- report-only regression comparisons across reruns
+
+The study remains the proof. The interaction harness is the product direction.
+
 ## The Problem
 
 Offline metrics like `Recall@10` and `NDCG@10` are useful, but they can hide important differences:
