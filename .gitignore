@@ -13,3 +13,4 @@ studies/*/docs-private/
 products/*/output/
 plans/
 demo-commands.txt
+.env
