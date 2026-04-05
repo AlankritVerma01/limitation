@@ -10,3 +10,5 @@ studies/*/.cache/
 studies/*/data/
 studies/*/output/
 studies/*/docs-private/
+products/*/output/
+plans/
