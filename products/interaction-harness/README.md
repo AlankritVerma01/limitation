@@ -5,7 +5,7 @@ This package is the active product track for the repository.
 It is intentionally separate from the older
 `studies/01-recommender-offline-eval` proof package.
 
-## What It Is
+## What It Does
 
 Interaction Harness is a deterministic interaction-testing tool.
 
@@ -18,9 +18,9 @@ In the current build, it audits recommender systems by:
 5. summarizing cohort-level risks and representative traces
 6. optionally comparing baseline vs candidate systems across reruns
 
-Today it is recommender-first. Long term, the framework is meant to generalize to broader non-deterministic systems without throwing away the core rollout, judging, and regression machinery.
+Today it is recommender-first. Over time, the same core is meant to support broader non-deterministic systems without throwing away the rollout, judging, and regression machinery.
 
-## What Is Real Today
+## Current Capabilities
 
 - a real local reference recommender service
 - an HTTP recommender adapter
@@ -127,7 +127,7 @@ Regression compare bundles include:
 - `regression_traces.json`: notable trace-level changes
 - nested `baseline/` and `candidate/` rerun directories with per-seed audit bundles
 
-## What Is Still Simplified
+## Current Limits
 
 - synthetic users are still hand-authored and parameterized
 - scenario coverage is still narrow
