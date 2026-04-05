@@ -16,6 +16,15 @@ def test_seed_schedule_is_deterministic() -> None:
     assert build_seed_schedule(11, 3) == (11, 12, 13)
 
 
+def test_seed_schedule_rejects_non_positive_rerun_count() -> None:
+    try:
+        build_seed_schedule(11, 0)
+    except ValueError as exc:
+        assert "rerun_count must be at least 1" in str(exc)
+    else:
+        raise AssertionError("Expected build_seed_schedule to reject rerun_count=0.")
+
+
 def test_same_artifact_dir_produces_zero_metric_deltas(tmp_path: Path) -> None:
     artifact_dir = tmp_path / "shared-artifacts"
     ensure_reference_artifacts(artifact_dir)

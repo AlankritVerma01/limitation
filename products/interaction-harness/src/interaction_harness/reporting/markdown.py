@@ -13,17 +13,28 @@ class MarkdownReportWriter:
     """Writes a clearer behavioral audit report from precomputed results."""
 
     def write(self, run_result: RunResult, output_dir: Path) -> dict[str, str]:
+        """Write the human-facing markdown audit report for one run."""
         output_dir.mkdir(parents=True, exist_ok=True)
         report_path = output_dir / "report.md"
-        trace_lookup = {trace.trace_id: trace for trace in run_result.traces}
+        lines = ["# Interaction Harness Recommender Audit"]
+        lines.extend(self._run_summary_lines(run_result))
+        lines.extend(self._launch_risk_lines(run_result))
+        lines.extend(self._scenario_coverage_lines(run_result))
+        lines.extend(self._cohort_summary_lines(run_result))
+        lines.extend(self._representative_trace_lines(run_result))
+        lines.extend(self._metadata_lines(run_result))
+        lines.extend(self._trace_score_lines(run_result))
+
+        report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return {"report_path": str(report_path)}
+
+    def _run_summary_lines(self, run_result: RunResult) -> list[str]:
+        """Render the opening run metadata and summary section."""
         scenario_names = ", ".join(
             scenario.name for scenario in run_result.run_config.scenarios
         )
-        summary_lines = self._executive_summary(run_result)
-        failure_cohorts, success_cohorts = self._select_representative_cohorts(run_result)
         service_kind = str(run_result.metadata.get("service_kind", "unknown"))
         lines = [
-            "# Interaction Harness Recommender Audit",
             "",
             "## Run Summary",
             "",
@@ -38,34 +49,41 @@ class MarkdownReportWriter:
             "## Executive Summary",
             "",
         ]
-        lines.extend(f"- {line}" for line in summary_lines)
+        lines.extend(f"- {line}" for line in self._executive_summary(run_result))
+        return lines
 
-        lines.extend(["", "## Launch Risks", ""])
+    def _launch_risk_lines(self, run_result: RunResult) -> list[str]:
+        """Render the risk section shown near the top of the report."""
+        lines = ["", "## Launch Risks", ""]
         if not run_result.risk_flags:
             lines.append("- No medium or high risk cohorts were detected in this run.")
-        else:
-            for flag in run_result.risk_flags:
-                lines.append(
-                    f"- `{flag.severity}` {flag.scenario_name} / {flag.archetype_label}: "
-                    f"{flag.message} Evidence: {flag.evidence_summary}"
-                )
+            return lines
+        for flag in run_result.risk_flags:
+            lines.append(
+                f"- `{flag.severity}` {flag.scenario_name} / {flag.archetype_label}: "
+                f"{flag.message} Evidence: {flag.evidence_summary}"
+            )
+        return lines
 
-        lines.extend(["", "## Scenario Coverage", ""])
+    def _scenario_coverage_lines(self, run_result: RunResult) -> list[str]:
+        """Render the scenario pack used for this run."""
+        lines = ["", "## Scenario Coverage", ""]
         for scenario in run_result.run_config.scenarios:
             lines.append(
                 f"- `{scenario.name}`: {scenario.description} "
                 f"(history depth `{scenario.history_depth}`, max steps `{scenario.max_steps}`)"
             )
+        return lines
 
-        lines.extend(
-            [
-                "",
-                "## Cohort Summary",
-                "",
-                "| Scenario | Archetype | Risk | Failure Mode | Utility | Trust Δ | Skip Rate |",
-                "| --- | --- | --- | --- | --- | --- | --- |",
-            ]
-        )
+    def _cohort_summary_lines(self, run_result: RunResult) -> list[str]:
+        """Render the cohort summary table."""
+        lines = [
+            "",
+            "## Cohort Summary",
+            "",
+            "| Scenario | Archetype | Risk | Failure Mode | Utility | Trust Δ | Skip Rate |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
+        ]
         for cohort in run_result.cohort_summaries:
             lines.append(
                 f"| {cohort.scenario_name} | {cohort.archetype_label} | "
@@ -73,8 +91,13 @@ class MarkdownReportWriter:
                 f"{cohort.mean_session_utility:.3f} | {cohort.mean_trust_delta:.3f} | "
                 f"{cohort.mean_skip_rate:.3f} |"
             )
+        return lines
 
-        lines.extend(["", "## Representative Traces To Inspect", ""])
+    def _representative_trace_lines(self, run_result: RunResult) -> list[str]:
+        """Render a compact set of failure and success traces to inspect."""
+        trace_lookup = {trace.trace_id: trace for trace in run_result.traces}
+        failure_cohorts, success_cohorts = self._select_representative_cohorts(run_result)
+        lines = ["", "## Representative Traces To Inspect", ""]
         if failure_cohorts:
             lines.extend(["", "### Highest-Risk Cohorts", ""])
             for cohort in failure_cohorts:
@@ -103,22 +126,28 @@ class MarkdownReportWriter:
                 lines.append("")
         if not failure_cohorts and not success_cohorts:
             lines.append("- No representative traces selected.")
+        return lines
 
-        lines.extend(
-            [
-                "## Reproducibility And Metadata",
-                "",
-                "- Runs are deterministic for a fixed seed and scenario selection.",
-                "- The judge consumes completed traces only and does not call the system under test.",
-                f"- Service artifact dir: `{run_result.metadata.get('service_artifact_dir', '') or 'n/a'}`",
-                f"- Artifact ID: `{run_result.metadata.get('artifact_id', 'unknown')}`",
-                "",
-                "## Trace Scores",
-                "",
-                "| Trace | Scenario | Archetype | Utility | Failure Mode | Trust Δ | Skip Rate | Abandoned |",
-                "| --- | --- | --- | --- | --- | --- | --- | --- |",
-            ]
-        )
+    def _metadata_lines(self, run_result: RunResult) -> list[str]:
+        """Render the reproducibility and metadata section."""
+        return [
+            "## Reproducibility And Metadata",
+            "",
+            "- Runs are deterministic for a fixed seed and scenario selection.",
+            "- The judge consumes completed traces only and does not call the system under test.",
+            f"- Service artifact dir: `{run_result.metadata.get('service_artifact_dir', '') or 'n/a'}`",
+            f"- Artifact ID: `{run_result.metadata.get('artifact_id', 'unknown')}`",
+        ]
+
+    def _trace_score_lines(self, run_result: RunResult) -> list[str]:
+        """Render the compact per-trace score table."""
+        lines = [
+            "",
+            "## Trace Scores",
+            "",
+            "| Trace | Scenario | Archetype | Utility | Failure Mode | Trust Δ | Skip Rate | Abandoned |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        ]
         for score in run_result.trace_scores:
             lines.append(
                 f"| {score.trace_id} | {score.scenario_name} | {score.archetype_label} | "
@@ -126,11 +155,10 @@ class MarkdownReportWriter:
                 f"{score.trust_delta:.3f} | {score.skip_rate:.3f} | "
                 f"{score.abandoned} |"
             )
-
-        report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        return {"report_path": str(report_path)}
+        return lines
 
     def _executive_summary(self, run_result: RunResult) -> list[str]:
+        """Return the short top-of-report summary lines."""
         high_risk = [cohort for cohort in run_result.cohort_summaries if cohort.risk_level == "high"]
         medium_risk = [cohort for cohort in run_result.cohort_summaries if cohort.risk_level == "medium"]
         strongest = max(
@@ -174,6 +202,7 @@ class MarkdownReportWriter:
         return lines[:4]
 
     def _select_representative_cohorts(self, run_result: RunResult):
+        """Choose the small set of cohorts worth showing in the report body."""
         failure_cohorts = [
             cohort
             for cohort in run_result.cohort_summaries
@@ -199,6 +228,7 @@ class MarkdownReportWriter:
         return failure_cohorts[:2], success_cohorts[:2]
 
     def _render_trace_steps(self, trace) -> list[str]:
+        """Render only the first few trace steps so the report stays skimmable."""
         if not trace.steps:
             return ["- No steps recorded."]
         lines: list[str] = []

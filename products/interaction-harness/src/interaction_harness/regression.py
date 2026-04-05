@@ -41,6 +41,8 @@ _RISK_ORDER = {"low": 0, "medium": 1, "high": 2}
 
 def build_seed_schedule(base_seed: int, rerun_count: int) -> tuple[int, ...]:
     """Return a deterministic seed schedule for regression reruns."""
+    if rerun_count <= 0:
+        raise ValueError("rerun_count must be at least 1.")
     return tuple(base_seed + offset for offset in range(rerun_count))
 
 
@@ -54,11 +56,10 @@ def run_regression_audit(
     scenario_names: tuple[str, ...] | None = None,
 ) -> dict[str, str]:
     """Run rerun summaries and baseline-vs-candidate diff artifacts."""
-    default_output_dir = (
-        DEFAULT_OUTPUT_DIR
-        / "regression"
-        / f"{slugify_name(baseline_target.label)}-vs-{slugify_name(candidate_target.label)}"
-        / f"seed-{base_seed}"
+    default_output_dir = _default_regression_output_dir(
+        baseline_target=baseline_target,
+        candidate_target=candidate_target,
+        base_seed=base_seed,
     )
     resolved_output_dir = Path(output_dir or default_output_dir)
     resolved_output_dir.mkdir(parents=True, exist_ok=True)
@@ -84,28 +85,65 @@ def run_regression_audit(
         cohort_deltas=_build_cohort_deltas(baseline_runs, candidate_runs),
         risk_flag_deltas=_build_risk_flag_deltas(baseline_runs, candidate_runs),
         notable_trace_deltas=_build_trace_deltas(baseline_runs, candidate_runs),
-        metadata={
-            "regression_id": _build_regression_id(
-                baseline_target,
-                candidate_target,
-                base_seed,
-                rerun_count,
-                scenario_names,
-                baseline_summary.metadata,
-                candidate_summary.metadata,
-            ),
-            "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-            "display_name": f"{baseline_target.label} vs {candidate_target.label}",
-            "base_seed": base_seed,
-            "rerun_count": rerun_count,
-            "seed_schedule": ",".join(str(seed) for seed in baseline_summary.seed_schedule),
-            "baseline_label": baseline_target.label,
-            "candidate_label": candidate_target.label,
-        },
+        metadata=_build_regression_metadata(
+            baseline_target=baseline_target,
+            candidate_target=candidate_target,
+            base_seed=base_seed,
+            rerun_count=rerun_count,
+            scenario_names=scenario_names,
+            baseline_summary=baseline_summary,
+            candidate_summary=candidate_summary,
+        ),
     )
     markdown_paths = RegressionMarkdownWriter().write(regression_diff, resolved_output_dir)
     json_paths = RegressionJsonWriter().write(regression_diff, resolved_output_dir)
     return {**markdown_paths, **json_paths}
+
+
+def _default_regression_output_dir(
+    *,
+    baseline_target: RegressionTarget,
+    candidate_target: RegressionTarget,
+    base_seed: int,
+) -> Path:
+    """Build the default output path for one regression comparison run."""
+    return (
+        DEFAULT_OUTPUT_DIR
+        / "regression"
+        / f"{slugify_name(baseline_target.label)}-vs-{slugify_name(candidate_target.label)}"
+        / f"seed-{base_seed}"
+    )
+
+
+def _build_regression_metadata(
+    *,
+    baseline_target: RegressionTarget,
+    candidate_target: RegressionTarget,
+    base_seed: int,
+    rerun_count: int,
+    scenario_names: tuple[str, ...] | None,
+    baseline_summary: RerunSummary,
+    candidate_summary: RerunSummary,
+) -> dict[str, str | int]:
+    """Build stable metadata for a regression comparison bundle."""
+    return {
+        "regression_id": _build_regression_id(
+            baseline_target,
+            candidate_target,
+            base_seed,
+            rerun_count,
+            scenario_names,
+            baseline_summary.metadata,
+            candidate_summary.metadata,
+        ),
+        "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "display_name": f"{baseline_target.label} vs {candidate_target.label}",
+        "base_seed": base_seed,
+        "rerun_count": rerun_count,
+        "seed_schedule": ",".join(str(seed) for seed in baseline_summary.seed_schedule),
+        "baseline_label": baseline_target.label,
+        "candidate_label": candidate_target.label,
+    }
 
 
 def _run_target_reruns(
@@ -116,6 +154,7 @@ def _run_target_reruns(
     scenario_names: tuple[str, ...] | None,
     output_dir: Path,
 ) -> tuple[RerunSummary, tuple[RunResult, ...]]:
+    """Execute one target repeatedly and collect both results and artifact paths."""
     if target.mode != "reference_artifact":
         raise NotImplementedError("Only reference_artifact targets are supported in Chunk 6.")
 
@@ -130,7 +169,7 @@ def _run_target_reruns(
             scenario_names=scenario_names,
             service_mode="reference",
             service_artifact_dir=target.service_artifact_dir,
-            run_name=f"chunk-06-regression-{target.label}-seed-{seed}",
+            run_name=f"regression-{target.label}-seed-{seed}",
         )
         artifact_paths = write_run_artifacts(run_result)
         run_results.append(run_result)
@@ -163,6 +202,7 @@ def _summarize_target_runs(
     seed_schedule: tuple[int, ...],
     run_artifacts: tuple[RunArtifactPaths, ...],
 ) -> RerunSummary:
+    """Collapse one target's reruns into stable metric and metadata summaries."""
     metric_values = {metric_name: [] for metric_name in _SUMMARY_METRICS}
     failure_mode_counts: Counter[FailureMode] = Counter()
     for run_result in run_results:
@@ -194,6 +234,7 @@ def _summarize_target_runs(
 
 
 def _summary_metrics_for_run(run_result: RunResult) -> dict[str, float]:
+    """Extract the small metric set used for rerun summaries and diffs."""
     trace_scores = run_result.trace_scores
     cohort_summaries = run_result.cohort_summaries
     return {
@@ -210,6 +251,7 @@ def _summary_metrics_for_run(run_result: RunResult) -> dict[str, float]:
 
 
 def _build_metric_summary(metric_name: str, values: tuple[float, ...]) -> MetricSummary:
+    """Summarize one metric across reruns using mean/min/max/range."""
     if not values:
         return MetricSummary(metric_name=metric_name, mean=0.0, minimum=0.0, maximum=0.0, spread=0.0)
     minimum = min(values)
@@ -228,6 +270,7 @@ def _build_metric_deltas(
     baseline_summary: RerunSummary,
     candidate_summary: RerunSummary,
 ) -> tuple[MetricDelta, ...]:
+    """Compute baseline-vs-candidate deltas from rerun metric means."""
     baseline_lookup = {metric.metric_name: metric for metric in baseline_summary.metric_summaries}
     candidate_lookup = {metric.metric_name: metric for metric in candidate_summary.metric_summaries}
     metric_names = sorted(set(baseline_lookup).intersection(candidate_lookup))
@@ -246,6 +289,7 @@ def _build_cohort_deltas(
     baseline_runs: tuple[RunResult, ...],
     candidate_runs: tuple[RunResult, ...],
 ) -> tuple[CohortDelta, ...]:
+    """Aggregate cohort changes across reruns and rank the most important ones first."""
     baseline_lookup = _aggregate_cohorts(baseline_runs)
     candidate_lookup = _aggregate_cohorts(candidate_runs)
     deltas: list[CohortDelta] = []
@@ -293,6 +337,7 @@ def _build_risk_flag_deltas(
     baseline_runs: tuple[RunResult, ...],
     candidate_runs: tuple[RunResult, ...],
 ) -> tuple[RiskFlagDelta, ...]:
+    """Compare risk-flag counts and severities between two rerun sets."""
     baseline_lookup = _aggregate_risk_flags(baseline_runs)
     candidate_lookup = _aggregate_risk_flags(candidate_runs)
     deltas: list[RiskFlagDelta] = []
@@ -319,6 +364,7 @@ def _build_trace_deltas(
     baseline_runs: tuple[RunResult, ...],
     candidate_runs: tuple[RunResult, ...],
 ) -> tuple[TraceDelta, ...]:
+    """Surface the most changed traces across baseline and candidate reruns."""
     baseline_lookup = _aggregate_trace_scores(baseline_runs)
     candidate_lookup = _aggregate_trace_scores(candidate_runs)
     deltas: list[TraceDelta] = []
@@ -352,6 +398,7 @@ def _build_trace_deltas(
 
 
 def _aggregate_cohorts(run_results: tuple[RunResult, ...]) -> dict[tuple[str, str], dict[str, object]]:
+    """Aggregate cohort summaries across reruns by scenario and archetype."""
     aggregate: dict[tuple[str, str], dict[str, object]] = defaultdict(
         lambda: {
             "mean_session_utility_values": [],
@@ -386,6 +433,7 @@ def _aggregate_cohorts(run_results: tuple[RunResult, ...]) -> dict[tuple[str, st
 
 
 def _aggregate_risk_flags(run_results: tuple[RunResult, ...]) -> dict[tuple[str, str], dict[str, object]]:
+    """Aggregate risk-flag counts and top severities across reruns."""
     aggregate: dict[tuple[str, str], dict[str, object]] = defaultdict(
         lambda: {"count": 0, "top_severity": None}
     )
@@ -400,6 +448,7 @@ def _aggregate_risk_flags(run_results: tuple[RunResult, ...]) -> dict[tuple[str,
 
 
 def _aggregate_trace_scores(run_results: tuple[RunResult, ...]) -> dict[str, dict[str, object]]:
+    """Aggregate trace-level scores across reruns by stable trace id."""
     aggregate: dict[str, dict[str, object]] = defaultdict(
         lambda: {
             "scenario_name": "",
@@ -452,6 +501,7 @@ def _empty_trace_aggregate(trace_id: str) -> dict[str, object]:
 
 
 def _summary_metric_value(metric_summaries: tuple[MetricSummary, ...], metric_name: str) -> float:
+    """Read one metric mean from a tuple of metric summaries."""
     for metric in metric_summaries:
         if metric.metric_name == metric_name:
             return metric.mean
@@ -477,6 +527,7 @@ def _risk_rank(severity: str | None) -> int:
 
 
 def _mean(values) -> float:
+    """Return the mean of an iterable, or zero when it is empty."""
     values = tuple(values)
     if not values:
         return 0.0
@@ -492,6 +543,7 @@ def _build_regression_id(
     baseline_metadata: dict[str, str | int | float],
     candidate_metadata: dict[str, str | int | float],
 ) -> str:
+    """Build a short stable identifier for one regression comparison bundle."""
     payload = {
         "baseline_label": baseline_target.label,
         "candidate_label": candidate_target.label,

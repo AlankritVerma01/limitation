@@ -11,6 +11,7 @@ from ..schema import RunResult
 
 
 def _serialize(value: Any) -> Any:
+    """Convert nested dataclasses into plain JSON-friendly Python objects."""
     if is_dataclass(value):
         return _serialize(asdict(value))
     if isinstance(value, dict):
@@ -24,9 +25,25 @@ class JsonReportWriter:
     """Writes machine-readable run results and a trace bundle."""
 
     def write(self, run_result: RunResult, output_dir: Path) -> dict[str, str]:
+        """Write normalized JSON summaries plus the raw trace bundle."""
         output_dir.mkdir(parents=True, exist_ok=True)
         results_path = output_dir / "results.json"
         traces_path = output_dir / "traces.jsonl"
+        payload = self._normalize_payload(run_result)
+        results_path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        with traces_path.open("w", encoding="utf-8") as handle:
+            for trace in run_result.traces:
+                handle.write(json.dumps(_serialize(trace), sort_keys=True) + "\n")
+        return {
+            "results_path": str(results_path),
+            "traces_path": str(traces_path),
+        }
+
+    def _normalize_payload(self, run_result: RunResult) -> dict[str, Any]:
+        """Normalize volatile paths and timestamps so snapshots stay stable."""
         payload = _serialize(run_result)
         payload["summary"] = self._build_summary(run_result)
         payload["run_config"]["rollout"]["output_dir"] = "<normalized>"
@@ -41,19 +58,10 @@ class JsonReportWriter:
             payload["metadata"]["generated_at_utc"] = "<normalized>"
         if "generated_at_utc" in payload["summary"]:
             payload["summary"]["generated_at_utc"] = "<normalized>"
-        results_path.write_text(
-            json.dumps(payload, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-        with traces_path.open("w", encoding="utf-8") as handle:
-            for trace in run_result.traces:
-                handle.write(json.dumps(_serialize(trace), sort_keys=True) + "\n")
-        return {
-            "results_path": str(results_path),
-            "traces_path": str(traces_path),
-        }
+        return payload
 
     def _build_summary(self, run_result: RunResult) -> dict[str, object]:
+        """Build the compact summary block shown at the top of results.json."""
         high_risk = [
             cohort for cohort in run_result.cohort_summaries if cohort.risk_level == "high"
         ]
