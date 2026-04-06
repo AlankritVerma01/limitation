@@ -63,6 +63,8 @@ The product remains independent from the study package. Ideas are reused, but th
   - single-run orchestration
 - `src/interaction_harness/regression.py`
   - reruns and baseline-vs-candidate orchestration
+- `src/interaction_harness/config.py`
+  - shared explicit-input run-config builder plus recommender compatibility wrappers
 - `src/interaction_harness/scenario_generation.py`
   - scenario-pack generation, validation, storage, and recommender projection
 - `src/interaction_harness/population_generation.py`
@@ -81,6 +83,10 @@ The product remains independent from the study package. Ideas are reused, but th
   - cohort-level summarization and risk surfacing
 - `src/interaction_harness/reporting/`
   - markdown, JSON, and chart writers
+- `src/interaction_harness/domain_registry.py`
+  - internal adapter-domain registry
+- `src/interaction_harness/domains/`
+  - domain-owned orchestration seams
 
 ## Run The Recommender Audit
 
@@ -167,6 +173,13 @@ Run compare mode against two artifact-backed targets:
 PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
 ```
 
+Run compare mode against an artifact-backed baseline and an external URL
+candidate:
+
+```bash
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-base-url http://localhost:8010 --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
+```
+
 Reuse one saved population pack across compare reruns:
 
 ```bash
@@ -225,6 +238,10 @@ Regression compare bundles include:
 - semantic interpretation is advisory only and does not influence gating
 - no LLM judge or LLM agents are in the critical path
 - external service integrations are still early
+- the internal portability seam is now cleaner, but the recommender wedge is
+  still the only fully implemented domain
+- the shared config builder is now explicit-input-first, while recommender
+  defaults remain available through compatibility wrappers
 
 ## Development
 
