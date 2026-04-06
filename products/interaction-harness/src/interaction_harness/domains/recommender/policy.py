@@ -49,6 +49,9 @@ def build_seeded_archetypes() -> tuple[AgentSeed, ...]:
             0.82,
             2,
             0.68,
+            "Prefers dependable and broadly appealing recommendations.",
+            "Stay relevant without becoming stale.",
+            ("mainstream", "risk-sensitive"),
         ),
         AgentSeed(
             "agent-explorer",
@@ -68,6 +71,9 @@ def build_seeded_archetypes() -> tuple[AgentSeed, ...]:
             0.36,
             3,
             0.76,
+            "Wants surprising picks and dislikes obvious popular defaults.",
+            "Reward exploration without trust collapse.",
+            ("novelty-seeking", "high-exploration"),
         ),
         AgentSeed(
             "agent-niche",
@@ -87,6 +93,9 @@ def build_seeded_archetypes() -> tuple[AgentSeed, ...]:
             0.74,
             2,
             0.71,
+            "Has sharper genre tastes and wants the system to respect them.",
+            "Keep genre alignment high while still surfacing fresh edges.",
+            ("niche", "quality-sensitive"),
         ),
         AgentSeed(
             "agent-low-patience",
@@ -106,6 +115,9 @@ def build_seeded_archetypes() -> tuple[AgentSeed, ...]:
             0.58,
             1,
             0.52,
+            "Needs the first few slates to land quickly or will leave.",
+            "Earn an early click before patience runs out.",
+            ("impatient", "first-impression-sensitive"),
         ),
     )
 
@@ -118,16 +130,65 @@ def initial_state_from_seed(
     runtime_profile = (
         getattr(scenario_context, "runtime_profile", "") or scenario_context.scenario_name
     )
-    is_sparse = runtime_profile == "sparse-history-home-feed"
+    risk_focus_tags = tuple(
+        getattr(scenario_context, "risk_focus_tags", ()) or ()
+    )
+    context_hint = getattr(scenario_context, "context_hint", "") or ""
+    is_sparse = runtime_profile in {
+        "sparse-history-home-feed",
+        "taste-elicitation-home-feed",
+    }
+    is_taste = runtime_profile == "taste-elicitation-home-feed"
+    is_reengagement = runtime_profile == "re-engagement-home-feed"
+    low_patience = _matches_behavior(
+        agent_seed.behavior_goal,
+        agent_seed.diversity_tags,
+        ("impatient", "low-patience", "first-impression"),
+    )
+    exploration_seeking = _matches_behavior(
+        agent_seed.behavior_goal,
+        agent_seed.diversity_tags,
+        ("explor", "novelty", "curious"),
+    )
+    risk_sensitive = _matches_behavior(
+        agent_seed.behavior_goal,
+        agent_seed.diversity_tags,
+        ("risk", "cautious", "trust"),
+    )
     click_threshold = 0.56 + (0.14 * agent_seed.abandonment_sensitivity)
+    if low_patience:
+        click_threshold -= 0.03
+    if risk_sensitive:
+        click_threshold += 0.025
+    if _has_focus(risk_focus_tags, "weak-first-impression"):
+        click_threshold -= 0.03
+    if is_taste:
+        click_threshold -= 0.045
+    if is_reengagement:
+        click_threshold += 0.02
+
     base_trust = 0.74 - (0.08 * agent_seed.abandonment_sensitivity)
     if is_sparse:
         base_trust -= 0.18
+    if is_reengagement:
+        base_trust -= 0.1
+    if _has_focus(risk_focus_tags, "trust-drop"):
+        base_trust -= 0.06
+    if _has_focus(risk_focus_tags, "weak-first-impression"):
+        base_trust -= 0.04
     confidence = (
         agent_seed.sparse_history_confidence
         if is_sparse
         else min(1.0, 0.55 + (0.38 * agent_seed.history_reliance))
     )
+    if is_taste:
+        confidence = min(confidence, 0.42)
+    if is_reengagement:
+        confidence = min(confidence, 0.48)
+    if exploration_seeking and _context_mentions(context_hint, ("novelty", "fresh", "new")):
+        confidence += 0.04
+    if risk_sensitive and _context_mentions(context_hint, ("trust", "reliable", "safe")):
+        base_trust += 0.03
     return AgentState(
         agent_id=agent_seed.agent_id,
         archetype_label=agent_seed.archetype_label,
@@ -152,6 +213,12 @@ def initial_state_from_seed(
         history_item_ids=scenario_context.history_item_ids,
         trust=round(max(0.1, min(1.0, base_trust)), 4),
         confidence=round(max(0.1, min(1.0, confidence)), 4),
+        persona_summary=agent_seed.persona_summary,
+        behavior_goal=agent_seed.behavior_goal,
+        diversity_tags=agent_seed.diversity_tags,
+        scenario_risk_focus_tags=risk_focus_tags,
+        scenario_context_hint=context_hint,
+        scenario_profile=runtime_profile,
     )
 
 
@@ -260,7 +327,13 @@ class RecommenderAgentPolicy:
         runtime_profile = (
             observation.scenario_context.runtime_profile or observation.scenario_context.scenario_name
         )
-        is_sparse = runtime_profile == "sparse-history-home-feed"
+        risk_focus_tags = agent_state.scenario_risk_focus_tags
+        is_sparse = runtime_profile in {
+            "sparse-history-home-feed",
+            "taste-elicitation-home-feed",
+        }
+        is_reengagement = runtime_profile == "re-engagement-home-feed"
+        is_taste = runtime_profile == "taste-elicitation-home-feed"
         top_utility = decision.explanation.top_candidate_utility
         threshold_gap = max(0.0, decision.explanation.action_threshold - top_utility)
 
@@ -269,8 +342,14 @@ class RecommenderAgentPolicy:
                 item for item in slate.items if item.item_id == action.selected_item_id
             )
             genre_match = 1.0 if clicked.genre in agent_state.preferred_genres else 0.0
-            confidence_gain = 0.05 if is_sparse else 0.02
+            confidence_gain = 0.06 if is_sparse else 0.02
+            if is_taste:
+                confidence_gain += 0.03
             trust_gain = 0.07 if genre_match else 0.03
+            if is_reengagement:
+                trust_gain += 0.03
+            if _has_focus(risk_focus_tags, "weak-first-impression") and observation.step_index == 0:
+                trust_gain += 0.02
             return replace(
                 agent_state,
                 step_index=next_step,
@@ -303,8 +382,20 @@ class RecommenderAgentPolicy:
 
         if action.name == "skip":
             scenario_penalty = 0.08 if is_sparse else 0.06
-            trust_penalty = 0.07 if runtime_profile == "returning-user-home-feed" else 0.05
+            if is_reengagement:
+                scenario_penalty += 0.03
+            if _has_focus(risk_focus_tags, "weak-first-impression") and observation.step_index == 0:
+                scenario_penalty += 0.04
+            trust_penalty = (
+                0.07
+                if runtime_profile in {"returning-user-home-feed", "re-engagement-home-feed"}
+                else 0.05
+            )
+            if _has_focus(risk_focus_tags, "trust-drop"):
+                trust_penalty += 0.03
             confidence_penalty = 0.06 if is_sparse else 0.02
+            if is_reengagement:
+                confidence_penalty += 0.02
             return replace(
                 agent_state,
                 step_index=next_step,
@@ -350,6 +441,8 @@ class RecommenderAgentPolicy:
             f"frustration {before.frustration:.2f}->{after.frustration:.2f}",
             f"satisfaction {before.satisfaction:.2f}->{after.satisfaction:.2f}",
         ]
+        if before.scenario_profile:
+            fragments.append(f"profile {before.scenario_profile}")
         if decision.action.name == "click" and decision.action.selected_item_id is not None:
             fragments.append(f"clicked {decision.action.selected_item_id}")
         elif decision.action.name == "skip":
@@ -390,7 +483,23 @@ class RecommenderAgentPolicy:
         runtime_profile = (
             observation.scenario_context.runtime_profile or observation.scenario_context.scenario_name
         )
-        is_sparse = runtime_profile == "sparse-history-home-feed"
+        risk_focus_tags = agent_state.scenario_risk_focus_tags
+        is_sparse = runtime_profile in {
+            "sparse-history-home-feed",
+            "taste-elicitation-home-feed",
+        }
+        is_taste = runtime_profile == "taste-elicitation-home-feed"
+        is_reengagement = runtime_profile == "re-engagement-home-feed"
+        exploration_seeking = _matches_behavior(
+            agent_state.behavior_goal,
+            agent_state.diversity_tags,
+            ("explor", "novelty", "curious"),
+        )
+        risk_sensitive = _matches_behavior(
+            agent_state.behavior_goal,
+            agent_state.diversity_tags,
+            ("risk", "cautious", "trust"),
+        )
         genre_match = 1.0 if signals.genre in agent_state.preferred_genres else 0.0
         repeated_count = agent_state.recent_exposure_ids.count(signals.item_id)
         repeated_penalty = (
@@ -415,11 +524,41 @@ class RecommenderAgentPolicy:
             * max(0.35, 1.0 - novelty_fatigue)
         )
         quality = 0.17 * signals.quality_signal * agent_state.quality_sensitivity
+        if exploration_seeking:
+            novelty += 0.05 * signals.novelty_signal
+        if risk_sensitive:
+            quality += 0.03 * signals.quality_signal
+            familiarity += 0.03 * signals.familiarity_signal
+        if is_taste:
+            novelty += 0.03 * signals.novelty_signal
+            familiarity -= 0.02 * signals.familiarity_signal
+        if is_reengagement and genre_match:
+            quality += 0.03 * signals.quality_signal
+        if _has_focus(risk_focus_tags, "staleness"):
+            repeated_penalty *= 1.25
+        if _has_focus(risk_focus_tags, "weak-first-impression") and observation.step_index == 0:
+            quality += 0.04 * signals.quality_signal
+        if _has_focus(risk_focus_tags, "novelty-mismatch") and agent_state.novelty_preference >= 0.6:
+            novelty += 0.04 * signals.novelty_signal
+        if _has_focus(risk_focus_tags, "cold-start") and is_sparse:
+            familiarity += 0.03 * signals.familiarity_signal
 
         if runtime_profile == "returning-user-home-feed":
             scenario_adjustment = (
                 (0.08 * genre_match * agent_state.history_reliance)
                 - (0.06 * (1.0 - genre_match) * agent_state.history_reliance)
+            )
+        elif is_reengagement:
+            scenario_adjustment = (
+                (0.12 * genre_match * agent_state.history_reliance)
+                + (0.05 * signals.quality_signal)
+                - (0.08 * repeated_count)
+            )
+        elif is_taste:
+            scenario_adjustment = (
+                (0.11 * signals.novelty_signal * agent_state.novelty_preference)
+                + (0.04 * signals.quality_signal)
+                - (0.04 * signals.familiarity_signal * agent_state.popularity_preference)
             )
         else:
             scenario_adjustment = (
@@ -427,6 +566,11 @@ class RecommenderAgentPolicy:
                 + (0.06 * agent_state.novelty_preference)
                 - (0.05 * (1.0 - agent_state.sparse_history_confidence))
             )
+        scenario_adjustment += _context_hint_adjustment(
+            agent_state.scenario_context_hint,
+            signals=signals,
+            genre_match=genre_match,
+        )
 
         confidence_adjustment = 0.14 * (agent_state.confidence - 0.5)
         jitter = rng.uniform(-0.018, 0.018)
@@ -463,7 +607,18 @@ class RecommenderAgentPolicy:
         runtime_profile = (
             observation.scenario_context.runtime_profile or observation.scenario_context.scenario_name
         )
-        is_sparse = runtime_profile == "sparse-history-home-feed"
+        risk_focus_tags = agent_state.scenario_risk_focus_tags
+        is_sparse = runtime_profile in {
+            "sparse-history-home-feed",
+            "taste-elicitation-home-feed",
+        }
+        is_reengagement = runtime_profile == "re-engagement-home-feed"
+        is_taste = runtime_profile == "taste-elicitation-home-feed"
+        risk_sensitive = _matches_behavior(
+            agent_state.behavior_goal,
+            agent_state.diversity_tags,
+            ("risk", "cautious", "trust"),
+        )
         threshold = (
             agent_state.click_threshold
             + (agent_state.frustration * 0.18)
@@ -477,6 +632,16 @@ class RecommenderAgentPolicy:
                 + (0.03 * agent_state.novelty_preference)
                 + (0.05 * agent_state.popularity_preference)
             )
+        if is_taste:
+            threshold -= 0.03
+        if is_reengagement:
+            threshold += 0.03
+        if risk_sensitive:
+            threshold += 0.02
+        if _has_focus(risk_focus_tags, "weak-first-impression") and observation.step_index == 0:
+            threshold -= 0.035
+        if _has_focus(risk_focus_tags, "trust-drop"):
+            threshold += 0.02
         return round(max(0.2, threshold), 6)
 
     def _build_explanation(
@@ -512,3 +677,41 @@ class RecommenderAgentPolicy:
             "repetition_penalty": -breakdown.repetition_penalty,
         }
         return max(weights, key=lambda key: abs(weights[key]))
+
+
+def _has_focus(risk_focus_tags: tuple[str, ...], focus: str) -> bool:
+    normalized = focus.lower()
+    return any(tag.lower() == normalized for tag in risk_focus_tags)
+
+
+def _matches_behavior(
+    behavior_goal: str,
+    diversity_tags: tuple[str, ...],
+    keywords: tuple[str, ...],
+) -> bool:
+    combined = " ".join((behavior_goal, *diversity_tags)).lower()
+    return any(keyword in combined for keyword in keywords)
+
+
+def _context_mentions(context_hint: str, keywords: tuple[str, ...]) -> bool:
+    lowered = context_hint.lower()
+    return any(keyword in lowered for keyword in keywords)
+
+
+def _context_hint_adjustment(
+    context_hint: str,
+    *,
+    signals: RuntimeItemSignals,
+    genre_match: float,
+) -> float:
+    lowered = context_hint.lower()
+    adjustment = 0.0
+    if any(keyword in lowered for keyword in ("novel", "fresh", "surpris")):
+        adjustment += 0.03 * signals.novelty_signal
+    if any(keyword in lowered for keyword in ("reliable", "safe", "trust")):
+        adjustment += 0.025 * signals.quality_signal
+    if any(keyword in lowered for keyword in ("taste", "learn", "onboard")):
+        adjustment += 0.02 * (signals.novelty_signal + signals.quality_signal)
+    if any(keyword in lowered for keyword in ("stale", "return", "re-engage", "drift")):
+        adjustment += 0.02 * genre_match - (0.015 * signals.familiarity_signal)
+    return adjustment
