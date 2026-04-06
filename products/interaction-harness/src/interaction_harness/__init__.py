@@ -1,7 +1,12 @@
 """Public package surface for the interaction harness."""
 
 from .audit import run_recommender_audit
-from .config import build_default_run_config
+from .config import (
+    build_default_run_config,
+    build_recommender_run_config,
+    build_run_config,
+)
+from .domain_registry import get_domain_definition
 from .population_generation import generate_population_pack, load_population_pack
 from .regression import run_regression_audit
 from .scenario_generation import generate_scenario_pack, load_scenario_pack
@@ -94,8 +99,11 @@ __all__ = [
     "TraceStep",
     "UtilityBreakdown",
     "build_default_run_config",
+    "build_recommender_run_config",
+    "build_run_config",
     "generate_population_pack",
     "generate_scenario_pack",
+    "get_domain_definition",
     "load_population_pack",
     "load_scenario_pack",
     "run_regression_audit",
