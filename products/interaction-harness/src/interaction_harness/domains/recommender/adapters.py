@@ -49,7 +49,7 @@ class HttpRecommenderAdapter:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        body = self._request_json(req)
+        body = self._request_json(req, purpose="recommendation request")
         adapter_response = self._normalize_response(body)
         return Slate(
             slate_id=f"{scenario_config.scenario_id or scenario_config.name}-{agent_state.agent_id}-{observation.step_index}",
@@ -64,8 +64,8 @@ class HttpRecommenderAdapter:
             method="GET",
         )
         try:
-            body = self._request_json(req)
-        except (HTTPError, URLError, TimeoutError, ValueError):
+            body = self._request_json(req, purpose="metadata request")
+        except RuntimeError:
             return {}
         return {
             key: value
@@ -88,6 +88,23 @@ class HttpRecommenderAdapter:
         )
         return AdapterResponse(request_id=payload["request_id"], items=items)
 
-    def _request_json(self, req: request.Request) -> dict:
-        with request.urlopen(req, timeout=self.timeout_seconds) as response:
-            return json.loads(response.read().decode("utf-8"))
+    def _request_json(self, req: request.Request, *, purpose: str) -> dict:
+        try:
+            with request.urlopen(req, timeout=self.timeout_seconds) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            raise RuntimeError(
+                f"Recommender target failed during {purpose}: HTTP {exc.code} from {self.base_url}."
+            ) from exc
+        except URLError as exc:
+            raise RuntimeError(
+                f"Recommender target was unreachable during {purpose}: {self.base_url}."
+            ) from exc
+        except TimeoutError as exc:
+            raise RuntimeError(
+                f"Recommender target timed out during {purpose}: {self.base_url}."
+            ) from exc
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"Recommender target returned malformed JSON during {purpose}: {self.base_url}."
+            ) from exc

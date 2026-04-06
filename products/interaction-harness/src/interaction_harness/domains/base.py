@@ -4,6 +4,11 @@ This module is intentionally the narrowest generic layer for domain execution.
 It should own only durable harness mechanics that we expect to reuse across
 many domains. Domain-specific behavior should plug in through `DomainDefinition`
 hooks rather than accumulating here as conditional logic.
+
+Practical rule:
+- keep the foundation small and durable
+- let real domains stay rich and cross-cutting
+- do not move behavior here just because one domain uses it in many places
 """
 
 from __future__ import annotations
@@ -176,7 +181,7 @@ class StandardDomainRunner:
         analyzer = self.definition.build_analyzer()
         scenarios = self.definition.build_runtime_scenarios(run_config.scenarios)
 
-        with self.definition.open_service_context(run_config) as (base_url, _metadata):
+        with self.definition.open_service_context(run_config) as (base_url, context_metadata):
             return self._execute_with_adapter(
                 run_config=run_config,
                 scenarios=scenarios,
@@ -184,6 +189,7 @@ class StandardDomainRunner:
                 judge=judge,
                 analyzer=analyzer,
                 adapter_base_url=base_url,
+                context_metadata=context_metadata,
                 resolved_input_metadata=resolved_inputs.metadata,
                 semantic_mode=semantic_mode,
                 semantic_model=semantic_model,
@@ -219,6 +225,7 @@ class StandardDomainRunner:
         judge: Judge,
         analyzer: Analyzer,
         adapter_base_url: str,
+        context_metadata: dict[str, str | int | float] | None = None,
         resolved_input_metadata: dict[str, str | int] | None = None,
         semantic_mode: str = "off",
         semantic_model: str = "gpt-5",
@@ -229,6 +236,16 @@ class StandardDomainRunner:
             run_config.rollout.service_timeout_seconds,
         )
         service_metadata = adapter.get_service_metadata()
+        combined_service_metadata = {
+            **(context_metadata or {}),
+            **service_metadata,
+        }
+        if service_metadata:
+            combined_service_metadata["service_metadata_status"] = "available"
+        elif "service_metadata_status" not in combined_service_metadata:
+            combined_service_metadata["service_metadata_status"] = (
+                "unavailable"
+            )
         traces = run_rollouts(adapter, scenarios, policy, run_config)
         trace_scores = tuple(judge.score_trace(trace, run_config.scoring) for trace in traces)
         analysis_result = analyzer.analyze(trace_scores, traces, run_config)
@@ -241,7 +258,7 @@ class StandardDomainRunner:
             slice_discovery=analysis_result.slice_discovery,
             semantic_interpretation=None,
             metadata={
-                "run_id": _build_run_id(run_config, service_metadata),
+                "run_id": _build_run_id(run_config, combined_service_metadata),
                 "generated_at_utc": datetime.now(timezone.utc)
                 .replace(microsecond=0)
                 .isoformat(),
@@ -278,7 +295,8 @@ class StandardDomainRunner:
                 "slice_count": len(analysis_result.slice_discovery.slice_summaries),
                 "semantic_mode": semantic_mode,
                 "semantic_model": semantic_model if semantic_mode != "off" else "",
-                **service_metadata,
+                "artifact_contract_version": "v1",
+                **combined_service_metadata,
                 **(resolved_input_metadata or {}),
             },
         )

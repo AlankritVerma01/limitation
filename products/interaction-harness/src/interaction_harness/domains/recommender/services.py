@@ -16,7 +16,19 @@ from ...services.reference_recommender import run_reference_recommender_service
 def open_recommender_service_context(run_config: RunConfig):
     """Open the correct recommender service context for one run config."""
     if run_config.rollout.adapter_base_url is not None:
-        return nullcontext((run_config.rollout.adapter_base_url, {}))
+        normalized_url = run_config.rollout.adapter_base_url.rstrip("/")
+        parsed = urlparse(normalized_url)
+        return nullcontext(
+            (
+                normalized_url,
+                {
+                    "service_kind": "external",
+                    "target_endpoint_host": parsed.netloc or parsed.path,
+                    "target_endpoint_scheme": parsed.scheme or "http",
+                    "service_metadata_status": "not_provided",
+                },
+            )
+        )
     if run_config.rollout.service_mode == "mock":
         return _mock_service_context()
     artifact_path = ensure_reference_artifacts(run_config.rollout.service_artifact_dir)
@@ -59,7 +71,10 @@ def build_recommender_target_audit_kwargs(target: RegressionTarget) -> dict[str,
 def _mock_service_context():
     """Normalize the mock service into the shared `(base_url, metadata)` shape."""
     with run_mock_recommender_service() as base_url:
-        yield base_url, {}
+        yield base_url, {
+            "service_kind": "mock",
+            "service_metadata_status": "fixture",
+        }
 
 
 def _short_hash(value: str) -> str:

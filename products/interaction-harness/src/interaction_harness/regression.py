@@ -260,11 +260,18 @@ def _build_regression_metadata(
         "candidate_target_mode": candidate_target.mode,
         "baseline_target_identity": domain_definition.build_target_identity(baseline_target),
         "candidate_target_identity": domain_definition.build_target_identity(candidate_target),
+        "baseline_target_endpoint_host": str(
+            baseline_summary.metadata.get("target_endpoint_host", "")
+        ),
+        "candidate_target_endpoint_host": str(
+            candidate_summary.metadata.get("target_endpoint_host", "")
+        ),
         "population_pack_path": population_pack_path or "",
         "domain_name": domain_definition.name,
         "regression_report_title": domain_definition.regression_report_title,
         "policy_name": policy_name,
         "policy_mode": policy_mode,
+        "artifact_contract_version": "v1",
     }
 
 
