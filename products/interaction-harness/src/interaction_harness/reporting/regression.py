@@ -7,7 +7,7 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
 
-from ..schema import RegressionDiff
+from ..contracts.core import RegressionDiff
 
 _RISK_ORDER = {"low": 0, "medium": 1, "high": 2}
 
@@ -69,7 +69,12 @@ class RegressionMarkdownWriter:
         """Write the human-facing regression report."""
         output_dir.mkdir(parents=True, exist_ok=True)
         report_path = output_dir / "regression_report.md"
-        lines = ["# Interaction Harness Regression Audit"]
+        report_title = str(
+            regression_diff.metadata.get(
+                "regression_report_title", "Interaction Harness Regression Audit"
+            )
+        )
+        lines = [f"# {report_title}"]
         lines.extend(self._decision_lines(regression_diff))
         lines.extend(self._executive_summary_lines(regression_diff))
         lines.extend(self._metric_delta_lines(regression_diff))

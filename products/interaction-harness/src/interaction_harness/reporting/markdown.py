@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..schema import RunResult
+from ..contracts.core import RunResult
 
 _RISK_ORDER = {"low": 0, "medium": 1, "high": 2}
 
@@ -16,7 +16,10 @@ class MarkdownReportWriter:
         """Write the human-facing markdown audit report for one run."""
         output_dir.mkdir(parents=True, exist_ok=True)
         report_path = output_dir / "report.md"
-        lines = ["# Interaction Harness Recommender Audit"]
+        report_title = str(
+            run_result.metadata.get("audit_report_title", "Interaction Harness Recommender Audit")
+        )
+        lines = [f"# {report_title}"]
         lines.extend(self._run_summary_lines(run_result))
         lines.extend(self._launch_risk_lines(run_result))
         lines.extend(self._scenario_coverage_lines(run_result))

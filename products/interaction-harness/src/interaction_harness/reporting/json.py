@@ -92,6 +92,8 @@ class JsonReportWriter:
             "run_id": str(run_result.metadata.get("run_id", "")),
             "generated_at_utc": str(run_result.metadata.get("generated_at_utc", "")),
             "service_kind": str(run_result.metadata.get("service_kind", "unknown")),
+            "target_mode": str(run_result.metadata.get("target_mode", "reference_artifact")),
+            "target_identity": str(run_result.metadata.get("target_identity", "")),
             "scenario_source": str(run_result.metadata.get("scenario_source", "built_in")),
             "scenario_count": int(run_result.metadata.get("scenario_count", len(run_result.run_config.scenarios))),
             "trace_count": len(run_result.traces),
