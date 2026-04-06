@@ -221,6 +221,13 @@ class MarkdownReportWriter:
 
     def _executive_summary(self, run_result: RunResult) -> list[str]:
         """Return the short top-of-report summary lines."""
+        domain_name = str(run_result.metadata.get("domain_name", ""))
+        if domain_name:
+            from ..domain_registry import get_domain_definition
+
+            definition = get_domain_definition(domain_name)
+            if definition.build_run_executive_summary is not None:
+                return definition.build_run_executive_summary(run_result)
         high_risk = [cohort for cohort in run_result.cohort_summaries if cohort.risk_level == "high"]
         medium_risk = [cohort for cohort in run_result.cohort_summaries if cohort.risk_level == "medium"]
         strongest = max(
@@ -265,6 +272,13 @@ class MarkdownReportWriter:
 
     def _select_representative_cohorts(self, run_result: RunResult):
         """Choose the small set of cohorts worth showing in the report body."""
+        domain_name = str(run_result.metadata.get("domain_name", ""))
+        if domain_name:
+            from ..domain_registry import get_domain_definition
+
+            definition = get_domain_definition(domain_name)
+            if definition.select_representative_cohorts is not None:
+                return definition.select_representative_cohorts(run_result)
         failure_cohorts = [
             cohort
             for cohort in run_result.cohort_summaries

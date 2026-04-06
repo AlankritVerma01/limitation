@@ -299,6 +299,13 @@ class RegressionMarkdownWriter:
 
     def build_summary(self, regression_diff: RegressionDiff) -> dict[str, object]:
         """Build the compact regression status summary used by reports and JSON."""
+        domain_name = str(regression_diff.metadata.get("domain_name", ""))
+        if domain_name:
+            from ..domain_registry import get_domain_definition
+
+            definition = get_domain_definition(domain_name)
+            if definition.build_regression_summary is not None:
+                return definition.build_regression_summary(regression_diff)
         improved = 0
         regressed = 0
         for cohort in regression_diff.cohort_deltas:
@@ -364,6 +371,13 @@ class RegressionMarkdownWriter:
 
     def build_important_changes(self, regression_diff: RegressionDiff) -> list[str]:
         """Select the small set of deltas worth highlighting first."""
+        domain_name = str(regression_diff.metadata.get("domain_name", ""))
+        if domain_name:
+            from ..domain_registry import get_domain_definition
+
+            definition = get_domain_definition(domain_name)
+            if definition.build_regression_important_changes is not None:
+                return definition.build_regression_important_changes(regression_diff)
         changes: list[str] = []
         for cohort in regression_diff.cohort_deltas[:3]:
             magnitude = (
