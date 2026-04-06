@@ -178,6 +178,9 @@ def _project_persona_to_agent_seed(persona: GeneratedPersona) -> AgentSeed:
         history_reliance=_require_hint_float(hints, persona.persona_id, "history_reliance"),
         skip_tolerance=skip_tolerance,
         abandonment_threshold=_require_hint_float(hints, persona.persona_id, "abandonment_threshold"),
+        persona_summary=persona.persona_summary,
+        behavior_goal=persona.behavior_goal,
+        diversity_tags=persona.diversity_tags,
     )
 
 
