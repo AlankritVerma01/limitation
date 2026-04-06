@@ -20,6 +20,17 @@ In the current build, it audits recommender systems by:
 
 Today it is recommender-first. Over time, the same core is meant to support broader non-deterministic systems without throwing away the rollout, judging, and regression machinery.
 
+## Domain Plug-In Direction
+
+The package now uses an in-repo domain plug-in shape:
+
+- the shared foundation owns rollout, traces, artifacts, semantic layering, and regression lifecycle
+- each domain module owns its own runtime inputs, adapter construction, policy, judge, analyzer, and domain-level regression semantics
+- the recommender wedge is the first full implementation of that contract
+- a small stub domain exists only to prove that new systems can plug in without shared-core surgery
+
+The CLI is still recommender-first on purpose, but internally new systems are meant to land as domain modules rather than as branches spread through generic code.
+
 ## Current Capabilities
 
 - a real local reference recommender service
@@ -86,7 +97,7 @@ The product remains independent from the study package. Ideas are reused, but th
 - `src/interaction_harness/domain_registry.py`
   - internal adapter-domain registry
 - `src/interaction_harness/domains/`
-  - domain-owned orchestration seams
+  - in-repo domain plug-ins plus the shared domain runner shell
 
 ## Run The Recommender Audit
 
@@ -263,3 +274,6 @@ The current architectural assumptions and subsystem boundaries are summarized in
 A short component review and the open product decisions are captured in
 [plans/interaction-harness-v0/architecture-review.md](../plans/interaction-harness-v0/architecture-review.md) and
 [plans/interaction-harness-v0/decision-questions.md](../plans/interaction-harness-v0/decision-questions.md).
+
+The current in-repo domain plug-in shape is documented in
+[plans/interaction-harness-v0/domain-plugin-architecture.md](../plans/interaction-harness-v0/domain-plugin-architecture.md).
