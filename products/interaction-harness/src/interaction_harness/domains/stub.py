@@ -1,4 +1,8 @@
-"""Small stub domain used to prove the in-repo plug-in contract."""
+"""Test-only stub domain used to prove the in-repo plug-in contract.
+
+This module is architecture smoke-test infrastructure. It is not part of the
+supported recommender product story.
+"""
 
 from __future__ import annotations
 

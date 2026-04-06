@@ -1,4 +1,9 @@
-"""Small internal registry for domain-owned harness wiring."""
+"""Small internal registry for domain-owned harness wiring.
+
+This registry is intentionally code-defined and in-repo. It is not a plugin
+marketplace. The shared harness stays small by routing execution through one
+registered domain definition at a time.
+"""
 
 from __future__ import annotations
 
