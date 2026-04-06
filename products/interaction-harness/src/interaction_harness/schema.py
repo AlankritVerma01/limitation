@@ -11,6 +11,7 @@ TargetMode = Literal["reference_artifact", "external_url"]
 RegressionDecisionStatus = Literal["pass", "warn", "fail"]
 ScenarioGeneratorMode = Literal["provider", "fixture"]
 PopulationGeneratorMode = Literal["provider", "fixture"]
+SemanticInterpretationMode = Literal["fixture", "provider"]
 FailureMode = Literal[
     "trust_collapse",
     "low_relevance",
@@ -421,6 +422,41 @@ class SliceDiscoveryResult:
 
 
 @dataclass(frozen=True)
+class SemanticTraceExplanation:
+    """Advisory explanation for one deterministically selected trace."""
+
+    trace_id: str
+    explanation_summary: str
+    issue_theme: str
+    recommended_follow_up: str
+    grounding_references: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class SemanticRunInterpretation:
+    """Structured semantic interpretation for one single-run audit."""
+
+    mode: SemanticInterpretationMode
+    advisory_summary: str
+    trace_explanations: tuple[SemanticTraceExplanation, ...]
+    generated_at_utc: str
+    provider_name: str = ""
+    model_name: str = ""
+
+
+@dataclass(frozen=True)
+class SemanticRegressionInterpretation:
+    """Structured semantic interpretation for one regression comparison."""
+
+    mode: SemanticInterpretationMode
+    advisory_summary: str
+    trace_explanations: tuple[SemanticTraceExplanation, ...]
+    generated_at_utc: str
+    provider_name: str = ""
+    model_name: str = ""
+
+
+@dataclass(frozen=True)
 class AnalysisResult:
     cohort_summaries: tuple[CohortSummary, ...]
     risk_flags: tuple[RiskFlag, ...]
@@ -437,6 +473,7 @@ class RunResult:
     slice_discovery: SliceDiscoveryResult = field(
         default_factory=lambda: SliceDiscoveryResult(())
     )
+    semantic_interpretation: SemanticRunInterpretation | None = None
     metadata: dict[str, str | int | float] = field(default_factory=dict)
 
 
@@ -630,5 +667,6 @@ class RegressionDiff:
     risk_flag_deltas: tuple[RiskFlagDelta, ...]
     notable_trace_deltas: tuple[TraceDelta, ...]
     slice_deltas: tuple[SliceDelta, ...] = ()
+    semantic_interpretation: SemanticRegressionInterpretation | None = None
     decision: RegressionDecision | None = None
     metadata: dict[str, str | int | float] = field(default_factory=dict)
