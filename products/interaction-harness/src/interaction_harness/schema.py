@@ -380,9 +380,51 @@ class RiskFlag:
 
 
 @dataclass(frozen=True)
+class SliceFeature:
+    """One discrete deterministic feature used for failure-slice mining."""
+
+    key: str
+    value: str
+
+
+@dataclass(frozen=True)
+class SliceSummary:
+    """Compact summary for one discovered deterministic slice."""
+
+    slice_id: str
+    feature_signature: tuple[str, ...]
+    trace_count: int
+    risk_level: RiskSeverity
+    dominant_failure_mode: FailureMode
+    abandonment_rate: float
+    mean_session_utility: float
+    mean_trust_delta: float
+    mean_skip_rate: float
+    mean_trace_risk_score: float
+    representative_trace_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class SliceMembership:
+    """One trace's membership inside one discovered slice."""
+
+    slice_id: str
+    trace_id: str
+
+
+@dataclass(frozen=True)
+class SliceDiscoveryResult:
+    """Deterministic slice summaries plus optional full membership details."""
+
+    slice_summaries: tuple[SliceSummary, ...]
+    memberships: tuple[SliceMembership, ...] = ()
+
+
+@dataclass(frozen=True)
 class AnalysisResult:
     cohort_summaries: tuple[CohortSummary, ...]
     risk_flags: tuple[RiskFlag, ...]
+    slice_discovery: SliceDiscoveryResult = field(default_factory=lambda: SliceDiscoveryResult(()))
 
 
 @dataclass
@@ -392,6 +434,9 @@ class RunResult:
     trace_scores: tuple[TraceScore, ...]
     cohort_summaries: tuple[CohortSummary, ...]
     risk_flags: tuple[RiskFlag, ...]
+    slice_discovery: SliceDiscoveryResult = field(
+        default_factory=lambda: SliceDiscoveryResult(())
+    )
     metadata: dict[str, str | int | float] = field(default_factory=dict)
 
 
@@ -555,6 +600,27 @@ class TraceDelta:
 
 
 @dataclass(frozen=True)
+class SliceDelta:
+    """Deterministic regression diff for one discovered slice signature."""
+
+    slice_id: str
+    feature_signature: tuple[str, ...]
+    baseline_trace_count: int
+    candidate_trace_count: int
+    trace_count_delta: int
+    baseline_risk_level: RiskSeverity | None
+    candidate_risk_level: RiskSeverity | None
+    baseline_failure_mode: FailureMode
+    candidate_failure_mode: FailureMode
+    baseline_mean_session_utility: float
+    candidate_mean_session_utility: float
+    session_utility_delta: float
+    trust_delta_delta: float
+    skip_rate_delta: float
+    change_type: Literal["appeared", "disappeared", "changed", "stable"]
+
+
+@dataclass(frozen=True)
 class RegressionDiff:
     gating_mode: str
     baseline_summary: RerunSummary
@@ -563,5 +629,6 @@ class RegressionDiff:
     cohort_deltas: tuple[CohortDelta, ...]
     risk_flag_deltas: tuple[RiskFlagDelta, ...]
     notable_trace_deltas: tuple[TraceDelta, ...]
+    slice_deltas: tuple[SliceDelta, ...] = ()
     decision: RegressionDecision | None = None
     metadata: dict[str, str | int | float] = field(default_factory=dict)

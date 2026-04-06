@@ -1,8 +1,8 @@
-"""Cohort analysis for richer recommender interaction audits."""
+"""Cohort and slice-aware analysis for recommender interaction audits."""
 
 from __future__ import annotations
 
-from collections import Counter, defaultdict
+from collections import defaultdict
 
 from ..schema import (
     AnalysisResult,
@@ -13,10 +13,17 @@ from ..schema import (
     SessionTrace,
     TraceScore,
 )
+from .recommender_metrics import (
+    aggregate_risk_score,
+    dominant_failure_mode,
+    risk_level_for_score,
+    risk_rank,
+)
+from .recommender_slices import discover_recommender_slices
 
 
 class RecommenderAnalyzer:
-    """Groups by scenario and archetype, then ranks risk deterministically."""
+    """Summarize seeded cohorts, launch risks, and discovered failure slices."""
 
     def analyze(
         self,
@@ -24,7 +31,6 @@ class RecommenderAnalyzer:
         traces: tuple[SessionTrace, ...],
         run_config: RunConfig,
     ) -> AnalysisResult:
-        del run_config
         grouped: dict[tuple[str, str], list[TraceScore]] = defaultdict(list)
         for score in scored_traces:
             grouped[(score.scenario_name, score.archetype_label)].append(score)
@@ -49,8 +55,8 @@ class RecommenderAnalyzer:
                 sum(score.stale_exposure_rate for score in scores) / trace_count
             )
             mean_concentration = sum(score.concentration for score in scores) / trace_count
-            dominant_failure_mode = self._dominant_failure_mode(scores)
-            cohort_risk_score = self._cohort_risk_score(
+            cohort_failure_mode = dominant_failure_mode(scores)
+            cohort_risk_score = aggregate_risk_score(
                 abandonment_rate=abandonment_rate,
                 mean_session_utility=mean_utility,
                 mean_frustration_delta=mean_frustration_delta,
@@ -59,10 +65,10 @@ class RecommenderAnalyzer:
                 mean_concentration=mean_concentration,
                 trace_scores=scores,
             )
-            risk_level = self._risk_level(cohort_risk_score)
+            risk_level = risk_level_for_score(cohort_risk_score)
             representative_failure = self._select_representative_failure(
                 scores,
-                dominant_failure_mode,
+                cohort_failure_mode,
             )
             representative_success = self._select_representative_success(scores)
             high_risk_trace_count = sum(score.trace_risk_score >= 0.65 for score in scores)
@@ -87,7 +93,7 @@ class RecommenderAnalyzer:
                     mean_trust_delta=round(mean_trust_delta, 6),
                     mean_confidence_delta=round(mean_confidence_delta, 6),
                     mean_skip_rate=round(mean_skip_rate, 6),
-                    dominant_failure_mode=dominant_failure_mode,
+                    dominant_failure_mode=cohort_failure_mode,
                     high_risk_trace_count=high_risk_trace_count,
                     representative_success_trace_id=(
                         representative_success.trace_id if representative_success is not None else None
@@ -106,17 +112,17 @@ class RecommenderAnalyzer:
                         severity=risk_level,
                         message=(
                             f"{archetype_label} is underserved in {scenario_name} "
-                            f"due to {dominant_failure_mode.replace('_', ' ')}."
+                            f"due to {cohort_failure_mode.replace('_', ' ')}."
                         ),
                         trace_id=representative_failure.trace_id,
-                        dominant_failure_mode=dominant_failure_mode,
+                        dominant_failure_mode=cohort_failure_mode,
                         evidence_summary=representative_failure.failure_evidence_summary,
                     )
                 )
 
         summaries.sort(
             key=lambda summary: (
-                self._risk_rank(summary.risk_level),
+                risk_rank(summary.risk_level),
                 summary.scenario_name,
                 summary.archetype_label,
             ),
@@ -124,7 +130,7 @@ class RecommenderAnalyzer:
         )
         risk_flags.sort(
             key=lambda flag: (
-                self._risk_rank(flag.severity),
+                risk_rank(flag.severity),
                 flag.scenario_name,
                 flag.archetype_label,
             ),
@@ -133,56 +139,12 @@ class RecommenderAnalyzer:
         return AnalysisResult(
             cohort_summaries=tuple(summaries),
             risk_flags=tuple(risk_flags),
+            slice_discovery=discover_recommender_slices(
+                scored_traces=scored_traces,
+                traces=traces,
+                run_config=run_config,
+            ),
         )
-
-    def _dominant_failure_mode(self, scores: list[TraceScore]) -> FailureMode:
-        """Choose the dominant failure mode, weighted by trace severity."""
-        weighted_counts: Counter[FailureMode] = Counter()
-        for score in scores:
-            if score.dominant_failure_mode == "no_major_failure":
-                continue
-            weighted_counts[score.dominant_failure_mode] += max(0.1, score.trace_risk_score)
-        if not weighted_counts:
-            return "no_major_failure"
-        return weighted_counts.most_common(1)[0][0]
-
-    def _cohort_risk_score(
-        self,
-        *,
-        abandonment_rate: float,
-        mean_session_utility: float,
-        mean_frustration_delta: float,
-        mean_trust_delta: float,
-        mean_stale_exposure_rate: float,
-        mean_concentration: float,
-        trace_scores: list[TraceScore],
-    ) -> float:
-        """Blend cohort-level and worst-trace signals into one risk score."""
-        base = 0.0
-        base += 0.35 * abandonment_rate
-        base += max(0.0, 0.58 - mean_session_utility) * 0.45
-        base += max(0.0, mean_frustration_delta) * 0.22
-        base += max(0.0, -mean_trust_delta) * 0.28
-        base += max(0.0, mean_stale_exposure_rate - 0.2) * 0.22
-        if mean_session_utility < 0.55:
-            base += max(0.0, mean_concentration - 0.45) * 0.18
-        base += 0.2 * (
-            sum(score.trace_risk_score for score in trace_scores) / len(trace_scores)
-        )
-        base += 0.18 * max(score.trace_risk_score for score in trace_scores)
-        if any(score.trace_risk_score >= 0.8 for score in trace_scores):
-            base += 0.08
-        return max(0.0, min(1.0, base))
-
-    def _risk_level(self, cohort_risk_score: float) -> str:
-        if cohort_risk_score >= 0.62:
-            return "high"
-        if cohort_risk_score >= 0.34:
-            return "medium"
-        return "low"
-
-    def _risk_rank(self, severity: str) -> int:
-        return {"low": 0, "medium": 1, "high": 2}[severity]
 
     def _select_representative_failure(
         self,
