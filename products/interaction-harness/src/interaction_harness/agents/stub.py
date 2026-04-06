@@ -13,6 +13,7 @@ from ..schema import (
     DecisionExplanation,
     Observation,
     ScenarioConfig,
+    ScenarioContext,
     Slate,
     UtilityBreakdown,
 )
@@ -90,6 +91,15 @@ def initial_state_from_seed(agent_seed: AgentSeed) -> AgentState:
 
 class StubAgentPolicy:
     """Simple seeded policy that stays compatible with the richer action contract."""
+
+    def initialize_state(
+        self,
+        agent_seed: AgentSeed,
+        scenario_context: ScenarioContext,
+    ) -> AgentState:
+        """Build the deterministic starting state for one stub seeded user."""
+        del scenario_context
+        return initial_state_from_seed(agent_seed)
 
     def choose_action(
         self,

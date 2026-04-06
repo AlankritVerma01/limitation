@@ -1,4 +1,4 @@
-"""Rollout loop for the first real recommender interaction flow."""
+"""Rollout loop for deterministic interaction traces."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ from random import Random
 
 from ..adapters.base import SystemAdapter
 from ..agents.base import AgentPolicy
-from ..agents.recommender import initial_state_from_seed
 from ..scenarios.base import Scenario
 from ..schema import RunConfig, SessionTrace, TraceStep
 
@@ -30,7 +29,10 @@ def run_rollouts(
             trace_seed = run_config.rollout.seed + (scenario_index * 100) + agent_index
             rng = Random(trace_seed)
             observation = scenario.initialize(agent_seed, run_config)
-            agent_state = initial_state_from_seed(agent_seed, observation.scenario_context)
+            agent_state = agent_policy.initialize_state(
+                agent_seed,
+                observation.scenario_context,
+            )
             trace_steps: list[TraceStep] = []
             abandoned = False
 

@@ -1,4 +1,4 @@
-"""Seeded recommender-aware agents with richer runtime seams for Chunk 3."""
+"""Deterministic seeded recommender agents used by the current runtime."""
 
 from __future__ import annotations
 
@@ -176,6 +176,14 @@ def _to_runtime_signals(item: SlateItem) -> RuntimeItemSignals:
 
 class RecommenderAgentPolicy:
     """Deterministic but richer stateful policy for recommender rollouts."""
+
+    def initialize_state(
+        self,
+        agent_seed: AgentSeed,
+        scenario_context,
+    ) -> AgentState:
+        """Build the deterministic starting state for one seeded recommender user."""
+        return initial_state_from_seed(agent_seed, scenario_context)
 
     def choose_action(
         self,

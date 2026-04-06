@@ -5,11 +5,25 @@ from __future__ import annotations
 from random import Random
 from typing import Protocol
 
-from ..schema import ActionDecision, AgentState, Observation, ScenarioConfig, Slate
+from ..schema import (
+    ActionDecision,
+    AgentSeed,
+    AgentState,
+    Observation,
+    ScenarioConfig,
+    ScenarioContext,
+    Slate,
+)
 
 
 class AgentPolicy(Protocol):
     """Chooses actions and updates state during a rollout."""
+
+    def initialize_state(
+        self,
+        agent_seed: AgentSeed,
+        scenario_context: ScenarioContext,
+    ) -> AgentState: ...
 
     def choose_action(
         self,

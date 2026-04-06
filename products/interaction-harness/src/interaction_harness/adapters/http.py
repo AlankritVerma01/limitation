@@ -1,4 +1,4 @@
-"""HTTP adapter for the local mock recommender service."""
+"""HTTP adapter for recommender systems exposed through a simple JSON API."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from ..schema import (
 
 
 class HttpRecommenderAdapter:
-    """Calls the mock recommender service and normalizes its response."""
+    """Calls a recommender endpoint and normalizes its response."""
 
     def __init__(self, base_url: str, timeout_seconds: float = 2.0) -> None:
         self.base_url = base_url.rstrip("/")
