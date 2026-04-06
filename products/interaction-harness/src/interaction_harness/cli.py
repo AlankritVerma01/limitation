@@ -1,4 +1,9 @@
-"""CLI and top-level orchestration for the reference-service recommender audit."""
+"""CLI-first entrypoint for the supported recommender audit workflow.
+
+The CLI is the main user-facing surface today. It keeps the deterministic
+runtime and regression flow explicit while offering optional AI-backed authoring
+and advisory interpretation on top.
+"""
 
 from __future__ import annotations
 
@@ -25,10 +30,15 @@ from .schema import RegressionTarget
 def _build_parser() -> argparse.ArgumentParser:
     """Build the CLI parser for single-run and compare modes."""
     parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
-            "Run a single recommender audit or compare artifact-backed or external "
-            "recommender systems through the interaction harness."
-        )
+            "Run the supported recommender audit workflow through the interaction harness.\n\n"
+            "Recommended paths:\n"
+            "- Single-run: local reference recommender service or an external recommender URL\n"
+            "- Compare: artifact-backed reference targets or external recommender URLs\n"
+            "- AI features: provider-backed scenario/population authoring and semantic interpretation\n"
+            "  are recommended for richer workflows, but the runtime and regression core stay deterministic."
+        ),
     )
     parser.add_argument("--seed", type=int, default=0, help="Seed for audit rollouts.")
     parser.add_argument(
@@ -46,7 +56,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "--service-mode",
         default="reference",
         choices=("reference", "mock"),
-        help="Local service mode used when no external adapter base URL is provided.",
+        help=(
+            "Local service mode used when no external adapter base URL is provided. "
+            "`reference` is the supported local path; `mock` is a narrow test/debug fixture."
+        ),
     )
     parser.add_argument(
         "--service-artifact-dir",
@@ -56,7 +69,10 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--adapter-base-url",
         default=None,
-        help="Optional existing recommender endpoint for single-run mode. If omitted, a local service is started.",
+        help=(
+            "Optional existing recommender endpoint for single-run mode. "
+            "This is the main real-system integration path; if omitted, a local reference service is started."
+        ),
     )
     parser.add_argument(
         "--run-name",
@@ -82,7 +98,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "--semantic-mode",
         default="off",
         choices=("off", "fixture", "provider"),
-        help="Optional advisory semantic interpretation mode for audit and compare runs.",
+        help=(
+            "Optional advisory semantic interpretation mode for audit and compare runs. "
+            "Use `provider` for richer user-facing explanations; `fixture` stays useful for tests and offline demos."
+        ),
     )
     parser.add_argument(
         "--semantic-model",
@@ -103,7 +122,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "--generation-mode",
         default="fixture",
         choices=("fixture", "provider"),
-        help="Scenario generation mode for --generate-scenarios.",
+        help=(
+            "Scenario generation mode for --generate-scenarios. "
+            "Use `provider` for authored user workflows; `fixture` is the deterministic CI/demo path."
+        ),
     )
     parser.add_argument(
         "--generation-model",
@@ -130,7 +152,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "--population-generation-mode",
         default="fixture",
         choices=("fixture", "provider"),
-        help="Population generation mode for --generate-population.",
+        help=(
+            "Population generation mode for --generate-population. "
+            "Use `provider` for authored user workflows; `fixture` is the deterministic CI/demo path."
+        ),
     )
     parser.add_argument(
         "--population-generation-model",

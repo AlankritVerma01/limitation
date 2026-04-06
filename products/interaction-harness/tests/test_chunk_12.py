@@ -223,3 +223,23 @@ def test_compare_help_mentions_external_urls(capsys: pytest.CaptureFixture[str])
         main(["--help"])
     captured = capsys.readouterr()
     assert "artifact-backed or external URL targets" in captured.out
+
+
+def test_help_marks_reference_service_as_supported_local_path(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    captured = capsys.readouterr()
+    assert "supported local" in captured.out
+    assert "narrow test/debug fixture" in captured.out
+
+
+def test_help_recommends_provider_for_richer_ai_workflows(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    captured = capsys.readouterr()
+    assert "provider-backed scenario/population authoring" in captured.out
+    assert "runtime and regression core stay deterministic" in captured.out
