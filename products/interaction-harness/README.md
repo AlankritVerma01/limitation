@@ -33,6 +33,7 @@ Today it is recommender-first. Over time, the same core is meant to support broa
 - explicit agent state and decision explanations
 - deterministic judging, cohort analysis, and failure surfacing
 - deterministic discovered failure slices from trace evidence
+- opt-in advisory semantic interpretation for traces and regression changes
 - rerun-based regression comparisons with deterministic `pass` / `warn` /
   `fail` decisions
 - structured AI-authored scenario packs with saved portable contracts
@@ -142,6 +143,18 @@ Reuse a saved population pack in a normal audit run:
 PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json --service-mode mock --output-dir products/interaction-harness/output/generated-population-run
 ```
 
+Run a single audit with fixture-backed semantic interpretation:
+
+```bash
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --semantic-mode fixture --service-mode mock
+```
+
+Run a single audit with provider-backed semantic interpretation:
+
+```bash
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --semantic-mode provider --semantic-model gpt-5-mini --service-mode mock
+```
+
 Use the mock fixture explicitly:
 
 ```bash
@@ -158,6 +171,12 @@ Reuse one saved population pack across compare reruns:
 
 ```bash
 PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
+```
+
+Add advisory semantic interpretation to compare mode:
+
+```bash
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --semantic-mode fixture --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
 ```
 
 Use custom labels in compare mode:
@@ -183,6 +202,7 @@ Single-run audit bundles include:
 - scenario-pack-backed runs also carry scenario-pack metadata in the run result
 - population-pack-backed runs also carry population-pack metadata in the run result
 - add `--include-slice-membership` when you want full slice membership in `results.json`
+- semantic mode adds a structured `semantic_interpretation` block and a `Semantic Advisory` report section
 
 Regression compare bundles include:
 
@@ -191,6 +211,7 @@ Regression compare bundles include:
   summary block, decision, reasons, checks, and slice diffs
 - `regression_traces.json`: notable trace-level changes
 - nested `baseline/` and `candidate/` rerun directories with per-seed audit bundles
+- semantic mode adds a structured `semantic_interpretation` block and a `Semantic Advisory` report section
 
 ## Current Limits
 
@@ -201,6 +222,7 @@ Regression compare bundles include:
   implemented today
 - regression policy is real now, but still early and not the final long-term
   gating model
+- semantic interpretation is advisory only and does not influence gating
 - no LLM judge or LLM agents are in the critical path
 - external service integrations are still early
 
