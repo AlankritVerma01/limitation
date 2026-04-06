@@ -6,6 +6,7 @@ import argparse
 
 from .audit import run_recommender_audit
 from .config import DEFAULT_OUTPUT_DIR
+from .domains.recommender.scenarios import BUILT_IN_RECOMMENDER_SCENARIO_NAMES
 from .population_generation import (
     build_default_population_pack_path,
     generate_population_pack,
@@ -18,7 +19,6 @@ from .scenario_generation import (
     generate_scenario_pack,
     write_scenario_pack,
 )
-from .scenarios.recommender import BUILT_IN_RECOMMENDER_SCENARIO_NAMES
 from .schema import RegressionTarget
 
 
