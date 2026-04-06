@@ -11,6 +11,40 @@ from .reporting.markdown import MarkdownReportWriter
 from .schema import RunResult
 
 
+def execute_domain_audit(
+    *,
+    domain_name: str = "recommender",
+    seed: int = 0,
+    output_dir: str | None = None,
+    scenario_names: tuple[str, ...] | None = None,
+    scenario_pack_path: str | None = None,
+    population_pack_path: str | None = None,
+    service_mode: str = "reference",
+    service_artifact_dir: str | None = None,
+    adapter_base_url: str | None = None,
+    run_name: str | None = None,
+    semantic_mode: str = "off",
+    semantic_model: str = "gpt-5",
+) -> RunResult:
+    """Run one audit through the registered in-repo domain plug-in."""
+    definition = get_domain_definition(domain_name)
+    if definition.runner is None:
+        raise ValueError(f"Domain `{domain_name}` is missing a runner.")
+    return definition.runner.execute_audit(
+        seed=seed,
+        output_dir=output_dir,
+        scenario_names=scenario_names,
+        scenario_pack_path=scenario_pack_path,
+        population_pack_path=population_pack_path,
+        service_mode=service_mode,
+        service_artifact_dir=service_artifact_dir,
+        adapter_base_url=adapter_base_url,
+        run_name=run_name,
+        semantic_mode=semantic_mode,
+        semantic_model=semantic_model,
+    )
+
+
 def execute_recommender_audit(
     *,
     seed: int = 0,
@@ -26,7 +60,8 @@ def execute_recommender_audit(
     semantic_model: str = "gpt-5",
 ) -> RunResult:
     """Run one recommender audit and return the in-memory result."""
-    return get_domain_definition("recommender").runner.execute_audit(
+    return execute_domain_audit(
+        domain_name="recommender",
         seed=seed,
         output_dir=output_dir,
         scenario_names=scenario_names,

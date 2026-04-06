@@ -17,3 +17,15 @@ def get_domain_definition(name: str = "recommender") -> DomainDefinition:
     except KeyError as exc:
         available = ", ".join(sorted(_DOMAIN_DEFINITIONS))
         raise ValueError(f"Unsupported domain `{name}`. Available domains: {available}.") from exc
+
+
+def register_domain_definition(definition: DomainDefinition) -> None:
+    """Register or replace one in-repo domain definition."""
+    if definition.runner is None:
+        raise ValueError(f"Domain `{definition.name}` must define a runner before registration.")
+    _DOMAIN_DEFINITIONS[definition.name] = definition
+
+
+def list_domain_definitions() -> tuple[str, ...]:
+    """Return the sorted list of registered domain names."""
+    return tuple(sorted(_DOMAIN_DEFINITIONS))

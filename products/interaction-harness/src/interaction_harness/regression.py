@@ -12,7 +12,7 @@ from .audit import write_run_artifacts
 from .config import DEFAULT_OUTPUT_DIR, slugify_name
 from .domain_registry import get_domain_definition
 from .domains.base import DomainDefinition
-from .regression_policy import default_regression_policy, evaluate_regression_policy
+from .regression_policy import evaluate_regression_policy
 from .reporting.regression import RegressionJsonWriter, RegressionMarkdownWriter
 from .schema import (
     CohortDelta,
@@ -32,16 +32,6 @@ from .schema import (
     TraceDelta,
 )
 from .semantic_interpretation import interpret_regression_semantics
-
-_SUMMARY_METRICS = (
-    "mean_session_utility",
-    "abandonment_rate",
-    "mean_engagement",
-    "mean_frustration",
-    "mean_trust_delta",
-    "mean_skip_rate",
-    "high_risk_cohort_count",
-)
 
 _RISK_ORDER = {"low": 0, "medium": 1, "high": 2}
 
@@ -70,7 +60,45 @@ def run_regression_audit(
     cohort_overrides: tuple[RegressionPolicyOverride, ...] = (),
 ) -> dict[str, str | int]:
     """Run rerun summaries and baseline-vs-candidate diff artifacts."""
-    domain_definition = get_domain_definition("recommender")
+    return run_domain_regression_audit(
+        domain_name="recommender",
+        baseline_target=baseline_target,
+        candidate_target=candidate_target,
+        base_seed=base_seed,
+        rerun_count=rerun_count,
+        output_dir=output_dir,
+        scenario_names=scenario_names,
+        population_pack_path=population_pack_path,
+        semantic_mode=semantic_mode,
+        semantic_model=semantic_model,
+        policy_mode=policy_mode,
+        policy=policy,
+        metric_overrides=metric_overrides,
+        cohort_overrides=cohort_overrides,
+    )
+
+
+def run_domain_regression_audit(
+    *,
+    domain_name: str = "recommender",
+    baseline_target: RegressionTarget,
+    candidate_target: RegressionTarget,
+    base_seed: int = 0,
+    rerun_count: int = 3,
+    output_dir: str | None = None,
+    scenario_names: tuple[str, ...] | None = None,
+    population_pack_path: str | None = None,
+    semantic_mode: str = "off",
+    semantic_model: str = "gpt-5",
+    policy_mode: str = "default",
+    policy: RegressionPolicy | None = None,
+    metric_overrides: tuple[RegressionPolicyOverride, ...] = (),
+    cohort_overrides: tuple[RegressionPolicyOverride, ...] = (),
+) -> dict[str, str | int]:
+    """Run one regression comparison through the registered domain plug-in."""
+    domain_definition = get_domain_definition(domain_name)
+    if domain_definition.runner is None:
+        raise ValueError(f"Domain `{domain_name}` is missing a runner.")
     default_output_dir = _default_regression_output_dir(
         baseline_target=baseline_target,
         candidate_target=candidate_target,
@@ -97,9 +125,9 @@ def run_regression_audit(
         output_dir=resolved_output_dir / "candidate",
         domain_definition=domain_definition,
     )
-    resolved_policy = policy or default_regression_policy(
-        metric_overrides=metric_overrides,
-        cohort_overrides=cohort_overrides,
+    resolved_policy = policy or domain_definition.build_default_regression_policy(
+        metric_overrides,
+        cohort_overrides,
     )
     regression_diff = RegressionDiff(
         gating_mode=policy_mode,
@@ -251,6 +279,8 @@ def _run_target_reruns(
     domain_definition: DomainDefinition,
 ) -> tuple[RerunSummary, tuple[RunResult, ...]]:
     """Execute one target repeatedly and collect both results and artifact paths."""
+    if domain_definition.runner is None:
+        raise ValueError(f"Domain `{domain_definition.name}` is missing a runner.")
     seed_schedule = build_seed_schedule(base_seed, rerun_count)
     run_results: list[RunResult] = []
     run_artifacts: list[RunArtifactPaths] = []
@@ -282,6 +312,7 @@ def _run_target_reruns(
             run_results=tuple(run_results),
             seed_schedule=seed_schedule,
             run_artifacts=tuple(run_artifacts),
+            domain_definition=domain_definition,
         ),
         tuple(run_results),
     )
@@ -293,12 +324,15 @@ def _summarize_target_runs(
     run_results: tuple[RunResult, ...],
     seed_schedule: tuple[int, ...],
     run_artifacts: tuple[RunArtifactPaths, ...],
+    domain_definition: DomainDefinition,
 ) -> RerunSummary:
     """Collapse one target's reruns into stable metric and metadata summaries."""
-    metric_values = {metric_name: [] for metric_name in _SUMMARY_METRICS}
+    metric_values = {
+        metric_name: [] for metric_name in domain_definition.summary_metric_names
+    }
     failure_mode_counts: Counter[FailureMode] = Counter()
     for run_result in run_results:
-        metrics = _summary_metrics_for_run(run_result)
+        metrics = domain_definition.summarize_run_metrics(run_result)
         for metric_name, value in metrics.items():
             metric_values[metric_name].append(value)
         failure_mode_counts.update(score.dominant_failure_mode for score in run_result.trace_scores)
@@ -326,24 +360,6 @@ def _summarize_target_runs(
         metadata=metadata,
         run_artifacts=run_artifacts,
     )
-
-
-def _summary_metrics_for_run(run_result: RunResult) -> dict[str, float]:
-    """Extract the small metric set used for rerun summaries and diffs."""
-    trace_scores = run_result.trace_scores
-    cohort_summaries = run_result.cohort_summaries
-    return {
-        "mean_session_utility": _mean(score.session_utility for score in trace_scores),
-        "abandonment_rate": _mean(1.0 if score.abandoned else 0.0 for score in trace_scores),
-        "mean_engagement": _mean(score.engagement for score in trace_scores),
-        "mean_frustration": _mean(score.frustration for score in trace_scores),
-        "mean_trust_delta": _mean(score.trust_delta for score in trace_scores),
-        "mean_skip_rate": _mean(score.skip_rate for score in trace_scores),
-        "high_risk_cohort_count": float(
-            sum(1 for cohort in cohort_summaries if cohort.risk_level == "high")
-        ),
-    }
-
 
 def _build_metric_summary(metric_name: str, values: tuple[float, ...]) -> MetricSummary:
     """Summarize one metric across reruns using mean/min/max/range."""
