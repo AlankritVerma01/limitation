@@ -28,7 +28,8 @@ Today it is recommender-first. Over time, the same core is meant to support broa
 - two recommender scenarios:
   - returning-user home feed
   - sparse-history home feed
-- four seeded synthetic archetypes
+- built-in four-seed deterministic baseline population
+- saved recommender population packs with explicit generated swarms
 - explicit agent state and decision explanations
 - deterministic judging, cohort analysis, and failure surfacing
 - rerun-based regression comparisons with deterministic `pass` / `warn` /
@@ -62,6 +63,8 @@ The product remains independent from the study package. Ideas are reused, but th
   - reruns and baseline-vs-candidate orchestration
 - `src/interaction_harness/scenario_generation.py`
   - scenario-pack generation, validation, storage, and recommender projection
+- `src/interaction_harness/population_generation.py`
+  - recommender population-pack generation, selection, storage, and projection
 - `src/interaction_harness/services/`
   - local reference service, mock fixture, and reference artifacts
 - `src/interaction_harness/adapters/`
@@ -117,6 +120,27 @@ Reuse a saved scenario pack in a normal audit run:
 PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --scenario-pack-path products/interaction-harness/output/generated-scenarios/provider-pack.json --service-mode mock --output-dir products/interaction-harness/output/generated-pack-run
 ```
 
+Generate a saved recommender population pack with the deterministic fixture path:
+
+```bash
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --generate-population --population-generation-mode fixture --population-brief "test a broad swarm of novelty-seeking and low-patience viewers" --population-size 12 --output-dir products/interaction-harness/output/generated-populations
+```
+
+Generate a saved recommender population pack through the provider-backed path:
+
+```bash
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --generate-population --population-generation-mode provider --population-brief "test a broad swarm of risk-sensitive and exploration-seeking viewers" --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json
+```
+
+If `--population-size` is omitted, provider mode may suggest the final explicit
+swarm size. Fixture mode falls back to the default size of `12`.
+
+Reuse a saved population pack in a normal audit run:
+
+```bash
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json --service-mode mock --output-dir products/interaction-harness/output/generated-population-run
+```
+
 Use the mock fixture explicitly:
 
 ```bash
@@ -127,6 +151,12 @@ Run compare mode against two artifact-backed targets:
 
 ```bash
 PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
+```
+
+Reuse one saved population pack across compare reruns:
+
+```bash
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
 ```
 
 Use custom labels in compare mode:
@@ -150,6 +180,7 @@ Single-run audit bundles include:
 - `traces.jsonl`: full trace bundle for deeper inspection
 - `cohort_summary_chart.svg`: simple cohort utility chart
 - scenario-pack-backed runs also carry scenario-pack metadata in the run result
+- population-pack-backed runs also carry population-pack metadata in the run result
 
 Regression compare bundles include:
 
@@ -161,7 +192,8 @@ Regression compare bundles include:
 
 ## Current Limits
 
-- synthetic users are still hand-authored and parameterized
+- built-in synthetic users are still hand-authored as the baseline path
+- generated population packs are recommender-specific and still project into deterministic `AgentSeed` values
 - scenario coverage is still narrow
 - generated scenario packs are real now, but only the recommender projection is
   implemented today
@@ -183,3 +215,10 @@ PYTHONPATH=products/interaction-harness/src .venv/bin/pytest products/interactio
 
 The active roadmap for this package lives under
 [plans/interaction-harness-v0](../plans/interaction-harness-v0/README.md).
+
+The current architectural assumptions and subsystem boundaries are summarized in
+[plans/interaction-harness-v0/architecture-assumptions.md](../plans/interaction-harness-v0/architecture-assumptions.md).
+
+A short component review and the open product decisions are captured in
+[plans/interaction-harness-v0/architecture-review.md](../plans/interaction-harness-v0/architecture-review.md) and
+[plans/interaction-harness-v0/decision-questions.md](../plans/interaction-harness-v0/decision-questions.md).

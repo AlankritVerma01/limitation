@@ -1,7 +1,8 @@
-"""Public package surface for the first real recommender interaction slice."""
+"""Public package surface for the interaction harness."""
 
 from .audit import run_recommender_audit
 from .config import build_default_run_config
+from .population_generation import generate_population_pack, load_population_pack
 from .regression import run_regression_audit
 from .scenario_generation import generate_scenario_pack, load_scenario_pack
 from .schema import (
@@ -16,10 +17,14 @@ from .schema import (
     DecisionExplanation,
     FailureMode,
     FailureModeCount,
+    GeneratedPersona,
     GeneratedScenario,
     MetricDelta,
     MetricSummary,
     Observation,
+    PopulationGeneratorMode,
+    PopulationPack,
+    PopulationPackMetadata,
     RegressionDiff,
     RegressionTarget,
     RerunSummary,
@@ -61,6 +66,10 @@ __all__ = [
     "MetricDelta",
     "MetricSummary",
     "Observation",
+    "PopulationGeneratorMode",
+    "PopulationPack",
+    "PopulationPackMetadata",
+    "GeneratedPersona",
     "RegressionDiff",
     "RegressionTarget",
     "RiskFlagDelta",
@@ -85,7 +94,9 @@ __all__ = [
     "TraceStep",
     "UtilityBreakdown",
     "build_default_run_config",
+    "generate_population_pack",
     "generate_scenario_pack",
+    "load_population_pack",
     "load_scenario_pack",
     "run_regression_audit",
     "run_recommender_audit",

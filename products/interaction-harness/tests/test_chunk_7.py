@@ -65,7 +65,9 @@ def test_cli_help_mentions_compare_and_run_name() -> None:
     assert "--compare" in help_text
     assert "--run-name" in help_text
     assert "--generate-scenarios" in help_text
+    assert "--generate-population" in help_text
     assert "--scenario-pack-path" in help_text
+    assert "--population-pack-path" in help_text
     assert "--baseline-label" in help_text
     assert "--candidate-label" in help_text
     assert "--policy-mode" in help_text

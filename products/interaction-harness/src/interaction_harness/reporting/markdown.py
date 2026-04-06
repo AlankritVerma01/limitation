@@ -44,6 +44,7 @@ class MarkdownReportWriter:
             f"- Seed: `{run_result.run_config.rollout.seed}`",
             f"- Scenarios: `{scenario_names}`",
             f"- Traces: `{len(run_result.traces)}`",
+            f"- Agent seeds: `{run_result.metadata.get('agent_count', len(run_result.run_config.agent_seeds))}`",
             f"- Service kind: `{service_kind}`",
             "",
             "## Executive Summary",
@@ -135,13 +136,18 @@ class MarkdownReportWriter:
     def _metadata_lines(self, run_result: RunResult) -> list[str]:
         """Render the reproducibility and metadata section."""
         return [
+            "",
             "## Reproducibility And Metadata",
             "",
             "- Runs are deterministic for a fixed seed and scenario selection.",
             "- The judge consumes completed traces only and does not call the system under test.",
             f"- Service artifact dir: `{run_result.metadata.get('service_artifact_dir', '') or 'n/a'}`",
             f"- Artifact ID: `{run_result.metadata.get('artifact_id', 'unknown')}`",
+            f"- Scenario source: `{run_result.metadata.get('scenario_source', 'built_in')}`",
             f"- Scenario pack ID: `{run_result.metadata.get('scenario_pack_id', 'n/a')}`",
+            f"- Population source: `{run_result.metadata.get('population_source', 'built_in_seeds')}`",
+            f"- Population pack ID: `{run_result.metadata.get('population_pack_id', 'n/a')}`",
+            f"- Population size source: `{run_result.metadata.get('population_size_source', 'built_in')}`",
         ]
 
     def _trace_score_lines(self, run_result: RunResult) -> list[str]:

@@ -10,6 +10,7 @@ RiskSeverity = Literal["low", "medium", "high"]
 TargetMode = Literal["reference_artifact", "external_url"]
 RegressionDecisionStatus = Literal["pass", "warn", "fail"]
 ScenarioGeneratorMode = Literal["provider", "fixture"]
+PopulationGeneratorMode = Literal["provider", "fixture"]
 FailureMode = Literal[
     "trust_collapse",
     "low_relevance",
@@ -259,6 +260,37 @@ class GeneratedScenario:
 class ScenarioPack:
     metadata: ScenarioPackMetadata
     scenarios: tuple[GeneratedScenario, ...]
+
+
+@dataclass(frozen=True)
+class PopulationPackMetadata:
+    pack_id: str
+    brief: str
+    generator_mode: PopulationGeneratorMode
+    generated_at_utc: str
+    domain_label: str
+    target_population_size: int
+    candidate_count: int
+    selected_count: int
+    population_size_source: str = "explicit"
+    provider_name: str = ""
+    model_name: str = ""
+
+
+@dataclass(frozen=True)
+class GeneratedPersona:
+    persona_id: str
+    display_label: str
+    persona_summary: str
+    behavior_goal: str
+    diversity_tags: tuple[str, ...]
+    adapter_hints: dict[str, dict[str, str | int | float | bool | list[str]]]
+
+
+@dataclass(frozen=True)
+class PopulationPack:
+    metadata: PopulationPackMetadata
+    personas: tuple[GeneratedPersona, ...]
 
 
 @dataclass(frozen=True)

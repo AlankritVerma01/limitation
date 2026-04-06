@@ -23,6 +23,7 @@ It currently includes:
 - baseline-vs-candidate regression runs across reruns with deterministic
   `pass` / `warn` / `fail` policy output
 - saved structured scenario packs with fixture and provider generation paths
+- saved recommender population packs with explicit generated swarms
 - polished markdown, JSON, and trace artifacts
 
 The study remains the proof. The interaction harness is the product direction.

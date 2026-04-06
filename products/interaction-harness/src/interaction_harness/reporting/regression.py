@@ -44,6 +44,8 @@ def _normalize_regression_payload(payload: dict[str, Any]) -> dict[str, Any]:
             summary["metadata"]["adapter_base_url"] = "<normalized>"
     if "generated_at_utc" in payload.get("metadata", {}):
         payload["metadata"]["generated_at_utc"] = "<normalized>"
+    if "population_pack_path" in payload.get("metadata", {}):
+        payload["metadata"]["population_pack_path"] = "<normalized>"
     if "generated_at_utc" in payload.get("summary", {}):
         payload["summary"]["generated_at_utc"] = "<normalized>"
     return payload
@@ -335,7 +337,9 @@ class RegressionJsonWriter:
         payload["decision_status"] = decision.get("status", "pass")
         payload["decision_reasons"] = decision.get("reasons", [])
         payload["checks"] = decision.get("checks", [])
-        return _normalize_regression_payload(payload)
+        if "generated_at_utc" in payload.get("summary", {}):
+            payload["summary"]["generated_at_utc"] = "<normalized>"
+        return payload
 
     def _build_summary(self, regression_diff: RegressionDiff) -> dict[str, object]:
         """Build the top-level summary block stored in regression_summary.json."""

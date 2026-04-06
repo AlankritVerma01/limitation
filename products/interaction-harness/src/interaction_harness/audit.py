@@ -13,11 +13,11 @@ from .agents.recommender import RecommenderAgentPolicy
 from .analysis.recommender import RecommenderAnalyzer
 from .config import build_default_run_config
 from .judges.recommender import RecommenderJudge
+from .recommender_inputs import resolve_recommender_inputs
 from .reporting.chart import CohortChartWriter
 from .reporting.json import JsonReportWriter
 from .reporting.markdown import MarkdownReportWriter
 from .rollout.engine import run_rollouts
-from .scenario_generation import load_scenario_pack
 from .scenarios.recommender import build_scenarios
 from .schema import RunResult
 from .services.mock_recommender import run_mock_recommender_service
@@ -31,6 +31,7 @@ def execute_recommender_audit(
     output_dir: str | None = None,
     scenario_names: tuple[str, ...] | None = None,
     scenario_pack_path: str | None = None,
+    population_pack_path: str | None = None,
     service_mode: str = "reference",
     service_artifact_dir: str | None = None,
     adapter_base_url: str | None = None,
@@ -38,12 +39,16 @@ def execute_recommender_audit(
 ) -> RunResult:
     """Run one recommender audit and return the in-memory result."""
     resolved_service_mode = "external" if adapter_base_url is not None else service_mode
-    scenario_pack = load_scenario_pack(scenario_pack_path) if scenario_pack_path is not None else None
+    resolved_inputs = resolve_recommender_inputs(
+        scenario_names=scenario_names,
+        scenario_pack_path=scenario_pack_path,
+        population_pack_path=population_pack_path,
+    )
     run_config = build_default_run_config(
         seed=seed,
         output_dir=output_dir,
-        scenario_names=scenario_names,
-        scenario_pack_path=scenario_pack_path,
+        scenarios=resolved_inputs.scenarios,
+        agent_seeds=resolved_inputs.agent_seeds,
         service_mode=resolved_service_mode,
         service_artifact_dir=service_artifact_dir,
         adapter_base_url=adapter_base_url,
@@ -74,16 +79,7 @@ def execute_recommender_audit(
             judge=judge,
             analyzer=analyzer,
             adapter_base_url=base_url,
-            scenario_pack_metadata=(
-                {
-                    "scenario_pack_id": scenario_pack.metadata.pack_id,
-                    "scenario_pack_mode": scenario_pack.metadata.generator_mode,
-                    "scenario_pack_domain": scenario_pack.metadata.domain_label,
-                    "scenario_pack_path": scenario_pack_path,
-                }
-                if scenario_pack is not None and scenario_pack_path is not None
-                else None
-            ),
+            resolved_input_metadata=resolved_inputs.metadata,
         )
 
 
@@ -102,6 +98,7 @@ def run_recommender_audit(
     output_dir: str | None = None,
     scenario_names: tuple[str, ...] | None = None,
     scenario_pack_path: str | None = None,
+    population_pack_path: str | None = None,
     service_mode: str = "reference",
     service_artifact_dir: str | None = None,
     adapter_base_url: str | None = None,
@@ -113,6 +110,7 @@ def run_recommender_audit(
         output_dir=output_dir,
         scenario_names=scenario_names,
         scenario_pack_path=scenario_pack_path,
+        population_pack_path=population_pack_path,
         service_mode=service_mode,
         service_artifact_dir=service_artifact_dir,
         adapter_base_url=adapter_base_url,
@@ -129,7 +127,7 @@ def _execute_with_adapter(
     judge,
     analyzer,
     adapter_base_url: str,
-    scenario_pack_metadata: dict[str, str] | None = None,
+    resolved_input_metadata: dict[str, str | int] | None = None,
 ) -> RunResult:
     """Execute one audit end-to-end against an already running adapter."""
     adapter = HttpRecommenderAdapter(
@@ -155,11 +153,12 @@ def _execute_with_adapter(
             "service_mode": run_config.rollout.service_mode,
             "service_artifact_dir": run_config.rollout.service_artifact_dir or "",
             "scenarios": ",".join(config.name for config in run_config.scenarios),
+            "agent_count": len(run_config.agent_seeds),
             "agent_policy": "RecommenderAgentPolicy",
             "judge": "RecommenderJudge",
             "analyzer": "RecommenderAnalyzer",
             **service_metadata,
-            **(scenario_pack_metadata or {}),
+            **(resolved_input_metadata or {}),
         },
     )
 
@@ -170,6 +169,7 @@ def _build_run_id(run_config, service_metadata: dict[str, str | int | float]) ->
         "run_name": run_config.run_name,
         "seed": run_config.rollout.seed,
         "scenarios": [scenario.name for scenario in run_config.scenarios],
+        "agent_ids": [seed.agent_id for seed in run_config.agent_seeds],
         "service_mode": run_config.rollout.service_mode,
         "artifact_id": service_metadata.get("artifact_id", ""),
         "backend_name": service_metadata.get("backend_name", ""),

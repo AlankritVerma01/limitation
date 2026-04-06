@@ -56,6 +56,8 @@ class JsonReportWriter:
             payload["metadata"]["service_artifact_dir"] = "<normalized>"
         if "scenario_pack_path" in payload["metadata"]:
             payload["metadata"]["scenario_pack_path"] = "<normalized>"
+        if "population_pack_path" in payload["metadata"]:
+            payload["metadata"]["population_pack_path"] = "<normalized>"
         if "generated_at_utc" in payload["metadata"]:
             payload["metadata"]["generated_at_utc"] = "<normalized>"
         if "generated_at_utc" in payload["summary"]:
@@ -80,7 +82,12 @@ class JsonReportWriter:
             "run_id": str(run_result.metadata.get("run_id", "")),
             "generated_at_utc": str(run_result.metadata.get("generated_at_utc", "")),
             "service_kind": str(run_result.metadata.get("service_kind", "unknown")),
+            "scenario_source": str(run_result.metadata.get("scenario_source", "built_in")),
+            "scenario_count": int(run_result.metadata.get("scenario_count", len(run_result.run_config.scenarios))),
             "trace_count": len(run_result.traces),
+            "agent_count": int(run_result.metadata.get("agent_count", len(run_result.run_config.agent_seeds))),
+            "population_source": str(run_result.metadata.get("population_source", "built_in_seeds")),
+            "population_size_source": str(run_result.metadata.get("population_size_source", "built_in")),
             "high_risk_cohort_count": len(high_risk),
             "medium_risk_cohort_count": len(medium_risk),
             "risk_flag_count": len(run_result.risk_flags),

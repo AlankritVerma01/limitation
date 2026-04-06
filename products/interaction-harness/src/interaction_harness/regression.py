@@ -57,6 +57,7 @@ def run_regression_audit(
     rerun_count: int = 3,
     output_dir: str | None = None,
     scenario_names: tuple[str, ...] | None = None,
+    population_pack_path: str | None = None,
     policy_mode: str = "default",
     policy: RegressionPolicy | None = None,
     metric_overrides: tuple[RegressionPolicyOverride, ...] = (),
@@ -75,6 +76,7 @@ def run_regression_audit(
         base_seed=base_seed,
         rerun_count=rerun_count,
         scenario_names=scenario_names,
+        population_pack_path=population_pack_path,
         output_dir=resolved_output_dir / "baseline",
     )
     candidate_summary, candidate_runs = _run_target_reruns(
@@ -82,6 +84,7 @@ def run_regression_audit(
         base_seed=base_seed,
         rerun_count=rerun_count,
         scenario_names=scenario_names,
+        population_pack_path=population_pack_path,
         output_dir=resolved_output_dir / "candidate",
     )
     resolved_policy = policy or default_regression_policy(
@@ -103,6 +106,7 @@ def run_regression_audit(
             base_seed=base_seed,
             rerun_count=rerun_count,
             scenario_names=scenario_names,
+            population_pack_path=population_pack_path,
             baseline_summary=baseline_summary,
             candidate_summary=candidate_summary,
             policy_name=resolved_policy.name,
@@ -157,6 +161,7 @@ def _build_regression_metadata(
     base_seed: int,
     rerun_count: int,
     scenario_names: tuple[str, ...] | None,
+    population_pack_path: str | None,
     baseline_summary: RerunSummary,
     candidate_summary: RerunSummary,
     policy_name: str,
@@ -180,6 +185,7 @@ def _build_regression_metadata(
         "seed_schedule": ",".join(str(seed) for seed in baseline_summary.seed_schedule),
         "baseline_label": baseline_target.label,
         "candidate_label": candidate_target.label,
+        "population_pack_path": population_pack_path or "",
         "policy_name": policy_name,
         "policy_mode": policy_mode,
     }
@@ -191,11 +197,12 @@ def _run_target_reruns(
     base_seed: int,
     rerun_count: int,
     scenario_names: tuple[str, ...] | None,
+    population_pack_path: str | None,
     output_dir: Path,
 ) -> tuple[RerunSummary, tuple[RunResult, ...]]:
     """Execute one target repeatedly and collect both results and artifact paths."""
     if target.mode != "reference_artifact":
-        raise NotImplementedError("Only reference_artifact targets are supported in Chunk 6.")
+        raise NotImplementedError("Only reference_artifact targets are supported right now.")
 
     seed_schedule = build_seed_schedule(base_seed, rerun_count)
     run_results: list[RunResult] = []
@@ -206,6 +213,7 @@ def _run_target_reruns(
             seed=seed,
             output_dir=str(run_output_dir),
             scenario_names=scenario_names,
+            population_pack_path=population_pack_path,
             service_mode="reference",
             service_artifact_dir=target.service_artifact_dir,
             run_name=f"regression-{target.label}-seed-{seed}",

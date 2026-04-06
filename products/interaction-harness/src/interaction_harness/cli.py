@@ -6,6 +6,11 @@ import argparse
 
 from .audit import run_recommender_audit
 from .config import DEFAULT_OUTPUT_DIR
+from .population_generation import (
+    build_default_population_pack_path,
+    generate_population_pack,
+    write_population_pack,
+)
 from .regression import run_regression_audit
 from .scenario_generation import (
     DEFAULT_PROVIDER_MODEL,
@@ -13,6 +18,7 @@ from .scenario_generation import (
     generate_scenario_pack,
     write_scenario_pack,
 )
+from .scenarios.recommender import BUILT_IN_RECOMMENDER_SCENARIO_NAMES
 from .schema import RegressionTarget
 
 
@@ -33,7 +39,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--scenario",
         default="all",
-        choices=("all", "returning-user-home-feed", "sparse-history-home-feed"),
+        choices=("all", *BUILT_IN_RECOMMENDER_SCENARIO_NAMES),
         help="Scenario selection for the audit.",
     )
     parser.add_argument(
@@ -63,6 +69,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Saved scenario-pack path for single-run mode, or output path in generation mode.",
     )
     parser.add_argument(
+        "--population-pack-path",
+        default=None,
+        help="Saved population-pack path for audit/compare mode, or output path in population-generation mode.",
+    )
+    parser.add_argument(
         "--generate-scenarios",
         action="store_true",
         help="Generate and save a structured scenario pack instead of running an audit.",
@@ -88,6 +99,42 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         default=3,
         help="Number of scenarios to generate in scenario-generation mode.",
+    )
+    parser.add_argument(
+        "--generate-population",
+        action="store_true",
+        help="Generate and save a recommender population pack instead of running an audit.",
+    )
+    parser.add_argument(
+        "--population-brief",
+        default=None,
+        help="Short brief used when generating recommender population packs.",
+    )
+    parser.add_argument(
+        "--population-generation-mode",
+        default="fixture",
+        choices=("fixture", "provider"),
+        help="Population generation mode for --generate-population.",
+    )
+    parser.add_argument(
+        "--population-generation-model",
+        default=DEFAULT_PROVIDER_MODEL,
+        help="Provider model name used in population-generation mode.",
+    )
+    parser.add_argument(
+        "--population-size",
+        type=int,
+        default=None,
+        help=(
+            "Optional explicit swarm size for generated population packs. If omitted, "
+            "provider mode may suggest one; otherwise the default is 12."
+        ),
+    )
+    parser.add_argument(
+        "--population-candidate-count",
+        type=int,
+        default=None,
+        help="Optional candidate count before deterministic diversity filtering in population-generation mode.",
     )
     parser.add_argument(
         "--compare",
@@ -133,6 +180,8 @@ def main(argv: list[str] | None = None) -> dict[str, str | int]:
     """Run the CLI entrypoint and return the generated artifact paths."""
     args = _build_parser().parse_args(argv)
     scenario_names = None if args.scenario == "all" else (args.scenario,)
+    if args.generate_scenarios and args.generate_population:
+        raise SystemExit("--generate-scenarios cannot be combined with --generate-population.")
     if args.generate_scenarios:
         if args.compare:
             raise SystemExit("--generate-scenarios cannot be combined with --compare.")
@@ -159,6 +208,38 @@ def main(argv: list[str] | None = None) -> dict[str, str | int]:
             "pack_id": pack.metadata.pack_id,
             "scenario_count": len(pack.scenarios),
         }
+    if args.generate_population:
+        if args.compare:
+            raise SystemExit("--generate-population cannot be combined with --compare.")
+        if args.population_brief is None:
+            raise SystemExit("--generate-population requires --population-brief.")
+        output_root = args.output_dir or str(DEFAULT_OUTPUT_DIR)
+        population_pack_path = args.population_pack_path or build_default_population_pack_path(
+            output_root,
+            brief=args.population_brief,
+            generator_mode=args.population_generation_mode,
+        )
+        pack = generate_population_pack(
+            args.population_brief,
+            generator_mode=args.population_generation_mode,
+            population_size=args.population_size,
+            candidate_count=args.population_candidate_count,
+            model_name=args.population_generation_model,
+        )
+        saved_path = write_population_pack(pack, population_pack_path)
+        print("Population generation artifacts:")
+        print(f"  Pack ID: {pack.metadata.pack_id}")
+        print(f"  Population pack: {saved_path}")
+        print(f"  Selected personas: {pack.metadata.selected_count}")
+        print(
+            "  Population size source: "
+            f"{pack.metadata.population_size_source}"
+        )
+        return {
+            "population_pack_path": saved_path,
+            "pack_id": pack.metadata.pack_id,
+            "population_size": pack.metadata.selected_count,
+        }
     if args.compare:
         if args.baseline_artifact_dir is None or args.candidate_artifact_dir is None:
             raise SystemExit(
@@ -179,6 +260,7 @@ def main(argv: list[str] | None = None) -> dict[str, str | int]:
             rerun_count=args.rerun_count,
             output_dir=args.output_dir,
             scenario_names=scenario_names,
+            population_pack_path=args.population_pack_path,
             policy_mode=args.policy_mode,
         )
         print("Compare audit artifacts:")
@@ -192,6 +274,7 @@ def main(argv: list[str] | None = None) -> dict[str, str | int]:
         output_dir=args.output_dir,
         scenario_names=scenario_names,
         scenario_pack_path=args.scenario_pack_path,
+        population_pack_path=args.population_pack_path,
         service_mode=args.service_mode,
         service_artifact_dir=args.service_artifact_dir,
         adapter_base_url=args.adapter_base_url,
