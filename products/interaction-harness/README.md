@@ -32,6 +32,7 @@ Today it is recommender-first. Over time, the same core is meant to support broa
 - saved recommender population packs with explicit generated swarms
 - explicit agent state and decision explanations
 - deterministic judging, cohort analysis, and failure surfacing
+- deterministic discovered failure slices from trace evidence
 - rerun-based regression comparisons with deterministic `pass` / `warn` /
   `fail` decisions
 - structured AI-authored scenario packs with saved portable contracts
@@ -175,18 +176,19 @@ PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harn
 
 Single-run audit bundles include:
 
-- `report.md`: human-readable audit with executive summary, launch risks, cohort summary, and compact traces to inspect
-- `results.json`: machine-readable run result plus a top-level summary block
+- `report.md`: human-readable audit with executive summary, launch risks, cohort summary, discovered slices, and compact traces to inspect
+- `results.json`: machine-readable run result plus a top-level summary block and slice summaries
 - `traces.jsonl`: full trace bundle for deeper inspection
 - `cohort_summary_chart.svg`: simple cohort utility chart
 - scenario-pack-backed runs also carry scenario-pack metadata in the run result
 - population-pack-backed runs also carry population-pack metadata in the run result
+- add `--include-slice-membership` when you want full slice membership in `results.json`
 
 Regression compare bundles include:
 
-- `regression_report.md`: human-readable baseline-vs-candidate summary
+- `regression_report.md`: human-readable baseline-vs-candidate summary with deterministic slice changes
 - `regression_summary.json`: machine-readable regression diff plus top-level
-  summary block, decision, reasons, and checks
+  summary block, decision, reasons, checks, and slice diffs
 - `regression_traces.json`: notable trace-level changes
 - nested `baseline/` and `candidate/` rerun directories with per-seed audit bundles
 
