@@ -6,14 +6,28 @@ from pathlib import Path
 
 import interaction_harness as ih
 import pytest
+from interaction_harness.adapters.http import HttpRecommenderAdapter
+from interaction_harness.agents.recommender import RecommenderAgentPolicy
 from interaction_harness.audit import execute_domain_audit, write_run_artifacts
 from interaction_harness.domain_registry import (
     get_domain_definition,
     list_domain_definitions,
     register_domain_definition,
 )
+from interaction_harness.domains.recommender import (
+    RecommenderAgentPolicy as PackageRecommenderAgentPolicy,
+)
+from interaction_harness.domains.recommender.adapters import (
+    HttpRecommenderAdapter as PackageHttpRecommenderAdapter,
+)
+from interaction_harness.domains.recommender.scenarios import (
+    resolve_built_in_recommender_scenarios as package_resolve_built_in_recommender_scenarios,
+)
 from interaction_harness.domains.stub import build_stub_domain_definition
 from interaction_harness.regression import run_domain_regression_audit
+from interaction_harness.scenarios.recommender import (
+    resolve_built_in_recommender_scenarios,
+)
 from interaction_harness.schema import RegressionTarget
 
 
@@ -22,6 +36,15 @@ def test_public_surface_exports_domain_plugin_helpers() -> None:
     assert ih.run_domain_regression_audit is run_domain_regression_audit
     assert ih.register_domain_definition is register_domain_definition
     assert ih.list_domain_definitions is list_domain_definitions
+
+
+def test_recommender_compatibility_shims_point_to_domain_package() -> None:
+    assert RecommenderAgentPolicy is PackageRecommenderAgentPolicy
+    assert HttpRecommenderAdapter is PackageHttpRecommenderAdapter
+    assert (
+        resolve_built_in_recommender_scenarios
+        is package_resolve_built_in_recommender_scenarios
+    )
 
 
 def test_register_domain_definition_requires_runner() -> None:
