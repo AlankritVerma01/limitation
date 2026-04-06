@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from .agents.recommender import build_seeded_archetypes
 from .domains.base import ResolvedRuntimeInputs
-from .recommender_inputs import resolve_recommender_inputs
+from .domains.recommender.inputs import resolve_recommender_inputs
+from .domains.recommender.policy import build_seeded_archetypes
 from .schema import AgentSeed, RolloutConfig, RunConfig, ScenarioConfig, ScoringConfig
 from .services.reference_artifacts import DEFAULT_REFERENCE_ARTIFACT_DIR
 
@@ -109,20 +109,19 @@ def build_recommender_run_config(
     adapter_base_url: str | None = None,
     run_name: str | None = None,
 ) -> tuple[RunConfig, ResolvedRuntimeInputs]:
-    """Resolve recommender runtime inputs, then build a run config from them."""
-    resolved_inputs = resolve_recommender_inputs(
+    """Compatibility wrapper for the recommender-owned run-config builder."""
+    from .domains.recommender.definition import (
+        build_recommender_run_config as _build_recommender_run_config,
+    )
+
+    return _build_recommender_run_config(
+        seed=seed,
+        output_dir=output_dir,
         scenario_names=scenario_names,
         scenario_pack_path=scenario_pack_path,
         population_pack_path=population_pack_path,
-    )
-    run_config = build_run_config(
-        seed=seed,
-        output_dir=output_dir,
-        scenarios=resolved_inputs.scenarios,
-        agent_seeds=resolved_inputs.agent_seeds,
         service_mode=service_mode,
         service_artifact_dir=service_artifact_dir,
         adapter_base_url=adapter_base_url,
         run_name=run_name,
     )
-    return run_config, resolved_inputs
