@@ -10,6 +10,7 @@ from hashlib import sha1
 from pathlib import Path
 from typing import Protocol
 
+from .domains.recommender.scenarios import BUILT_IN_RECOMMENDER_SCENARIO_NAMES
 from .generation_support import (
     DEFAULT_PROVIDER_MODEL,
     DEFAULT_PROVIDER_NAME,
@@ -21,7 +22,6 @@ from .generation_support import (
     read_timeout_seconds,
     request_provider_payload,
 )
-from .scenarios.recommender import BUILT_IN_RECOMMENDER_SCENARIO_NAMES
 from .schema import (
     GeneratedScenario,
     ScenarioConfig,
@@ -356,48 +356,10 @@ def build_default_scenario_pack_path(
 
 
 def project_recommender_scenarios(pack: ScenarioPack) -> tuple[ScenarioConfig, ...]:
-    """Project a portable scenario pack into the current recommender runtime shape."""
-    scenario_configs: list[ScenarioConfig] = []
-    for scenario in pack.scenarios:
-        hints = scenario.adapter_hints.get("recommender")
-        if hints is None:
-            raise ValueError(
-                f"Scenario `{scenario.scenario_id}` is missing recommender adapter hints."
-            )
-        runtime_profile = hints.get("runtime_profile")
-        history_depth = hints.get("history_depth")
-        if not isinstance(runtime_profile, str) or runtime_profile not in _SUPPORTED_RUNTIME_PROFILES:
-            raise ValueError(
-                f"Scenario `{scenario.scenario_id}` has unsupported recommender runtime profile."
-            )
-        if not isinstance(history_depth, int) or history_depth < 0:
-            raise ValueError(
-                f"Scenario `{scenario.scenario_id}` has invalid recommender history depth."
-            )
-        allowed_actions = tuple(str(action) for action in scenario.allowed_actions)
-        unsupported_actions = sorted(
-            set(allowed_actions).difference({"click", "skip", "abandon"})
-        )
-        if unsupported_actions:
-            raise ValueError(
-                f"Scenario `{scenario.scenario_id}` uses unsupported recommender actions: "
-                f"{', '.join(unsupported_actions)}."
-            )
-        scenario_configs.append(
-            ScenarioConfig(
-                name=scenario.name,
-                max_steps=scenario.max_steps,
-                allowed_actions=allowed_actions,  # type: ignore[arg-type]
-                history_depth=history_depth,
-                description=scenario.description,
-                scenario_id=scenario.scenario_id,
-                test_goal=scenario.test_goal,
-                risk_focus_tags=scenario.risk_focus_tags,
-                runtime_profile=runtime_profile,
-                context_hint=str(hints.get("context_hint", "")),
-            )
-        )
-    return tuple(scenario_configs)
+    """Compatibility shim for recommender scenario-pack projection."""
+    from .domains.recommender.inputs import project_recommender_scenarios as _project
+
+    return _project(pack)
 
 
 def _parse_generated_scenario(payload: dict[str, object]) -> GeneratedScenario:

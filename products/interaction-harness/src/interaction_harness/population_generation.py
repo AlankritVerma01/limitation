@@ -355,8 +355,10 @@ def build_default_population_pack_path(
 
 
 def project_recommender_population(pack: PopulationPack) -> tuple[AgentSeed, ...]:
-    """Project a saved recommender population pack into concrete runtime agent seeds."""
-    return tuple(_project_persona_to_agent_seed(persona) for persona in pack.personas)
+    """Compatibility shim for recommender population-pack projection."""
+    from .domains.recommender.inputs import project_recommender_population as _project
+
+    return _project(pack)
 
 
 def _parse_generated_persona(payload: dict[str, object]) -> GeneratedPersona:
