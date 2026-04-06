@@ -83,6 +83,9 @@ class AgentSeed:
     history_reliance: float
     skip_tolerance: int
     abandonment_threshold: float
+    persona_summary: str = ""
+    behavior_goal: str = ""
+    diversity_tags: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -116,6 +119,12 @@ class AgentState:
     satisfaction: float = 0.0
     trust: float = 0.6
     confidence: float = 0.6
+    persona_summary: str = ""
+    behavior_goal: str = ""
+    diversity_tags: tuple[str, ...] = ()
+    scenario_risk_focus_tags: tuple[str, ...] = ()
+    scenario_context_hint: str = ""
+    scenario_profile: str = ""
 
 
 @dataclass(frozen=True)
@@ -166,6 +175,7 @@ class ScenarioContext:
     scenario_id: str = ""
     runtime_profile: str = ""
     context_hint: str = ""
+    risk_focus_tags: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -344,6 +354,12 @@ class TraceScore:
     stale_exposure_rate: float = 0.0
     genre_alignment_rate: float = 0.0
     novelty_intensity: float = 0.0
+    first_impression_score: float = 0.0
+    exploration_acceptance_rate: float = 0.0
+    trust_erosion: float = 0.0
+    recovery_strength: float = 0.0
+    cold_start_quality: float = 0.0
+    abandonment_pressure: float = 0.0
     dominant_failure_mode: FailureMode = "no_major_failure"
     trace_risk_score: float = 0.0
     failure_evidence_summary: str = ""
@@ -367,6 +383,9 @@ class CohortSummary:
     high_risk_trace_count: int = 0
     representative_success_trace_id: str | None = None
     representative_failure_trace_id: str | None = None
+    mean_first_impression_score: float = 0.0
+    mean_exploration_acceptance_rate: float = 0.0
+    mean_abandonment_pressure: float = 0.0
 
 
 @dataclass(frozen=True)
