@@ -3,18 +3,25 @@
 from __future__ import annotations
 
 import json
-import os
 import re
-import socket
-import time
 from dataclasses import asdict
 from datetime import datetime, timezone
 from hashlib import sha1
 from pathlib import Path
 from typing import Protocol
-from urllib import request
-from urllib.error import HTTPError, URLError
 
+from .generation_support import (
+    DEFAULT_PROVIDER_MODEL,
+    DEFAULT_PROVIDER_NAME,
+    build_responses_endpoint,
+    extract_focus_tokens,
+    extract_response_text,
+    load_dotenv_if_present,
+    read_retry_count,
+    read_timeout_seconds,
+    request_provider_payload,
+)
+from .scenarios.recommender import BUILT_IN_RECOMMENDER_SCENARIO_NAMES
 from .schema import (
     GeneratedScenario,
     ScenarioConfig,
@@ -24,15 +31,7 @@ from .schema import (
 )
 
 DEFAULT_SCENARIO_COUNT = 3
-DEFAULT_PROVIDER_NAME = "openai"
-DEFAULT_PROVIDER_MODEL = "gpt-5"
-DEFAULT_PROVIDER_BASE_URL = "https://api.openai.com/v1"
-DEFAULT_PROVIDER_TIMEOUT_SECONDS = 45.0
-DEFAULT_PROVIDER_RETRY_COUNT = 1
-_SUPPORTED_RUNTIME_PROFILES = {
-    "returning-user-home-feed",
-    "sparse-history-home-feed",
-}
+_SUPPORTED_RUNTIME_PROFILES = set(BUILT_IN_RECOMMENDER_SCENARIO_NAMES)
 
 
 class ScenarioGenerator(Protocol):
@@ -57,7 +56,7 @@ class FixtureScenarioGenerator:
         scenario_count: int,
         domain_label: str,
     ) -> list[dict[str, object]]:
-        focus_tokens = _extract_focus_tokens(brief)
+        focus_tokens = extract_focus_tokens(brief)
         focus_label = " ".join(focus_tokens[:3]) or "general recommendation quality"
         base_slug = "-".join(focus_tokens[:3]) or "generated"
         templates = (
@@ -164,28 +163,32 @@ class ProviderScenarioGenerator:
         scenario_count: int,
         domain_label: str,
     ) -> list[dict[str, object]]:
-        _maybe_load_dotenv()
+        import os
+
+        load_dotenv_if_present()
         api_key = os.getenv(self.api_key_env)
         if not api_key:
             raise RuntimeError(
                 f"{self.api_key_env} is required for provider-backed scenario generation."
             )
-        endpoint = _build_responses_endpoint(os.getenv(self.base_url_env))
-        timeout_seconds = _read_timeout_seconds(self.timeout_seconds_env)
-        retry_count = _read_retry_count(self.retry_count_env)
+        endpoint = build_responses_endpoint(os.getenv(self.base_url_env))
+        timeout_seconds = read_timeout_seconds(self.timeout_seconds_env)
+        retry_count = read_retry_count(self.retry_count_env)
         prompt = self._build_prompt(
             brief=brief,
             scenario_count=scenario_count,
             domain_label=domain_label,
         )
-        payload = self._request_payload(
+        payload = request_provider_payload(
             endpoint=endpoint,
             api_key=api_key,
+            model_name=self.model_name,
             prompt=prompt,
             timeout_seconds=timeout_seconds,
             retry_count=retry_count,
+            purpose="scenario generation",
         )
-        raw_text = self._extract_text(payload)
+        raw_text = extract_response_text(payload)
         try:
             parsed = json.loads(raw_text)
         except json.JSONDecodeError as exc:
@@ -197,53 +200,6 @@ class ProviderScenarioGenerator:
         if not isinstance(scenarios, list):
             raise ValueError("Provider output must contain a top-level `scenarios` list.")
         return scenarios
-
-    def _request_payload(
-        self,
-        *,
-        endpoint: str,
-        api_key: str,
-        prompt: str,
-        timeout_seconds: float,
-        retry_count: int,
-    ) -> dict[str, object]:
-        """Call the provider endpoint with light retry and clearer failures."""
-        last_error: Exception | None = None
-        for attempt in range(retry_count + 1):
-            req = request.Request(
-                endpoint,
-                data=json.dumps({"model": self.model_name, "input": prompt}).encode("utf-8"),
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                method="POST",
-            )
-            try:
-                with request.urlopen(req, timeout=timeout_seconds) as response:
-                    return json.loads(response.read().decode("utf-8"))
-            except HTTPError as exc:
-                detail = exc.read().decode("utf-8", errors="ignore")
-                raise RuntimeError(
-                    f"Provider-backed scenario generation failed with status {exc.code} "
-                    f"for model `{self.model_name}` at `{endpoint}`: {detail or exc.reason}"
-                ) from exc
-            except (TimeoutError, socket.timeout) as exc:
-                last_error = exc
-                if attempt >= retry_count:
-                    break
-                time.sleep(0.5 * (attempt + 1))
-            except URLError as exc:
-                last_error = exc
-                if attempt >= retry_count:
-                    break
-                time.sleep(0.5 * (attempt + 1))
-        reason = _format_provider_error_reason(last_error)
-        raise RuntimeError(
-            "Provider-backed scenario generation failed after retrying. "
-            f"Model `{self.model_name}` at `{endpoint}` timed out or could not be reached: {reason}. "
-            "Try fixture mode, a faster generation model, or increasing OPENAI_TIMEOUT_SECONDS."
-        )
 
     def _build_prompt(self, *, brief: str, scenario_count: int, domain_label: str) -> str:
         """Build a narrow JSON-only prompt for scenario generation."""
@@ -276,28 +232,6 @@ class ProviderScenarioGenerator:
             "and risk focus. Keep them clear, concise, and runtime-friendly.\n"
             f"Brief: {brief}"
         )
-
-    def _extract_text(self, payload: dict[str, object]) -> str:
-        """Extract text from the Responses API payload without SDK helpers."""
-        output_text = payload.get("output_text")
-        if isinstance(output_text, str) and output_text.strip():
-            return output_text
-        output = payload.get("output", [])
-        if not isinstance(output, list):
-            raise ValueError("Provider response did not include any text output.")
-        for item in output:
-            if not isinstance(item, dict):
-                continue
-            content = item.get("content", [])
-            if not isinstance(content, list):
-                continue
-            for part in content:
-                if not isinstance(part, dict):
-                    continue
-                text = part.get("text")
-                if isinstance(text, str) and text.strip():
-                    return text
-        raise ValueError("Provider response did not include any text output.")
 
 
 def generate_scenario_pack(
@@ -507,32 +441,6 @@ def _parse_generated_scenario(payload: dict[str, object]) -> GeneratedScenario:
     )
 
 
-def _extract_focus_tokens(brief: str) -> list[str]:
-    """Extract a few stable content words for deterministic fixture naming."""
-    common = {
-        "about",
-        "after",
-        "before",
-        "brief",
-        "chatbot",
-        "could",
-        "focus",
-        "from",
-        "have",
-        "later",
-        "maybe",
-        "should",
-        "system",
-        "testing",
-        "users",
-        "want",
-        "with",
-    }
-    tokens = [token for token in re.findall(r"[a-z0-9]+", brief.lower()) if len(token) >= 4]
-    filtered = [token for token in tokens if token not in common]
-    return filtered[:4] or ["quality"]
-
-
 def _require_non_empty_string(payload: dict[str, object], key: str) -> str:
     value = payload.get(key)
     if not isinstance(value, str) or not value.strip():
@@ -552,86 +460,6 @@ def _require_string_list(payload: dict[str, object], key: str) -> list[str]:
     if not isinstance(value, list) or not value or not all(isinstance(item, str) for item in value):
         raise ValueError(f"Scenario entry has invalid `{key}` value.")
     return [item.strip() for item in value if item.strip()]
-
-
-def _maybe_load_dotenv() -> None:
-    """Load a simple root-level .env file without overriding existing env vars."""
-    for candidate in _candidate_dotenv_paths():
-        if not candidate.exists():
-            continue
-        for raw_line in candidate.read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            key = key.strip()
-            if not key or key in os.environ:
-                continue
-            os.environ[key] = _normalize_env_value(value.strip())
-        return
-
-
-def _candidate_dotenv_paths() -> tuple[Path, ...]:
-    """Return the likely .env locations for local development."""
-    cwd_path = Path.cwd() / ".env"
-    repo_root_path = Path(__file__).resolve().parents[4] / ".env"
-    if cwd_path == repo_root_path:
-        return (cwd_path,)
-    return (cwd_path, repo_root_path)
-
-
-def _normalize_env_value(value: str) -> str:
-    """Strip matching quotes around simple .env values."""
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-        return value[1:-1]
-    return value
-
-
-def _build_responses_endpoint(base_url: str | None) -> str:
-    """Normalize the provider base URL into a responses endpoint."""
-    resolved_base = (base_url or DEFAULT_PROVIDER_BASE_URL).rstrip("/")
-    if resolved_base.endswith("/responses"):
-        return resolved_base
-    if resolved_base.endswith("/v1"):
-        return f"{resolved_base}/responses"
-    return f"{resolved_base}/v1/responses"
-
-
-def _read_timeout_seconds(env_name: str) -> float:
-    """Read provider timeout from env with a safe default."""
-    raw = os.getenv(env_name)
-    if raw is None or not raw.strip():
-        return DEFAULT_PROVIDER_TIMEOUT_SECONDS
-    try:
-        value = float(raw)
-    except ValueError as exc:
-        raise ValueError(f"{env_name} must be a number of seconds.") from exc
-    if value <= 0:
-        raise ValueError(f"{env_name} must be greater than 0.")
-    return value
-
-
-def _read_retry_count(env_name: str) -> int:
-    """Read provider retry count from env with a safe default."""
-    raw = os.getenv(env_name)
-    if raw is None or not raw.strip():
-        return DEFAULT_PROVIDER_RETRY_COUNT
-    try:
-        value = int(raw)
-    except ValueError as exc:
-        raise ValueError(f"{env_name} must be an integer.") from exc
-    if value < 0:
-        raise ValueError(f"{env_name} must be 0 or greater.")
-    return value
-
-
-def _format_provider_error_reason(error: Exception | None) -> str:
-    """Extract a short readable reason from the last provider error."""
-    if error is None:
-        return "unknown error"
-    if isinstance(error, URLError):
-        return str(error.reason)
-    return str(error)
 
 
 def _validate_unique_scenario_keys(scenarios: tuple[GeneratedScenario, ...]) -> None:

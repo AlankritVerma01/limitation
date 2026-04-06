@@ -9,6 +9,34 @@ from ..services.reference_artifacts import (
     history_for_reference_genres,
 )
 
+BUILT_IN_RECOMMENDER_SCENARIOS = (
+    ScenarioConfig(
+        name="returning-user-home-feed",
+        max_steps=5,
+        allowed_actions=("click", "skip", "abandon"),
+        history_depth=4,
+        description="Returning user home-feed session with meaningful prior history.",
+        scenario_id="returning-user-home-feed",
+        test_goal="Check relevance and repetition behavior for users with established preferences.",
+        risk_focus_tags=("staleness", "over-specialization"),
+        runtime_profile="returning-user-home-feed",
+    ),
+    ScenarioConfig(
+        name="sparse-history-home-feed",
+        max_steps=5,
+        allowed_actions=("click", "skip", "abandon"),
+        history_depth=1,
+        description="Sparse-history home-feed session with limited prior behavior.",
+        scenario_id="sparse-history-home-feed",
+        test_goal="Check cold-start behavior when the system has limited prior evidence.",
+        risk_focus_tags=("cold-start", "popularity-bias"),
+        runtime_profile="sparse-history-home-feed",
+    ),
+)
+BUILT_IN_RECOMMENDER_SCENARIO_NAMES = tuple(
+    scenario.name for scenario in BUILT_IN_RECOMMENDER_SCENARIOS
+)
+
 
 class RecommenderScenario:
     """Base scenario implementation shared across recommender session types."""
@@ -74,19 +102,22 @@ class RecommenderScenario:
         return observation.step_index >= observation.max_steps
 
 
-class ReturningUserHomeFeedScenario(RecommenderScenario):
-    """Short returning-user session with meaningful history."""
-
-
-class SparseHistoryHomeFeedScenario(RecommenderScenario):
-    """Short home-feed session with limited history."""
+def resolve_built_in_recommender_scenarios(
+    scenario_names: tuple[str, ...] | None = None,
+) -> tuple[ScenarioConfig, ...]:
+    """Return validated built-in recommender scenario configs by name."""
+    selected_names = scenario_names or BUILT_IN_RECOMMENDER_SCENARIO_NAMES
+    scenario_map = {
+        scenario.name: scenario for scenario in BUILT_IN_RECOMMENDER_SCENARIOS
+    }
+    unknown_scenarios = sorted(set(selected_names).difference(scenario_map))
+    if unknown_scenarios:
+        raise ValueError(f"Unknown scenario names: {', '.join(unknown_scenarios)}.")
+    return tuple(scenario_map[name] for name in selected_names)
 
 
 def build_scenarios(
     scenario_configs: tuple[ScenarioConfig, ...],
 ) -> tuple[RecommenderScenario, ...]:
-    scenario_map = {
-        "returning-user-home-feed": ReturningUserHomeFeedScenario,
-        "sparse-history-home-feed": SparseHistoryHomeFeedScenario,
-    }
-    return tuple(scenario_map.get(config.name, RecommenderScenario)(config) for config in scenario_configs)
+    """Construct runtime scenario objects from validated configs."""
+    return tuple(RecommenderScenario(config) for config in scenario_configs)

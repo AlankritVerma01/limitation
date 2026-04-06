@@ -6,11 +6,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 from interaction_harness.cli import main
+from interaction_harness.generation_support import (
+    build_responses_endpoint,
+    load_dotenv_if_present,
+    read_retry_count,
+    read_timeout_seconds,
+)
 from interaction_harness.scenario_generation import (
-    _build_responses_endpoint,
-    _maybe_load_dotenv,
-    _read_retry_count,
-    _read_timeout_seconds,
     build_scenario_pack,
     generate_scenario_pack,
     load_scenario_pack,
@@ -38,17 +40,17 @@ def test_fixture_generation_returns_valid_and_stable_pack() -> None:
 def test_provider_helpers_normalize_endpoint_and_env_values(monkeypatch) -> None:
     monkeypatch.delenv("OPENAI_TIMEOUT_SECONDS", raising=False)
     monkeypatch.delenv("OPENAI_RETRY_COUNT", raising=False)
-    assert _build_responses_endpoint(None) == "https://api.openai.com/v1/responses"
-    assert _build_responses_endpoint("https://example.com/v1") == "https://example.com/v1/responses"
-    assert _build_responses_endpoint("https://example.com/v1/responses") == "https://example.com/v1/responses"
-    assert _read_timeout_seconds("OPENAI_TIMEOUT_SECONDS") == 45.0
-    assert _read_retry_count("OPENAI_RETRY_COUNT") == 1
+    assert build_responses_endpoint(None) == "https://api.openai.com/v1/responses"
+    assert build_responses_endpoint("https://example.com/v1") == "https://example.com/v1/responses"
+    assert build_responses_endpoint("https://example.com/v1/responses") == "https://example.com/v1/responses"
+    assert read_timeout_seconds("OPENAI_TIMEOUT_SECONDS") == 45.0
+    assert read_retry_count("OPENAI_RETRY_COUNT") == 1
 
 
 def test_provider_helpers_reject_invalid_env_values(monkeypatch) -> None:
     monkeypatch.setenv("OPENAI_TIMEOUT_SECONDS", "abc")
     try:
-        _read_timeout_seconds("OPENAI_TIMEOUT_SECONDS")
+        read_timeout_seconds("OPENAI_TIMEOUT_SECONDS")
     except ValueError as exc:
         assert "must be a number of seconds" in str(exc)
     else:
@@ -56,7 +58,7 @@ def test_provider_helpers_reject_invalid_env_values(monkeypatch) -> None:
 
     monkeypatch.setenv("OPENAI_RETRY_COUNT", "-1")
     try:
-        _read_retry_count("OPENAI_RETRY_COUNT")
+        read_retry_count("OPENAI_RETRY_COUNT")
     except ValueError as exc:
         assert "must be 0 or greater" in str(exc)
     else:
@@ -69,7 +71,7 @@ def test_dotenv_loader_populates_missing_provider_key(tmp_path: Path, monkeypatc
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
-    _maybe_load_dotenv()
+    load_dotenv_if_present()
     assert os.getenv("OPENAI_API_KEY") == "test-key"
     assert os.getenv("OPENAI_BASE_URL") == "https://example.com/v1"
 
@@ -266,6 +268,7 @@ def test_fixture_generated_pack_can_be_reused_for_single_run(tmp_path: Path) -> 
         ]
     )
     payload = json.loads(Path(str(result["results_path"])).read_text(encoding="utf-8"))
+    assert payload["summary"]["scenario_source"] == "generated_pack"
     assert payload["metadata"]["scenario_pack_id"] == pack.metadata.pack_id
     assert payload["metadata"]["scenario_pack_mode"] == "fixture"
     assert payload["metadata"]["scenario_pack_path"] == "<normalized>"
