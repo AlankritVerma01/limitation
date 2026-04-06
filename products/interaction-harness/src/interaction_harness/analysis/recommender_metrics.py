@@ -1,4 +1,4 @@
-"""Compatibility shim for recommender metric helpers."""
+"""Transitional compatibility shim for recommender metric helpers."""
 
 from __future__ import annotations
 

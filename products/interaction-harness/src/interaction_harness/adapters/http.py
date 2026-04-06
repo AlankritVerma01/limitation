@@ -1,4 +1,4 @@
-"""Compatibility shim for the recommender HTTP adapter."""
+"""Transitional compatibility shim for the recommender HTTP adapter."""
 
 from __future__ import annotations
 

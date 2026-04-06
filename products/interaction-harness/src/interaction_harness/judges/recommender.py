@@ -1,4 +1,4 @@
-"""Compatibility shim for the recommender judge."""
+"""Transitional compatibility shim for the recommender judge."""
 
 from __future__ import annotations
 

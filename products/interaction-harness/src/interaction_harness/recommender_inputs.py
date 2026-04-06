@@ -1,4 +1,4 @@
-"""Compatibility shim for recommender runtime input resolution."""
+"""Transitional compatibility shim for recommender runtime input resolution."""
 
 from __future__ import annotations
 
