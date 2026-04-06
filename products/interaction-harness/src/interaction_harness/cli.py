@@ -26,8 +26,8 @@ def _build_parser() -> argparse.ArgumentParser:
     """Build the CLI parser for single-run and compare modes."""
     parser = argparse.ArgumentParser(
         description=(
-            "Run a single recommender audit or compare two artifact-backed systems "
-            "through the interaction harness."
+            "Run a single recommender audit or compare artifact-backed or external "
+            "recommender systems through the interaction harness."
         )
     )
     parser.add_argument("--seed", type=int, default=0, help="Seed for audit rollouts.")
@@ -155,7 +155,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--compare",
         action="store_true",
-        help="Run compare/regression mode against baseline and candidate artifact bundles.",
+        help="Run compare/regression mode against baseline and candidate artifact-backed or external URL targets.",
     )
     parser.add_argument(
         "--baseline-artifact-dir",
@@ -163,9 +163,19 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Artifact directory for the baseline reference-service target in compare mode.",
     )
     parser.add_argument(
+        "--baseline-base-url",
+        default=None,
+        help="External recommender base URL for the baseline target in compare mode.",
+    )
+    parser.add_argument(
         "--candidate-artifact-dir",
         default=None,
         help="Artifact directory for the candidate reference-service target in compare mode.",
+    )
+    parser.add_argument(
+        "--candidate-base-url",
+        default=None,
+        help="External recommender base URL for the candidate target in compare mode.",
     )
     parser.add_argument(
         "--rerun-count",
@@ -257,21 +267,21 @@ def main(argv: list[str] | None = None) -> dict[str, str | int]:
             "population_size": pack.metadata.selected_count,
         }
     if args.compare:
-        if args.baseline_artifact_dir is None or args.candidate_artifact_dir is None:
-            raise SystemExit(
-                "--compare requires both --baseline-artifact-dir and --candidate-artifact-dir."
-            )
+        baseline_target = _build_compare_target(
+            label=args.baseline_label,
+            artifact_dir=args.baseline_artifact_dir,
+            base_url=args.baseline_base_url,
+            side_name="baseline",
+        )
+        candidate_target = _build_compare_target(
+            label=args.candidate_label,
+            artifact_dir=args.candidate_artifact_dir,
+            base_url=args.candidate_base_url,
+            side_name="candidate",
+        )
         result = run_regression_audit(
-            baseline_target=RegressionTarget(
-                label=args.baseline_label,
-                mode="reference_artifact",
-                service_artifact_dir=args.baseline_artifact_dir,
-            ),
-            candidate_target=RegressionTarget(
-                label=args.candidate_label,
-                mode="reference_artifact",
-                service_artifact_dir=args.candidate_artifact_dir,
-            ),
+            baseline_target=baseline_target,
+            candidate_target=candidate_target,
             base_seed=args.seed,
             rerun_count=args.rerun_count,
             output_dir=args.output_dir,
@@ -307,3 +317,30 @@ def main(argv: list[str] | None = None) -> dict[str, str | int]:
     print(f"  Traces: {result['traces_path']}")
     print(f"  Chart: {result['chart_path']}")
     return result
+
+
+def _build_compare_target(
+    *,
+    label: str,
+    artifact_dir: str | None,
+    base_url: str | None,
+    side_name: str,
+) -> RegressionTarget:
+    """Build one compare target from either an artifact bundle or an external URL."""
+    has_artifact = artifact_dir is not None
+    has_base_url = base_url is not None
+    if has_artifact == has_base_url:
+        raise SystemExit(
+            f"--compare requires exactly one of --{side_name}-artifact-dir or --{side_name}-base-url."
+        )
+    if has_artifact:
+        return RegressionTarget(
+            label=label,
+            mode="reference_artifact",
+            service_artifact_dir=artifact_dir,
+        )
+    return RegressionTarget(
+        label=label,
+        mode="external_url",
+        adapter_base_url=base_url,
+    )

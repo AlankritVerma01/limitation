@@ -8,8 +8,10 @@ from datetime import datetime, timezone
 from hashlib import sha1
 from pathlib import Path
 
-from .audit import execute_recommender_audit, write_run_artifacts
+from .audit import write_run_artifacts
 from .config import DEFAULT_OUTPUT_DIR, slugify_name
+from .domain_registry import get_domain_definition
+from .domains.base import DomainDefinition
 from .regression_policy import default_regression_policy, evaluate_regression_policy
 from .reporting.regression import RegressionJsonWriter, RegressionMarkdownWriter
 from .schema import (
@@ -68,10 +70,12 @@ def run_regression_audit(
     cohort_overrides: tuple[RegressionPolicyOverride, ...] = (),
 ) -> dict[str, str | int]:
     """Run rerun summaries and baseline-vs-candidate diff artifacts."""
+    domain_definition = get_domain_definition("recommender")
     default_output_dir = _default_regression_output_dir(
         baseline_target=baseline_target,
         candidate_target=candidate_target,
         base_seed=base_seed,
+        domain_definition=domain_definition,
     )
     resolved_output_dir = Path(output_dir or default_output_dir)
     resolved_output_dir.mkdir(parents=True, exist_ok=True)
@@ -82,6 +86,7 @@ def run_regression_audit(
         scenario_names=scenario_names,
         population_pack_path=population_pack_path,
         output_dir=resolved_output_dir / "baseline",
+        domain_definition=domain_definition,
     )
     candidate_summary, candidate_runs = _run_target_reruns(
         target=candidate_target,
@@ -90,6 +95,7 @@ def run_regression_audit(
         scenario_names=scenario_names,
         population_pack_path=population_pack_path,
         output_dir=resolved_output_dir / "candidate",
+        domain_definition=domain_definition,
     )
     resolved_policy = policy or default_regression_policy(
         metric_overrides=metric_overrides,
@@ -117,6 +123,7 @@ def run_regression_audit(
             candidate_summary=candidate_summary,
             policy_name=resolved_policy.name,
             policy_mode=policy_mode,
+            domain_definition=domain_definition,
         ),
     )
     regression_diff = RegressionDiff(
@@ -173,12 +180,18 @@ def _default_regression_output_dir(
     baseline_target: RegressionTarget,
     candidate_target: RegressionTarget,
     base_seed: int,
+    domain_definition: DomainDefinition,
 ) -> Path:
     """Build the default output path for one regression comparison run."""
     return (
         DEFAULT_OUTPUT_DIR
         / "regression"
-        / f"{slugify_name(baseline_target.label)}-vs-{slugify_name(candidate_target.label)}"
+        / (
+            f"{slugify_name(baseline_target.label)}-"
+            f"{domain_definition.build_target_identity(baseline_target)}-vs-"
+            f"{slugify_name(candidate_target.label)}-"
+            f"{domain_definition.build_target_identity(candidate_target)}"
+        )
         / f"seed-{base_seed}"
     )
 
@@ -195,6 +208,7 @@ def _build_regression_metadata(
     candidate_summary: RerunSummary,
     policy_name: str,
     policy_mode: str,
+    domain_definition: DomainDefinition,
 ) -> dict[str, str | int]:
     """Build stable metadata for a regression comparison bundle."""
     return {
@@ -214,7 +228,13 @@ def _build_regression_metadata(
         "seed_schedule": ",".join(str(seed) for seed in baseline_summary.seed_schedule),
         "baseline_label": baseline_target.label,
         "candidate_label": candidate_target.label,
+        "baseline_target_mode": baseline_target.mode,
+        "candidate_target_mode": candidate_target.mode,
+        "baseline_target_identity": domain_definition.build_target_identity(baseline_target),
+        "candidate_target_identity": domain_definition.build_target_identity(candidate_target),
         "population_pack_path": population_pack_path or "",
+        "domain_name": domain_definition.name,
+        "regression_report_title": domain_definition.regression_report_title,
         "policy_name": policy_name,
         "policy_mode": policy_mode,
     }
@@ -228,25 +248,20 @@ def _run_target_reruns(
     scenario_names: tuple[str, ...] | None,
     population_pack_path: str | None,
     output_dir: Path,
+    domain_definition: DomainDefinition,
 ) -> tuple[RerunSummary, tuple[RunResult, ...]]:
     """Execute one target repeatedly and collect both results and artifact paths."""
-    if target.mode != "reference_artifact":
-        raise NotImplementedError("Only reference_artifact targets are supported right now.")
-
     seed_schedule = build_seed_schedule(base_seed, rerun_count)
     run_results: list[RunResult] = []
     run_artifacts: list[RunArtifactPaths] = []
     for seed in seed_schedule:
         run_output_dir = output_dir / f"seed-{seed}"
-        run_result = execute_recommender_audit(
+        run_result = domain_definition.runner.execute_target_audit(
+            target=target,
             seed=seed,
             output_dir=str(run_output_dir),
             scenario_names=scenario_names,
             population_pack_path=population_pack_path,
-            service_mode="reference",
-            service_artifact_dir=target.service_artifact_dir,
-            run_name=f"regression-{target.label}-seed-{seed}",
-            semantic_mode="off",
         )
         artifact_paths = write_run_artifacts(run_result)
         run_results.append(run_result)
@@ -295,6 +310,9 @@ def _summarize_target_runs(
     metadata = dict(run_results[0].metadata if run_results else {})
     metadata["target_label"] = target.label
     metadata["target_mode"] = target.mode
+    metadata["target_identity"] = (
+        str(run_results[0].metadata.get("target_identity", "")) if run_results else ""
+    )
     return RerunSummary(
         target=target,
         run_count=len(run_results),
@@ -743,7 +761,11 @@ def _build_regression_id(
     """Build a short stable identifier for one regression comparison bundle."""
     payload = {
         "baseline_label": baseline_target.label,
+        "baseline_mode": baseline_target.mode,
+        "baseline_endpoint": baseline_target.adapter_base_url or "",
         "candidate_label": candidate_target.label,
+        "candidate_mode": candidate_target.mode,
+        "candidate_endpoint": candidate_target.adapter_base_url or "",
         "base_seed": base_seed,
         "rerun_count": rerun_count,
         "scenarios": list(scenario_names or ()),
