@@ -74,6 +74,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Saved population-pack path for audit/compare mode, or output path in population-generation mode.",
     )
     parser.add_argument(
+        "--include-slice-membership",
+        action="store_true",
+        help="Include full discovered-slice membership in results.json for single-run audits.",
+    )
+    parser.add_argument(
         "--generate-scenarios",
         action="store_true",
         help="Generate and save a structured scenario pack instead of running an audit.",
@@ -279,6 +284,7 @@ def main(argv: list[str] | None = None) -> dict[str, str | int]:
         service_artifact_dir=args.service_artifact_dir,
         adapter_base_url=args.adapter_base_url,
         run_name=args.run_name,
+        include_slice_membership=args.include_slice_membership,
     )
     print("Single-run audit artifacts:")
     print(f"  Report: {result['report_path']}")

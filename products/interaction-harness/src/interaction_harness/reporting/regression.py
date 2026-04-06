@@ -70,6 +70,7 @@ class RegressionMarkdownWriter:
         lines.extend(self._metric_delta_lines(regression_diff))
         lines.extend(self._variance_lines(regression_diff))
         lines.extend(self._cohort_change_lines(regression_diff))
+        lines.extend(self._slice_change_lines(regression_diff))
         lines.extend(self._risk_change_lines(regression_diff))
         lines.extend(self._trace_change_lines(regression_diff))
 
@@ -109,6 +110,7 @@ class RegressionMarkdownWriter:
             f"- Overall direction: `{summary['overall_direction']}`",
             f"- Cohorts improved: `{summary['improved_cohort_count']}`; regressed: `{summary['regressed_cohort_count']}`",
             f"- Risk flags added: `{summary['added_risk_flag_count']}`; removed: `{summary['removed_risk_flag_count']}`",
+            f"- Slice changes: `{summary['changed_slice_count']}` changed, `{summary['appeared_slice_count']}` appeared, `{summary['disappeared_slice_count']}` disappeared",
             f"- Variance confidence: {summary['variance_note']}",
             f"- Regression mode: `{regression_diff.gating_mode}`.",
             "",
@@ -203,6 +205,49 @@ class RegressionMarkdownWriter:
             )
         return lines
 
+    def _slice_change_lines(self, regression_diff: RegressionDiff) -> list[str]:
+        """Render the deterministic discovered-slice diff table."""
+        lines = [
+            "",
+            "## Discovered Slice Changes",
+            "",
+        ]
+        visible_slices = [
+            slice_delta
+            for slice_delta in regression_diff.slice_deltas
+            if slice_delta.change_type != "stable"
+            or abs(slice_delta.session_utility_delta) >= 0.01
+            or abs(slice_delta.trust_delta_delta) >= 0.01
+            or abs(slice_delta.skip_rate_delta) >= 0.01
+        ]
+        if not visible_slices:
+            lines.append("- No material discovered-slice changes were detected.")
+            return lines
+        lines.extend(
+            [
+                "| Signature | Change | Baseline Count | Candidate Count | Risk | Failure Mode | Utility Δ | Trust Δ | Skip Δ |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            ]
+        )
+        for slice_delta in visible_slices:
+            signature = ", ".join(slice_delta.feature_signature)
+            risk = (
+                f"{slice_delta.baseline_risk_level or 'none'} -> "
+                f"{slice_delta.candidate_risk_level or 'none'}"
+            )
+            failure_mode = (
+                slice_delta.candidate_failure_mode
+                if slice_delta.candidate_failure_mode != "no_major_failure"
+                else slice_delta.baseline_failure_mode
+            )
+            lines.append(
+                f"| {signature} | {slice_delta.change_type} | {slice_delta.baseline_trace_count} | "
+                f"{slice_delta.candidate_trace_count} | {risk} | {failure_mode} | "
+                f"{slice_delta.session_utility_delta:+.3f} | {slice_delta.trust_delta_delta:+.3f} | "
+                f"{slice_delta.skip_rate_delta:+.3f} |"
+            )
+        return lines
+
     def _trace_change_lines(self, regression_diff: RegressionDiff) -> list[str]:
         """Render the trace-level diff table."""
         lines = [
@@ -246,6 +291,15 @@ class RegressionMarkdownWriter:
             for risk in regression_diff.risk_flag_deltas
             if risk.baseline_count > 0 and risk.candidate_count == 0
         )
+        changed_slices = sum(
+            1 for slice_delta in regression_diff.slice_deltas if slice_delta.change_type == "changed"
+        )
+        appeared_slices = sum(
+            1 for slice_delta in regression_diff.slice_deltas if slice_delta.change_type == "appeared"
+        )
+        disappeared_slices = sum(
+            1 for slice_delta in regression_diff.slice_deltas if slice_delta.change_type == "disappeared"
+        )
         spreads = [
             metric.spread for metric in regression_diff.baseline_summary.metric_summaries
         ] + [
@@ -266,6 +320,9 @@ class RegressionMarkdownWriter:
             "regressed_cohort_count": regressed,
             "added_risk_flag_count": added_risks,
             "removed_risk_flag_count": removed_risks,
+            "changed_slice_count": changed_slices,
+            "appeared_slice_count": appeared_slices,
+            "disappeared_slice_count": disappeared_slices,
             "variance_note": (
                 "low observed variance across reruns"
                 if max_spread <= 0.01
@@ -294,6 +351,14 @@ class RegressionMarkdownWriter:
                 direction = "added" if risk.delta > 0 else "removed"
                 changes.append(
                     f"{risk.scenario_name} / {risk.archetype_label}: {direction} {abs(risk.delta)} risk flag(s)"
+                )
+            if len(changes) >= 3:
+                break
+        for slice_delta in regression_diff.slice_deltas:
+            if slice_delta.change_type != "stable":
+                signature = ", ".join(slice_delta.feature_signature)
+                changes.append(
+                    f"{signature}: {slice_delta.change_type}, utility {slice_delta.session_utility_delta:+.3f}, trust {slice_delta.trust_delta_delta:+.3f}"
                 )
             if len(changes) >= 3:
                 break
@@ -364,5 +429,8 @@ class RegressionJsonWriter:
             "regressed_cohort_count": markdown_summary["regressed_cohort_count"],
             "added_risk_flag_count": markdown_summary["added_risk_flag_count"],
             "removed_risk_flag_count": markdown_summary["removed_risk_flag_count"],
+            "changed_slice_count": markdown_summary["changed_slice_count"],
+            "appeared_slice_count": markdown_summary["appeared_slice_count"],
+            "disappeared_slice_count": markdown_summary["disappeared_slice_count"],
             "variance_note": markdown_summary["variance_note"],
         }

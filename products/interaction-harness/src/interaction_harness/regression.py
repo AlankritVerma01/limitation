@@ -26,6 +26,7 @@ from .schema import (
     RiskFlagDelta,
     RunArtifactPaths,
     RunResult,
+    SliceDelta,
     TraceDelta,
 )
 
@@ -99,6 +100,7 @@ def run_regression_audit(
         cohort_deltas=_build_cohort_deltas(baseline_runs, candidate_runs),
         risk_flag_deltas=_build_risk_flag_deltas(baseline_runs, candidate_runs),
         notable_trace_deltas=_build_trace_deltas(baseline_runs, candidate_runs),
+        slice_deltas=_build_slice_deltas(baseline_runs, candidate_runs),
         decision=None,
         metadata=_build_regression_metadata(
             baseline_target=baseline_target,
@@ -121,6 +123,7 @@ def run_regression_audit(
         cohort_deltas=regression_diff.cohort_deltas,
         risk_flag_deltas=regression_diff.risk_flag_deltas,
         notable_trace_deltas=regression_diff.notable_trace_deltas,
+        slice_deltas=regression_diff.slice_deltas,
         decision=evaluate_regression_policy(
             regression_diff,
             resolved_policy,
@@ -444,6 +447,61 @@ def _build_trace_deltas(
     return tuple(deltas[:12])
 
 
+def _build_slice_deltas(
+    baseline_runs: tuple[RunResult, ...],
+    candidate_runs: tuple[RunResult, ...],
+) -> tuple[SliceDelta, ...]:
+    """Compare discovered deterministic slices between baseline and candidate reruns."""
+    baseline_lookup = _aggregate_slices(baseline_runs)
+    candidate_lookup = _aggregate_slices(candidate_runs)
+    deltas: list[SliceDelta] = []
+    for signature in sorted(set(baseline_lookup).union(candidate_lookup)):
+        baseline = baseline_lookup.get(signature, _empty_slice_aggregate(signature))
+        candidate = candidate_lookup.get(signature, _empty_slice_aggregate(signature))
+        change_type = _slice_change_type(baseline["trace_count"], candidate["trace_count"])
+        deltas.append(
+            SliceDelta(
+                slice_id=str(candidate["slice_id"] or baseline["slice_id"]),
+                feature_signature=signature,
+                baseline_trace_count=int(baseline["trace_count"]),
+                candidate_trace_count=int(candidate["trace_count"]),
+                trace_count_delta=int(candidate["trace_count"] - baseline["trace_count"]),
+                baseline_risk_level=baseline["risk_level"],
+                candidate_risk_level=candidate["risk_level"],
+                baseline_failure_mode=baseline["dominant_failure_mode"],
+                candidate_failure_mode=candidate["dominant_failure_mode"],
+                baseline_mean_session_utility=float(baseline["mean_session_utility"]),
+                candidate_mean_session_utility=float(candidate["mean_session_utility"]),
+                session_utility_delta=round(
+                    float(candidate["mean_session_utility"])
+                    - float(baseline["mean_session_utility"]),
+                    6,
+                ),
+                trust_delta_delta=round(
+                    float(candidate["mean_trust_delta"]) - float(baseline["mean_trust_delta"]),
+                    6,
+                ),
+                skip_rate_delta=round(
+                    float(candidate["mean_skip_rate"]) - float(baseline["mean_skip_rate"]),
+                    6,
+                ),
+                change_type=change_type,
+            )
+        )
+    deltas.sort(
+        key=lambda delta: (
+            delta.change_type != "stable",
+            abs(delta.trace_count_delta)
+            + abs(delta.session_utility_delta)
+            + abs(delta.trust_delta_delta)
+            + abs(delta.skip_rate_delta),
+            _risk_rank(delta.candidate_risk_level or delta.baseline_risk_level),
+        ),
+        reverse=True,
+    )
+    return tuple(deltas[:5])
+
+
 def _aggregate_cohorts(run_results: tuple[RunResult, ...]) -> dict[tuple[str, str], dict[str, object]]:
     """Aggregate cohort summaries across reruns by scenario and archetype."""
     aggregate: dict[tuple[str, str], dict[str, object]] = defaultdict(
@@ -525,6 +583,45 @@ def _aggregate_trace_scores(run_results: tuple[RunResult, ...]) -> dict[str, dic
     return resolved
 
 
+def _aggregate_slices(
+    run_results: tuple[RunResult, ...],
+) -> dict[tuple[str, ...], dict[str, object]]:
+    """Aggregate discovered slices across reruns by stable feature signature."""
+    aggregate: dict[tuple[str, ...], dict[str, object]] = defaultdict(
+        lambda: {
+            "slice_id": "",
+            "trace_count_values": [],
+            "mean_session_utility_values": [],
+            "mean_trust_delta_values": [],
+            "mean_skip_rate_values": [],
+            "risk_levels": Counter(),
+            "failure_modes": Counter(),
+        }
+    )
+    for run_result in run_results:
+        for slice_summary in run_result.slice_discovery.slice_summaries:
+            bucket = aggregate[slice_summary.feature_signature]
+            bucket["slice_id"] = slice_summary.slice_id
+            bucket["trace_count_values"].append(slice_summary.trace_count)
+            bucket["mean_session_utility_values"].append(slice_summary.mean_session_utility)
+            bucket["mean_trust_delta_values"].append(slice_summary.mean_trust_delta)
+            bucket["mean_skip_rate_values"].append(slice_summary.mean_skip_rate)
+            bucket["risk_levels"][slice_summary.risk_level] += 1
+            bucket["failure_modes"][slice_summary.dominant_failure_mode] += 1
+    resolved: dict[tuple[str, ...], dict[str, object]] = {}
+    for signature, bucket in aggregate.items():
+        resolved[signature] = {
+            "slice_id": bucket["slice_id"],
+            "trace_count": round(_mean(bucket["trace_count_values"]), 6),
+            "mean_session_utility": round(_mean(bucket["mean_session_utility_values"]), 6),
+            "mean_trust_delta": round(_mean(bucket["mean_trust_delta_values"]), 6),
+            "mean_skip_rate": round(_mean(bucket["mean_skip_rate_values"]), 6),
+            "risk_level": _top_risk_level(bucket["risk_levels"]),
+            "dominant_failure_mode": _top_failure_mode(bucket["failure_modes"]),
+        }
+    return resolved
+
+
 def _empty_cohort_aggregate() -> dict[str, object]:
     return {
         "mean_session_utility": 0.0,
@@ -547,6 +644,19 @@ def _empty_trace_aggregate(trace_id: str) -> dict[str, object]:
     }
 
 
+def _empty_slice_aggregate(feature_signature: tuple[str, ...]) -> dict[str, object]:
+    return {
+        "slice_id": "",
+        "feature_signature": feature_signature,
+        "trace_count": 0.0,
+        "mean_session_utility": 0.0,
+        "mean_trust_delta": 0.0,
+        "mean_skip_rate": 0.0,
+        "risk_level": None,
+        "dominant_failure_mode": "no_major_failure",
+    }
+
+
 def _summary_metric_value(metric_summaries: tuple[MetricSummary, ...], metric_name: str) -> float:
     """Read one metric mean from a tuple of metric summaries."""
     for metric in metric_summaries:
@@ -565,6 +675,19 @@ def _top_failure_mode(counts: Counter[FailureMode]) -> FailureMode:
     if not counts:
         return "no_major_failure"
     return max(counts, key=lambda value: (counts[value], value != "no_major_failure"))
+
+
+def _slice_change_type(
+    baseline_trace_count: float,
+    candidate_trace_count: float,
+) -> str:
+    if baseline_trace_count == 0 and candidate_trace_count > 0:
+        return "appeared"
+    if baseline_trace_count > 0 and candidate_trace_count == 0:
+        return "disappeared"
+    if baseline_trace_count != candidate_trace_count:
+        return "changed"
+    return "stable"
 
 
 def _risk_rank(severity: str | None) -> int:

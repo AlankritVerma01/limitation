@@ -24,6 +24,9 @@ def _serialize(value: Any) -> Any:
 class JsonReportWriter:
     """Writes machine-readable run results and a trace bundle."""
 
+    def __init__(self, *, include_slice_membership: bool = False) -> None:
+        self.include_slice_membership = include_slice_membership
+
     def write(self, run_result: RunResult, output_dir: Path) -> dict[str, str]:
         """Write normalized JSON summaries plus the raw trace bundle."""
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -45,6 +48,8 @@ class JsonReportWriter:
     def _normalize_payload(self, run_result: RunResult) -> dict[str, Any]:
         """Normalize volatile paths and timestamps so snapshots stay stable."""
         payload = _serialize(run_result)
+        if not self.include_slice_membership:
+            payload["slice_discovery"]["memberships"] = []
         payload["summary"] = self._build_summary(run_result)
         payload["run_config"]["rollout"]["output_dir"] = "<normalized>"
         payload["run_config"]["rollout"]["adapter_base_url"] = "<normalized>"
@@ -88,6 +93,12 @@ class JsonReportWriter:
             "agent_count": int(run_result.metadata.get("agent_count", len(run_result.run_config.agent_seeds))),
             "population_source": str(run_result.metadata.get("population_source", "built_in_seeds")),
             "population_size_source": str(run_result.metadata.get("population_size_source", "built_in")),
+            "slice_count": int(
+                run_result.metadata.get(
+                    "slice_count",
+                    len(run_result.slice_discovery.slice_summaries),
+                )
+            ),
             "high_risk_cohort_count": len(high_risk),
             "medium_risk_cohort_count": len(medium_risk),
             "risk_flag_count": len(run_result.risk_flags),

@@ -21,6 +21,7 @@ class MarkdownReportWriter:
         lines.extend(self._launch_risk_lines(run_result))
         lines.extend(self._scenario_coverage_lines(run_result))
         lines.extend(self._cohort_summary_lines(run_result))
+        lines.extend(self._discovered_slice_lines(run_result))
         lines.extend(self._representative_trace_lines(run_result))
         lines.extend(self._metadata_lines(run_result))
         lines.extend(self._trace_score_lines(run_result))
@@ -148,7 +149,31 @@ class MarkdownReportWriter:
             f"- Population source: `{run_result.metadata.get('population_source', 'built_in_seeds')}`",
             f"- Population pack ID: `{run_result.metadata.get('population_pack_id', 'n/a')}`",
             f"- Population size source: `{run_result.metadata.get('population_size_source', 'built_in')}`",
+            f"- Discovered slices: `{run_result.metadata.get('slice_count', len(run_result.slice_discovery.slice_summaries))}`",
         ]
+
+    def _discovered_slice_lines(self, run_result: RunResult) -> list[str]:
+        """Render the top discovered deterministic failure slices."""
+        lines = [
+            "",
+            "## Discovered Failure Slices",
+            "",
+        ]
+        slices = run_result.slice_discovery.slice_summaries[:5]
+        if not slices:
+            lines.append("- No deterministic failure slices met the support threshold in this run.")
+            return lines
+        for slice_summary in slices:
+            signature = ", ".join(slice_summary.feature_signature)
+            representative_traces = ", ".join(slice_summary.representative_trace_ids) or "n/a"
+            lines.append(
+                f"- `{slice_summary.slice_id}`: `{signature}` "
+                f"(traces `{slice_summary.trace_count}`, risk `{slice_summary.risk_level}`, "
+                f"failure `{slice_summary.dominant_failure_mode}`, utility `{slice_summary.mean_session_utility:.3f}`, "
+                f"trust Δ `{slice_summary.mean_trust_delta:.3f}`, skip `{slice_summary.mean_skip_rate:.3f}`)"
+            )
+            lines.append(f"  representative traces: `{representative_traces}`")
+        return lines
 
     def _trace_score_lines(self, run_result: RunResult) -> list[str]:
         """Render the compact per-trace score table."""

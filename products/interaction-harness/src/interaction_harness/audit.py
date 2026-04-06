@@ -87,7 +87,12 @@ def write_run_artifacts(run_result: RunResult) -> dict[str, str]:
     """Write the standard artifact bundle for one audit result."""
     resolved_output_dir = Path(run_result.run_config.rollout.output_dir)
     markdown_paths = MarkdownReportWriter().write(run_result, resolved_output_dir)
-    json_paths = JsonReportWriter().write(run_result, resolved_output_dir)
+    include_slice_membership = bool(
+        run_result.metadata.get("include_slice_membership", False)
+    )
+    json_paths = JsonReportWriter(
+        include_slice_membership=include_slice_membership
+    ).write(run_result, resolved_output_dir)
     chart_paths = CohortChartWriter().write(run_result, resolved_output_dir)
     return {**markdown_paths, **json_paths, **chart_paths}
 
@@ -103,6 +108,7 @@ def run_recommender_audit(
     service_artifact_dir: str | None = None,
     adapter_base_url: str | None = None,
     run_name: str | None = None,
+    include_slice_membership: bool = False,
 ) -> dict[str, str]:
     """Run the recommender audit and write report artifacts."""
     run_result = execute_recommender_audit(
@@ -116,6 +122,7 @@ def run_recommender_audit(
         adapter_base_url=adapter_base_url,
         run_name=run_name,
     )
+    run_result.metadata["include_slice_membership"] = include_slice_membership
     return write_run_artifacts(run_result)
 
 
@@ -144,6 +151,7 @@ def _execute_with_adapter(
         trace_scores=trace_scores,
         cohort_summaries=analysis_result.cohort_summaries,
         risk_flags=analysis_result.risk_flags,
+        slice_discovery=analysis_result.slice_discovery,
         metadata={
             "run_id": _build_run_id(run_config, service_metadata),
             "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
@@ -157,6 +165,7 @@ def _execute_with_adapter(
             "agent_policy": "RecommenderAgentPolicy",
             "judge": "RecommenderJudge",
             "analyzer": "RecommenderAnalyzer",
+            "slice_count": len(analysis_result.slice_discovery.slice_summaries),
             **service_metadata,
             **(resolved_input_metadata or {}),
         },
