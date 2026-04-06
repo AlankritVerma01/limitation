@@ -40,6 +40,9 @@ def build_recommender_run_executive_summary(run_result: RunResult) -> list[str]:
         lines.append(
             f"Main concern: `{weakest.scenario_name}` / `{weakest.archetype_label}` with failure mode `{weakest.dominant_failure_mode}` and utility `{weakest.mean_session_utility:.3f}`."
         )
+        lines.append(
+            f"Behavioral signal watch: first impression `{weakest.mean_first_impression_score:.3f}`, abandonment pressure `{weakest.mean_abandonment_pressure:.3f}`."
+        )
     if high_risk:
         inspect = ", ".join(
             f"{cohort.scenario_name} / {cohort.archetype_label}" for cohort in high_risk[:2]
@@ -139,6 +142,12 @@ def build_recommender_regression_summary(regression_diff: RegressionDiff) -> dic
             "low observed variance across reruns"
             if max_spread <= 0.01
             else "visible rerun variance; interpret small deltas carefully"
+        ),
+        "candidate_target_identity": str(
+            regression_diff.metadata.get("candidate_target_identity", "")
+        ),
+        "baseline_target_identity": str(
+            regression_diff.metadata.get("baseline_target_identity", "")
         ),
     }
 

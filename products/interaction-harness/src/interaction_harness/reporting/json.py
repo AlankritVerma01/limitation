@@ -101,11 +101,30 @@ class JsonReportWriter:
             "population_source": str(run_result.metadata.get("population_source", "built_in_seeds")),
             "population_size_source": str(run_result.metadata.get("population_size_source", "built_in")),
             "semantic_mode": str(run_result.metadata.get("semantic_mode", "off")),
+            "target_endpoint_host": str(run_result.metadata.get("target_endpoint_host", "")),
+            "service_metadata_status": str(
+                run_result.metadata.get("service_metadata_status", "unknown")
+            ),
+            "artifact_contract_version": str(
+                run_result.metadata.get("artifact_contract_version", "v1")
+            ),
             "slice_count": int(
                 run_result.metadata.get(
                     "slice_count",
                     len(run_result.slice_discovery.slice_summaries),
                 )
+            ),
+            "mean_first_impression_score": (
+                sum(score.first_impression_score for score in run_result.trace_scores)
+                / len(run_result.trace_scores)
+                if run_result.trace_scores
+                else 0.0
+            ),
+            "mean_abandonment_pressure": (
+                sum(score.abandonment_pressure for score in run_result.trace_scores)
+                / len(run_result.trace_scores)
+                if run_result.trace_scores
+                else 0.0
             ),
             "high_risk_cohort_count": len(high_risk),
             "medium_risk_cohort_count": len(medium_risk),

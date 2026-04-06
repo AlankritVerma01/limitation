@@ -91,15 +91,15 @@ class MarkdownReportWriter:
             "",
             "## Cohort Summary",
             "",
-            "| Scenario | Archetype | Risk | Failure Mode | Utility | Trust Δ | Skip Rate |",
-            "| --- | --- | --- | --- | --- | --- | --- |",
+            "| Scenario | Archetype | Risk | Failure Mode | Utility | First Impression | Abandon Pressure | Trust Δ |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
         for cohort in run_result.cohort_summaries:
             lines.append(
                 f"| {cohort.scenario_name} | {cohort.archetype_label} | "
                 f"{cohort.risk_level} | {cohort.dominant_failure_mode} | "
-                f"{cohort.mean_session_utility:.3f} | {cohort.mean_trust_delta:.3f} | "
-                f"{cohort.mean_skip_rate:.3f} |"
+                f"{cohort.mean_session_utility:.3f} | {cohort.mean_first_impression_score:.3f} | "
+                f"{cohort.mean_abandonment_pressure:.3f} | {cohort.mean_trust_delta:.3f} |"
             )
         return lines
 
@@ -155,6 +155,10 @@ class MarkdownReportWriter:
             f"- Population size source: `{run_result.metadata.get('population_size_source', 'built_in')}`",
             f"- Discovered slices: `{run_result.metadata.get('slice_count', len(run_result.slice_discovery.slice_summaries))}`",
             f"- Semantic mode: `{run_result.metadata.get('semantic_mode', 'off')}`",
+            f"- Target identity: `{run_result.metadata.get('target_identity', 'unknown')}`",
+            f"- Target endpoint host: `{run_result.metadata.get('target_endpoint_host', 'n/a')}`",
+            f"- Service metadata status: `{run_result.metadata.get('service_metadata_status', 'unknown')}`",
+            f"- Contract version: `{run_result.metadata.get('artifact_contract_version', 'v1')}`",
         ]
 
     def _semantic_advisory_lines(self, run_result: RunResult) -> list[str]:
@@ -207,14 +211,15 @@ class MarkdownReportWriter:
             "",
             "## Trace Scores",
             "",
-            "| Trace | Scenario | Archetype | Utility | Failure Mode | Trust Δ | Skip Rate | Abandoned |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Trace | Scenario | Archetype | Utility | First Impression | Abandon Pressure | Failure Mode | Trust Δ | Abandoned |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
         for score in run_result.trace_scores:
             lines.append(
                 f"| {score.trace_id} | {score.scenario_name} | {score.archetype_label} | "
-                f"{score.session_utility:.3f} | {score.dominant_failure_mode} | "
-                f"{score.trust_delta:.3f} | {score.skip_rate:.3f} | "
+                f"{score.session_utility:.3f} | {score.first_impression_score:.3f} | "
+                f"{score.abandonment_pressure:.3f} | {score.dominant_failure_mode} | "
+                f"{score.trust_delta:.3f} | "
                 f"{score.abandoned} |"
             )
         return lines
