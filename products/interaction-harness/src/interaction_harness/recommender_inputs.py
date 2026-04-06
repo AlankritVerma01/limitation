@@ -2,22 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from .agents.recommender import build_seeded_archetypes
+from .domains.base import ResolvedRuntimeInputs
 from .population_generation import load_population_pack, project_recommender_population
 from .scenario_generation import load_scenario_pack, project_recommender_scenarios
 from .scenarios.recommender import resolve_built_in_recommender_scenarios
 from .schema import AgentSeed, ScenarioConfig
-
-
-@dataclass(frozen=True)
-class RecommenderInputResolution:
-    """Resolved recommender scenarios, population, and related metadata."""
-
-    scenarios: tuple[ScenarioConfig, ...]
-    agent_seeds: tuple[AgentSeed, ...]
-    metadata: dict[str, str | int]
 
 
 def resolve_recommender_inputs(
@@ -25,7 +15,7 @@ def resolve_recommender_inputs(
     scenario_names: tuple[str, ...] | None = None,
     scenario_pack_path: str | None = None,
     population_pack_path: str | None = None,
-) -> RecommenderInputResolution:
+) -> ResolvedRuntimeInputs:
     """Resolve recommender runtime inputs from built-ins and saved packs."""
     scenarios, scenario_metadata = _resolve_scenarios(
         scenario_names=scenario_names,
@@ -34,7 +24,7 @@ def resolve_recommender_inputs(
     agent_seeds, population_metadata = _resolve_population(
         population_pack_path=population_pack_path,
     )
-    return RecommenderInputResolution(
+    return ResolvedRuntimeInputs(
         scenarios=scenarios,
         agent_seeds=agent_seeds,
         metadata={**scenario_metadata, **population_metadata},

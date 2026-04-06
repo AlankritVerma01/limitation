@@ -6,7 +6,8 @@ import re
 from pathlib import Path
 
 from .agents.recommender import build_seeded_archetypes
-from .recommender_inputs import RecommenderInputResolution, resolve_recommender_inputs
+from .domains.base import ResolvedRuntimeInputs
+from .recommender_inputs import resolve_recommender_inputs
 from .schema import AgentSeed, RolloutConfig, RunConfig, ScenarioConfig, ScoringConfig
 from .services.reference_artifacts import DEFAULT_REFERENCE_ARTIFACT_DIR
 
@@ -107,7 +108,7 @@ def build_recommender_run_config(
     service_artifact_dir: str | None = None,
     adapter_base_url: str | None = None,
     run_name: str | None = None,
-) -> tuple[RunConfig, RecommenderInputResolution]:
+) -> tuple[RunConfig, ResolvedRuntimeInputs]:
     """Resolve recommender runtime inputs, then build a run config from them."""
     resolved_inputs = resolve_recommender_inputs(
         scenario_names=scenario_names,
