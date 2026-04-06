@@ -87,6 +87,19 @@ class FixtureScenarioGenerator:
                 ),
             },
             {
+                "slug": "taste-elicitation",
+                "runtime_profile": "taste-elicitation-home-feed",
+                "history_depth": 0,
+                "max_steps": 4,
+                "risk_focus_tags": ["cold-start", "weak-first-impression", "novelty-mismatch"],
+                "description": (
+                    f"Onboarding-style session for `{focus_label}` where the system needs to infer taste with almost no prior evidence."
+                ),
+                "test_goal": (
+                    f"Check whether the system can earn an early click for {focus_label} while still learning fresh taste signals."
+                ),
+            },
+            {
                 "slug": "exploration-pressure",
                 "runtime_profile": "returning-user-home-feed",
                 "history_depth": 2,
@@ -110,6 +123,19 @@ class FixtureScenarioGenerator:
                 ),
                 "test_goal": (
                     f"Check whether the system earns early engagement for {focus_label} before patience runs out."
+                ),
+            },
+            {
+                "slug": "re-engagement",
+                "runtime_profile": "re-engagement-home-feed",
+                "history_depth": 2,
+                "max_steps": 5,
+                "risk_focus_tags": ["staleness", "trust-drop", "weak-first-impression"],
+                "description": (
+                    f"Drifted-user return session for `{focus_label}` where stale or off-target recommendations can quickly collapse trust."
+                ),
+                "test_goal": (
+                    f"Check whether the system can rebuild trust for {focus_label} after a period of low engagement."
                 ),
             },
         )
@@ -220,7 +246,7 @@ class ProviderScenarioGenerator:
             '      "allowed_actions": ["click", "skip", "abandon"],\n'
             '      "adapter_hints": {\n'
             '        "recommender": {\n'
-            '          "runtime_profile": "returning-user-home-feed or sparse-history-home-feed",\n'
+            '          "runtime_profile": "returning-user-home-feed, sparse-history-home-feed, taste-elicitation-home-feed, or re-engagement-home-feed",\n'
             '          "history_depth": 1,\n'
             '          "context_hint": "string"\n'
             "        }\n"

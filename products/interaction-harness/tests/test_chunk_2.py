@@ -715,6 +715,8 @@ def test_cli_runs_both_scenarios(tmp_path: Path) -> None:
     assert scenario_names == {
         "returning-user-home-feed",
         "sparse-history-home-feed",
+        "taste-elicitation-home-feed",
+        "re-engagement-home-feed",
     }
 
 

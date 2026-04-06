@@ -364,7 +364,9 @@ def test_fixture_generated_population_pack_can_be_reused_for_single_run(tmp_path
     assert payload["metadata"]["population_size_source"] == "explicit"
     assert payload["metadata"]["population_pack_path"] == "<normalized>"
     assert payload["summary"]["agent_count"] == 12
-    assert len(payload["traces"]) == 24
+    assert len(payload["traces"]) == (
+        payload["summary"]["agent_count"] * payload["summary"]["scenario_count"]
+    )
 
 
 def test_population_pack_can_be_reused_for_regression_runs(tmp_path: Path) -> None:

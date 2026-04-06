@@ -32,6 +32,30 @@ BUILT_IN_RECOMMENDER_SCENARIOS = (
         risk_focus_tags=("cold-start", "popularity-bias"),
         runtime_profile="sparse-history-home-feed",
     ),
+    ScenarioConfig(
+        name="taste-elicitation-home-feed",
+        max_steps=4,
+        allowed_actions=("click", "skip", "abandon"),
+        history_depth=0,
+        description="Onboarding-style home-feed session with effectively no prior history.",
+        scenario_id="taste-elicitation-home-feed",
+        test_goal="Check whether the system can learn taste quickly without a weak first impression.",
+        risk_focus_tags=("cold-start", "weak-first-impression", "novelty-mismatch"),
+        runtime_profile="taste-elicitation-home-feed",
+        context_hint="New user session with taste elicitation pressure and little trust to spare.",
+    ),
+    ScenarioConfig(
+        name="re-engagement-home-feed",
+        max_steps=5,
+        allowed_actions=("click", "skip", "abandon"),
+        history_depth=2,
+        description="Drifted returning-user session where trust must be rebuilt quickly.",
+        scenario_id="re-engagement-home-feed",
+        test_goal="Check whether the system can re-engage a drifted user without stale or off-target slates.",
+        risk_focus_tags=("staleness", "trust-drop", "weak-first-impression"),
+        runtime_profile="re-engagement-home-feed",
+        context_hint="Returning user after a lull; recommendations need freshness and confidence rebuilding.",
+    ),
 )
 BUILT_IN_RECOMMENDER_SCENARIO_NAMES = tuple(
     scenario.name for scenario in BUILT_IN_RECOMMENDER_SCENARIOS
@@ -77,6 +101,7 @@ class RecommenderScenario:
             description=self.config.description,
             scenario_id=self.scenario_id,
             context_hint=self.config.context_hint,
+            risk_focus_tags=self.config.risk_focus_tags,
         )
         return Observation(
             session_id=f"{self.scenario_id}-{agent_seed.agent_id}",
