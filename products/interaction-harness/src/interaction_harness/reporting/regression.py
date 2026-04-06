@@ -46,6 +46,11 @@ def _normalize_regression_payload(payload: dict[str, Any]) -> dict[str, Any]:
         payload["metadata"]["generated_at_utc"] = "<normalized>"
     if "population_pack_path" in payload.get("metadata", {}):
         payload["metadata"]["population_pack_path"] = "<normalized>"
+    if "semantic_interpretation" in payload and payload["semantic_interpretation"] is None:
+        payload.pop("semantic_interpretation", None)
+    semantic = payload.get("semantic_interpretation")
+    if isinstance(semantic, dict) and "generated_at_utc" in semantic:
+        semantic["generated_at_utc"] = "<normalized>"
     if "generated_at_utc" in payload.get("summary", {}):
         payload["summary"]["generated_at_utc"] = "<normalized>"
     return payload
@@ -73,6 +78,7 @@ class RegressionMarkdownWriter:
         lines.extend(self._slice_change_lines(regression_diff))
         lines.extend(self._risk_change_lines(regression_diff))
         lines.extend(self._trace_change_lines(regression_diff))
+        lines.extend(self._semantic_advisory_lines(regression_diff))
 
         report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         return {"regression_report_path": str(report_path)}
@@ -265,6 +271,27 @@ class RegressionMarkdownWriter:
             )
         return lines
 
+    def _semantic_advisory_lines(self, regression_diff: RegressionDiff) -> list[str]:
+        """Render optional advisory semantic interpretation for compare mode."""
+        interpretation = regression_diff.semantic_interpretation
+        lines = ["", "## Semantic Advisory", ""]
+        if interpretation is None:
+            lines.append("- Semantic interpretation was not enabled for this comparison.")
+            return lines
+        lines.append(f"- Mode: `{interpretation.mode}`")
+        if interpretation.provider_name:
+            lines.append(
+                f"- Provider: `{interpretation.provider_name}` / `{interpretation.model_name or 'unknown'}`"
+            )
+        lines.append(f"- Advisory summary: {interpretation.advisory_summary}")
+        for explanation in interpretation.trace_explanations:
+            lines.append(
+                f"- `{explanation.trace_id}`: {explanation.explanation_summary} "
+                f"(theme `{explanation.issue_theme}`)"
+            )
+            lines.append(f"  follow-up: {explanation.recommended_follow_up}")
+        return lines
+
     def build_summary(self, regression_diff: RegressionDiff) -> dict[str, object]:
         """Build the compact regression status summary used by reports and JSON."""
         improved = 0
@@ -424,6 +451,7 @@ class RegressionJsonWriter:
             "decision": decision.status if decision is not None else "pass",
             "exit_code": decision.exit_code if decision is not None else 0,
             "decision_reasons": list(decision.reasons) if decision is not None else [],
+            "semantic_mode": str(regression_diff.metadata.get("semantic_mode", "off")),
             "overall_direction": markdown_summary["overall_direction"],
             "improved_cohort_count": markdown_summary["improved_cohort_count"],
             "regressed_cohort_count": markdown_summary["regressed_cohort_count"],

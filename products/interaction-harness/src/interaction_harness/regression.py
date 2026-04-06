@@ -29,6 +29,7 @@ from .schema import (
     SliceDelta,
     TraceDelta,
 )
+from .semantic_interpretation import interpret_regression_semantics
 
 _SUMMARY_METRICS = (
     "mean_session_utility",
@@ -59,6 +60,8 @@ def run_regression_audit(
     output_dir: str | None = None,
     scenario_names: tuple[str, ...] | None = None,
     population_pack_path: str | None = None,
+    semantic_mode: str = "off",
+    semantic_model: str = "gpt-5",
     policy_mode: str = "default",
     policy: RegressionPolicy | None = None,
     metric_overrides: tuple[RegressionPolicyOverride, ...] = (),
@@ -101,6 +104,7 @@ def run_regression_audit(
         risk_flag_deltas=_build_risk_flag_deltas(baseline_runs, candidate_runs),
         notable_trace_deltas=_build_trace_deltas(baseline_runs, candidate_runs),
         slice_deltas=_build_slice_deltas(baseline_runs, candidate_runs),
+        semantic_interpretation=None,
         decision=None,
         metadata=_build_regression_metadata(
             baseline_target=baseline_target,
@@ -124,12 +128,34 @@ def run_regression_audit(
         risk_flag_deltas=regression_diff.risk_flag_deltas,
         notable_trace_deltas=regression_diff.notable_trace_deltas,
         slice_deltas=regression_diff.slice_deltas,
+        semantic_interpretation=None,
         decision=evaluate_regression_policy(
             regression_diff,
             resolved_policy,
             gating_mode=policy_mode,
         ),
         metadata=regression_diff.metadata,
+    )
+    regression_diff = RegressionDiff(
+        gating_mode=regression_diff.gating_mode,
+        baseline_summary=regression_diff.baseline_summary,
+        candidate_summary=regression_diff.candidate_summary,
+        metric_deltas=regression_diff.metric_deltas,
+        cohort_deltas=regression_diff.cohort_deltas,
+        risk_flag_deltas=regression_diff.risk_flag_deltas,
+        notable_trace_deltas=regression_diff.notable_trace_deltas,
+        slice_deltas=regression_diff.slice_deltas,
+        semantic_interpretation=interpret_regression_semantics(
+            regression_diff,
+            mode=semantic_mode,
+            model_name=semantic_model,
+        ),
+        decision=regression_diff.decision,
+        metadata={
+            **regression_diff.metadata,
+            "semantic_mode": semantic_mode,
+            "semantic_model": semantic_model if semantic_mode != "off" else "",
+        },
     )
     markdown_paths = RegressionMarkdownWriter().write(regression_diff, resolved_output_dir)
     json_paths = RegressionJsonWriter().write(regression_diff, resolved_output_dir)
@@ -220,6 +246,7 @@ def _run_target_reruns(
             service_mode="reference",
             service_artifact_dir=target.service_artifact_dir,
             run_name=f"regression-{target.label}-seed-{seed}",
+            semantic_mode="off",
         )
         artifact_paths = write_run_artifacts(run_result)
         run_results.append(run_result)

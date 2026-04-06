@@ -79,6 +79,17 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Include full discovered-slice membership in results.json for single-run audits.",
     )
     parser.add_argument(
+        "--semantic-mode",
+        default="off",
+        choices=("off", "fixture", "provider"),
+        help="Optional advisory semantic interpretation mode for audit and compare runs.",
+    )
+    parser.add_argument(
+        "--semantic-model",
+        default=DEFAULT_PROVIDER_MODEL,
+        help="Provider model name used when semantic mode is `provider`.",
+    )
+    parser.add_argument(
         "--generate-scenarios",
         action="store_true",
         help="Generate and save a structured scenario pack instead of running an audit.",
@@ -266,6 +277,8 @@ def main(argv: list[str] | None = None) -> dict[str, str | int]:
             output_dir=args.output_dir,
             scenario_names=scenario_names,
             population_pack_path=args.population_pack_path,
+            semantic_mode=args.semantic_mode,
+            semantic_model=args.semantic_model,
             policy_mode=args.policy_mode,
         )
         print("Compare audit artifacts:")
@@ -285,6 +298,8 @@ def main(argv: list[str] | None = None) -> dict[str, str | int]:
         adapter_base_url=args.adapter_base_url,
         run_name=args.run_name,
         include_slice_membership=args.include_slice_membership,
+        semantic_mode=args.semantic_mode,
+        semantic_model=args.semantic_model,
     )
     print("Single-run audit artifacts:")
     print(f"  Report: {result['report_path']}")
