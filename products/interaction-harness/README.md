@@ -26,7 +26,7 @@ The package now uses an in-repo domain plug-in shape:
 
 - the shared foundation owns rollout, traces, artifacts, semantic layering, and regression lifecycle
 - each domain module owns its own runtime inputs, adapter construction, policy, judge, analyzer, and domain-level regression semantics
-- the recommender wedge is the first full implementation of that contract
+- the recommender wedge is the first full implementation of that contract and now lives primarily in `src/interaction_harness/domains/recommender/`
 - a small stub domain exists only to prove that new systems can plug in without shared-core surgery
 
 The CLI is still recommender-first on purpose, but internally new systems are meant to land as domain modules rather than as branches spread through generic code.
@@ -75,29 +75,36 @@ The product remains independent from the study package. Ideas are reused, but th
 - `src/interaction_harness/regression.py`
   - reruns and baseline-vs-candidate orchestration
 - `src/interaction_harness/config.py`
-  - shared explicit-input run-config builder plus recommender compatibility wrappers
+  - shared explicit-input run-config builder plus thin recommender compatibility wrappers
 - `src/interaction_harness/scenario_generation.py`
-  - scenario-pack generation, validation, storage, and recommender projection
+  - scenario-pack generation, validation, storage, and a compatibility shim into recommender projection
 - `src/interaction_harness/population_generation.py`
-  - recommender population-pack generation, selection, storage, and projection
+  - population-pack generation, selection, storage, and a compatibility shim into recommender projection
+- `src/interaction_harness/domains/recommender/`
+  - the real cross-cutting recommender domain package:
+    inputs, scenarios, policy, judge, analyzer, metrics, slices, service/adapters wiring, and reporting hooks
 - `src/interaction_harness/services/`
   - local reference service, mock fixture, and reference artifacts
 - `src/interaction_harness/adapters/`
-  - system-under-test adapter layer
+  - shared adapter namespace plus compatibility shims for moved domain-owned adapters
 - `src/interaction_harness/agents/`
-  - seeded synthetic user policies
+  - shared agent namespace plus compatibility shims for moved domain-owned policies
 - `src/interaction_harness/rollout/`
   - session execution loop
 - `src/interaction_harness/judges/`
-  - deterministic trace scoring
+  - shared judge namespace plus compatibility shims for moved domain-owned judges
 - `src/interaction_harness/analysis/`
-  - cohort-level summarization and risk surfacing
+  - shared analysis namespace plus compatibility shims for moved domain-owned analyzers
 - `src/interaction_harness/reporting/`
   - markdown, JSON, and chart writers
 - `src/interaction_harness/domain_registry.py`
   - internal adapter-domain registry
 - `src/interaction_harness/domains/`
   - in-repo domain plug-ins plus the shared domain runner shell
+
+The old recommender module paths are still available as compatibility shims so
+current imports and tests keep working while the real ownership sits behind the
+recommender domain package.
 
 ## Run The Recommender Audit
 
