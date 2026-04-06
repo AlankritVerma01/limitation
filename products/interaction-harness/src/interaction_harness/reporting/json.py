@@ -48,6 +48,8 @@ class JsonReportWriter:
     def _normalize_payload(self, run_result: RunResult) -> dict[str, Any]:
         """Normalize volatile paths and timestamps so snapshots stay stable."""
         payload = _serialize(run_result)
+        if payload.get("semantic_interpretation") is None:
+            payload.pop("semantic_interpretation", None)
         if not self.include_slice_membership:
             payload["slice_discovery"]["memberships"] = []
         payload["summary"] = self._build_summary(run_result)
@@ -65,6 +67,9 @@ class JsonReportWriter:
             payload["metadata"]["population_pack_path"] = "<normalized>"
         if "generated_at_utc" in payload["metadata"]:
             payload["metadata"]["generated_at_utc"] = "<normalized>"
+        semantic = payload.get("semantic_interpretation")
+        if isinstance(semantic, dict) and "generated_at_utc" in semantic:
+            semantic["generated_at_utc"] = "<normalized>"
         if "generated_at_utc" in payload["summary"]:
             payload["summary"]["generated_at_utc"] = "<normalized>"
         return payload
@@ -93,6 +98,7 @@ class JsonReportWriter:
             "agent_count": int(run_result.metadata.get("agent_count", len(run_result.run_config.agent_seeds))),
             "population_source": str(run_result.metadata.get("population_source", "built_in_seeds")),
             "population_size_source": str(run_result.metadata.get("population_size_source", "built_in")),
+            "semantic_mode": str(run_result.metadata.get("semantic_mode", "off")),
             "slice_count": int(
                 run_result.metadata.get(
                     "slice_count",

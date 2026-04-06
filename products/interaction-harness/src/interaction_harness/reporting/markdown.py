@@ -23,6 +23,7 @@ class MarkdownReportWriter:
         lines.extend(self._cohort_summary_lines(run_result))
         lines.extend(self._discovered_slice_lines(run_result))
         lines.extend(self._representative_trace_lines(run_result))
+        lines.extend(self._semantic_advisory_lines(run_result))
         lines.extend(self._metadata_lines(run_result))
         lines.extend(self._trace_score_lines(run_result))
 
@@ -150,7 +151,29 @@ class MarkdownReportWriter:
             f"- Population pack ID: `{run_result.metadata.get('population_pack_id', 'n/a')}`",
             f"- Population size source: `{run_result.metadata.get('population_size_source', 'built_in')}`",
             f"- Discovered slices: `{run_result.metadata.get('slice_count', len(run_result.slice_discovery.slice_summaries))}`",
+            f"- Semantic mode: `{run_result.metadata.get('semantic_mode', 'off')}`",
         ]
+
+    def _semantic_advisory_lines(self, run_result: RunResult) -> list[str]:
+        """Render the optional advisory semantic interpretation section."""
+        interpretation = run_result.semantic_interpretation
+        lines = ["", "## Semantic Advisory", ""]
+        if interpretation is None:
+            lines.append("- Semantic interpretation was not enabled for this run.")
+            return lines
+        lines.append(f"- Mode: `{interpretation.mode}`")
+        if interpretation.provider_name:
+            lines.append(
+                f"- Provider: `{interpretation.provider_name}` / `{interpretation.model_name or 'unknown'}`"
+            )
+        lines.append(f"- Advisory summary: {interpretation.advisory_summary}")
+        for explanation in interpretation.trace_explanations:
+            lines.append(
+                f"- `{explanation.trace_id}`: {explanation.explanation_summary} "
+                f"(theme `{explanation.issue_theme}`)"
+            )
+            lines.append(f"  follow-up: {explanation.recommended_follow_up}")
+        return lines
 
     def _discovered_slice_lines(self, run_result: RunResult) -> list[str]:
         """Render the top discovered deterministic failure slices."""
