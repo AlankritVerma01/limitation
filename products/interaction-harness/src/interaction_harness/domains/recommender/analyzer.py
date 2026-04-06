@@ -48,6 +48,15 @@ class RecommenderAnalyzer:
                 sum(score.confidence_delta for score in scores) / trace_count
             )
             mean_skip_rate = sum(score.skip_rate for score in scores) / trace_count
+            mean_first_impression_score = (
+                sum(score.first_impression_score for score in scores) / trace_count
+            )
+            mean_exploration_acceptance_rate = (
+                sum(score.exploration_acceptance_rate for score in scores) / trace_count
+            )
+            mean_abandonment_pressure = (
+                sum(score.abandonment_pressure for score in scores) / trace_count
+            )
             mean_frustration_delta = (
                 sum(score.frustration_delta for score in scores) / trace_count
             )
@@ -63,6 +72,8 @@ class RecommenderAnalyzer:
                 mean_trust_delta=mean_trust_delta,
                 mean_stale_exposure_rate=mean_stale_exposure_rate,
                 mean_concentration=mean_concentration,
+                mean_first_impression_score=mean_first_impression_score,
+                mean_abandonment_pressure=mean_abandonment_pressure,
                 trace_scores=scores,
             )
             risk_level = risk_level_for_score(cohort_risk_score)
@@ -101,6 +112,12 @@ class RecommenderAnalyzer:
                     representative_failure_trace_id=(
                         representative_failure.trace_id if representative_failure is not None else None
                     ),
+                    mean_first_impression_score=round(mean_first_impression_score, 6),
+                    mean_exploration_acceptance_rate=round(
+                        mean_exploration_acceptance_rate,
+                        6,
+                    ),
+                    mean_abandonment_pressure=round(mean_abandonment_pressure, 6),
                 )
             )
 

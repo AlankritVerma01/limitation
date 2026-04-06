@@ -77,6 +77,14 @@ def extract_recommender_slice_features(
             "novelty_intensity_bucket",
             _novelty_intensity_bucket(trace_score.novelty_intensity),
         ),
+        SliceFeature(
+            "first_impression_bucket",
+            _first_impression_bucket(trace_score.first_impression_score),
+        ),
+        SliceFeature(
+            "abandonment_pressure_bucket",
+            _abandonment_pressure_bucket(trace_score.abandonment_pressure),
+        ),
     ]
     return tuple(features)
 
@@ -91,6 +99,8 @@ def _summarize_recommender_slice(
     mean_trust_delta = _mean(score.trust_delta for score in scores)
     mean_stale_exposure_rate = _mean(score.stale_exposure_rate for score in scores)
     mean_concentration = _mean(score.concentration for score in scores)
+    mean_first_impression_score = _mean(score.first_impression_score for score in scores)
+    mean_abandonment_pressure = _mean(score.abandonment_pressure for score in scores)
     mean_skip_rate = _mean(score.skip_rate for score in scores)
     mean_trace_risk_score = _mean(score.trace_risk_score for score in scores)
     slice_failure_mode = dominant_failure_mode(scores)
@@ -101,6 +111,8 @@ def _summarize_recommender_slice(
         mean_trust_delta=mean_trust_delta,
         mean_stale_exposure_rate=mean_stale_exposure_rate,
         mean_concentration=mean_concentration,
+        mean_first_impression_score=mean_first_impression_score,
+        mean_abandonment_pressure=mean_abandonment_pressure,
         trace_scores=scores,
     )
     representative_trace_ids = tuple(
@@ -182,6 +194,22 @@ def _novelty_intensity_bucket(value: float) -> str:
     if value >= 0.65:
         return "high"
     if value >= 0.35:
+        return "medium"
+    return "low"
+
+
+def _first_impression_bucket(value: float) -> str:
+    if value < 0.35:
+        return "weak"
+    if value < 0.6:
+        return "mixed"
+    return "strong"
+
+
+def _abandonment_pressure_bucket(value: float) -> str:
+    if value >= 0.6:
+        return "high"
+    if value >= 0.3:
         return "medium"
     return "low"
 

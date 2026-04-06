@@ -33,6 +33,10 @@ _SUMMARY_METRICS = (
     "mean_frustration",
     "mean_trust_delta",
     "mean_skip_rate",
+    "mean_first_impression_score",
+    "mean_exploration_acceptance_rate",
+    "mean_abandonment_pressure",
+    "mean_cold_start_quality",
     "high_risk_cohort_count",
 )
 
@@ -123,6 +127,16 @@ def summarize_recommender_run_metrics(run_result: RunResult) -> dict[str, float]
         "mean_frustration": _mean(score.frustration for score in trace_scores),
         "mean_trust_delta": _mean(score.trust_delta for score in trace_scores),
         "mean_skip_rate": _mean(score.skip_rate for score in trace_scores),
+        "mean_first_impression_score": _mean(
+            score.first_impression_score for score in trace_scores
+        ),
+        "mean_exploration_acceptance_rate": _mean(
+            score.exploration_acceptance_rate for score in trace_scores
+        ),
+        "mean_abandonment_pressure": _mean(
+            score.abandonment_pressure for score in trace_scores
+        ),
+        "mean_cold_start_quality": _mean(score.cold_start_quality for score in trace_scores),
         "high_risk_cohort_count": float(
             sum(1 for cohort in cohort_summaries if cohort.risk_level == "high")
         ),

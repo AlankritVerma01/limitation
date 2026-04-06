@@ -28,6 +28,8 @@ def aggregate_risk_score(
     mean_trust_delta: float,
     mean_stale_exposure_rate: float,
     mean_concentration: float,
+    mean_first_impression_score: float = 0.0,
+    mean_abandonment_pressure: float = 0.0,
     trace_scores: Sequence[TraceScore],
 ) -> float:
     """Blend aggregate and worst-case trace signals into one bounded risk score."""
@@ -39,6 +41,8 @@ def aggregate_risk_score(
     base += max(0.0, mean_frustration_delta) * 0.22
     base += max(0.0, -mean_trust_delta) * 0.28
     base += max(0.0, mean_stale_exposure_rate - 0.2) * 0.22
+    base += max(0.0, 0.45 - mean_first_impression_score) * 0.18
+    base += mean_abandonment_pressure * 0.14
     if mean_session_utility < 0.55:
         base += max(0.0, mean_concentration - 0.45) * 0.18
     base += 0.2 * (sum(score.trace_risk_score for score in trace_scores) / len(trace_scores))
