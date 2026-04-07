@@ -154,7 +154,7 @@ class DomainDefinition:
     public: bool = True
     generation_hooks: DomainGenerationHooks | None = None
     run_reference_service: Callable[
-        [str | None],
+        [str | None, str | None, int | None],
         AbstractContextManager[tuple[str, dict[str, str | int | float]]],
     ] | None = None
     reporting_hooks: DomainReportingHooks | None = None

@@ -17,6 +17,68 @@ V1 audits recommender systems by:
 
 The supported product domain in v1 is recommender evaluation.
 
+## Why Teams Buy It
+
+Teams buy Interaction Harness when they need more than offline ranking metrics
+and more than manual QA before shipping recommender changes.
+
+It helps teams:
+
+- catch bad recommender launches before users feel them
+- see which cohorts are underserved instead of relying on one blended metric
+- explain non-clicking, abandonment, trust collapse, and repetition with trace evidence
+- compare baseline vs candidate systems with reproducible artifacts
+- expand coverage with generated scenarios and generated populations without letting AI decide ship gates
+
+The buyer story in v1 is recommender release safety:
+
+- product and recs leaders get a concrete launch-risk readout
+- ML teams get deterministic evidence tied to trace behavior
+- eval and platform teams get saved artifacts, reruns, and compare workflows they can operationalize
+
+## What Problems It Solves
+
+Interaction Harness is built for questions like:
+
+- Which user cohorts are likely to bounce or stop trusting this recommender?
+- Why are users not clicking even when aggregate metrics look acceptable?
+- Did the candidate build materially regress against the current baseline?
+- Are we testing only one narrow happy path, or do we have reusable scenario and population coverage?
+
+## Why Not The Alternatives
+
+Why not just offline metrics?
+
+- Offline metrics compress too much. They rarely tell you which session shape breaks, which cohort gets hurt, or what behavior produced the failure.
+
+Why not just manual QA?
+
+- Manual QA does not scale to seeded populations, repeatable reruns, or regression-ready evidence bundles.
+
+Why not just LLM evals?
+
+- LLMs help with authoring and explanation here, but release decisions stay grounded in deterministic traces, judging, and regression policy.
+
+Why not build it in-house?
+
+- Teams can, but they still need synthetic populations, reproducible traces, explainable cohort risk surfacing, saved coverage artifacts, and repeatable compare workflows before the system becomes trustworthy.
+
+## Demo Value
+
+The strongest v1 story is simple:
+
+1. run a recommender audit
+2. surface the highest-risk cohorts
+3. inspect one failure trace where users skip and abandon because trust collapses
+4. contrast it with a healthy cohort so the result is specific, not alarmist
+5. compare baseline vs candidate and turn the result into a ship/no-ship style decision workflow
+
+The repository already includes stable demo artifacts you can open directly:
+
+- single-run audit: [output/demo-single/report.md](./output/demo-single/report.md)
+- compare flow: [output/demo-regression-stable/regression_report.md](./output/demo-regression-stable/regression_report.md)
+- demo script: [DEMO.md](./DEMO.md)
+
 ## Architecture
 
 The package is organized around:
@@ -55,12 +117,74 @@ The package is organized around:
 The supported product path is:
 
 - CLI-first recommender audits
-- local reference recommender service for repeatable local runs
 - external recommender base URLs for real-system integration
+- local reference recommender service for repeatable local runs, demos, CI, and onboarding
 - artifact bundles as the main user-facing output
 
 The mock recommender service exists only as a narrow test/debug fixture. It is
 not the primary user path.
+
+## Customer Integration Model
+
+For real usage, the main path is an external target.
+
+In v1, a customer typically gives the harness:
+
+- a reachable recommender base URL
+- any required auth or gateway details
+- a service that can answer the harness request/response contract
+
+The reference target is different.
+
+It is a product-owned local stand-in used for:
+
+- demos
+- local development
+- CI and smoke runs
+- onboarding when a customer endpoint is not ready yet
+
+So the mental model is:
+
+- external target = the real customer path
+- reference target = the product-owned demo and local baseline path
+
+## Canonical Demo Flow
+
+Install the package once from the repository root:
+
+```bash
+.venv/bin/python -m pip install -e products/interaction-harness
+```
+
+Run the buyer-facing single audit demo:
+
+```bash
+.venv/bin/python -m interaction_harness audit --domain recommender --seed 7 --scenario returning-user-home-feed --reference-artifact-dir products/interaction-harness/output/reference-artifacts-demo --output-dir products/interaction-harness/output/demo-single-live
+```
+
+Then open:
+
+- `products/interaction-harness/output/demo-single-live/report.md`
+- `products/interaction-harness/output/demo-single-live/results.json`
+
+Run the compare demo:
+
+```bash
+.venv/bin/python -m interaction_harness compare --domain recommender --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-demo --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-demo --baseline-label current-prod --candidate-label current-prod-copy --rerun-count 2 --output-dir products/interaction-harness/output/demo-regression-live
+```
+
+Then open:
+
+- `products/interaction-harness/output/demo-regression-live/regression_report.md`
+- `products/interaction-harness/output/demo-regression-live/regression_summary.json`
+
+Use generated scenario and population packs after the core story lands. They
+are powerful coverage expanders, but they are not the headline in the first
+buyer conversation.
+
+This demo uses the reference target on purpose. It proves the product workflow
+without requiring a customer-owned endpoint. In real usage, the same audit flow
+is pointed at an external recommender URL.
 
 ## AI Boundary
 
@@ -152,6 +276,12 @@ Run one scenario only:
 .venv/bin/python -m interaction_harness audit --domain recommender --scenario returning-user-home-feed --seed 7 --reference-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/demo
 ```
 
+Run the same audit shape against a real external target:
+
+```bash
+.venv/bin/python -m interaction_harness audit --domain recommender --scenario returning-user-home-feed --seed 7 --target-url http://localhost:8010 --output-dir products/interaction-harness/output/external-audit-demo
+```
+
 Generate a saved scenario pack from a brief with the deterministic fixture path
 for CI, tests, or offline demos:
 
@@ -229,7 +359,7 @@ Start the local reference recommender service explicitly when you want a stable
 URL for repeated manual checks or external integration:
 
 ```bash
-.venv/bin/python -m interaction_harness serve-reference --domain recommender --artifact-dir products/interaction-harness/output/reference-artifacts
+.venv/bin/python -m interaction_harness serve-reference --domain recommender --artifact-dir products/interaction-harness/output/reference-artifacts --host 127.0.0.1 --port 8020
 ```
 
 Run compare mode against two artifact-backed targets:

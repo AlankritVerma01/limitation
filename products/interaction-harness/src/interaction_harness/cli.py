@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import time
 from contextlib import suppress
+from pathlib import Path
 
 from .audit import execute_domain_audit, write_run_artifacts
 from .cli_progress import ProgressCallback, TerminalProgressRenderer, emit_progress
@@ -32,8 +34,8 @@ def _build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
             "Run interaction-harness workflows through the shared CLI.\n\n"
-            "Recommended paths:\n"
-            "- `audit --domain recommender`: local reference recommender or an external URL\n"
+            "Recommended v1 paths:\n"
+            "- `audit --domain recommender`: local reference target or an external URL\n"
             "- `compare --domain recommender`: artifact-backed baselines/candidates or external URLs\n"
             "- `generate-scenarios --domain recommender` / `generate-population --domain recommender`\n"
             "- `serve-reference --domain recommender`: explicit local reference-service workflow\n\n"
@@ -67,22 +69,22 @@ def _build_audit_parser(
         "--target-url",
         default=None,
         help=(
-            "Existing recommender endpoint to audit. If omitted, the local reference "
-            "service is used by default."
+            "Existing system endpoint to audit for the selected domain. "
+            "If omitted, the supported local reference target is used."
         ),
     )
     parser.add_argument(
         "--reference-artifact-dir",
         default=None,
         help=(
-            "Optional artifact directory for the local reference recommender target. "
-            "This is an advanced override for the supported local path."
+            "Optional artifact directory for the selected domain's local reference "
+            "target. This is an advanced override for the supported local path."
         ),
     )
     parser.add_argument(
         "--use-mock",
         action="store_true",
-        help="Use the mock recommender only for narrow test/debug runs.",
+        help="Use a domain-specific mock target only for narrow test/debug runs.",
     )
     parser.add_argument(
         "--run-name",
@@ -117,7 +119,7 @@ def _build_compare_parser(
     parser.add_argument(
         "--baseline-url",
         default=None,
-        help="External recommender URL for the baseline target.",
+        help="External URL for the baseline target.",
     )
     parser.add_argument(
         "--candidate-artifact-dir",
@@ -127,7 +129,7 @@ def _build_compare_parser(
     parser.add_argument(
         "--candidate-url",
         default=None,
-        help="External recommender URL for the candidate target.",
+        help="External URL for the candidate target.",
     )
     parser.add_argument(
         "--rerun-count",
@@ -273,6 +275,17 @@ def _build_serve_reference_parser(
         default=None,
         help="Optional artifact directory override for the local reference service.",
     )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host interface to bind for the local reference service.",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=0,
+        help="Port to bind for the local reference service. Use `0` for any free port.",
+    )
     return parser
 
 
@@ -371,9 +384,12 @@ def _handle_audit_command(
     _print_summary(
         "Audit complete",
         (
-            ("Report", str(result["report_path"])),
-            ("Results", str(result["results_path"])),
-            ("Traces", str(result["traces_path"])),
+            ("Launch status", _audit_launch_status(run_result)),
+            ("High-risk cohorts", str(_count_high_risk_cohorts(run_result))),
+            ("Risk flags", str(len(run_result.risk_flags))),
+            ("Open report", str(result["report_path"])),
+            ("Machine-readable results", str(result["results_path"])),
+            ("Full traces", str(result["traces_path"])),
             ("Chart", str(result["chart_path"])),
         ),
     )
@@ -413,13 +429,17 @@ def _handle_compare_command(
         policy_mode=args.policy_mode,
         progress_callback=progress_callback,
     )
+    regression_summary = _load_json_summary(str(result["regression_summary_path"]))
+    summary_block = regression_summary.get("summary", {}) if isinstance(regression_summary, dict) else {}
     _print_summary(
         "Compare complete",
         (
             ("Decision", str(result["decision_status"]).upper()),
+            ("Overall direction", str(summary_block.get("overall_direction", ""))),
+            ("Risk flags added", str(summary_block.get("added_risk_flag_count", ""))),
             ("Exit code", str(result["exit_code"])),
-            ("Regression report", str(result["regression_report_path"])),
-            ("Regression summary", str(result["regression_summary_path"])),
+            ("Open regression report", str(result["regression_report_path"])),
+            ("Machine-readable summary", str(result["regression_summary_path"])),
             ("Regression traces", str(result["regression_traces_path"])),
         ),
     )
@@ -462,7 +482,7 @@ def _handle_generate_scenarios_command(
         "Scenario generation complete",
         (
             ("Pack ID", pack.metadata.pack_id),
-            ("Scenario pack", saved_path),
+            ("Saved scenario pack", saved_path),
             ("Scenario count", str(len(pack.scenarios))),
         ),
     )
@@ -510,7 +530,7 @@ def _handle_generate_population_command(
         "Population generation complete",
         (
             ("Pack ID", pack.metadata.pack_id),
-            ("Population pack", saved_path),
+            ("Saved population pack", saved_path),
             ("Selected personas", str(pack.metadata.selected_count)),
             ("Population size source", pack.metadata.population_size_source),
         ),
@@ -538,7 +558,11 @@ def _handle_serve_reference_command(
         message="Preparing reference artifacts",
         stage="start",
     )
-    with definition.run_reference_service(args.artifact_dir) as (base_url, metadata):
+    with definition.run_reference_service(
+        args.artifact_dir,
+        args.host,
+        args.port,
+    ) as (base_url, metadata):
         emit_progress(
             progress_callback,
             phase="prepare_reference_service",
@@ -561,6 +585,8 @@ def _handle_serve_reference_command(
             "Reference service ready",
             (
                 ("Base URL", base_url),
+                ("Health URL", f"{base_url}/health"),
+                ("Metadata URL", f"{base_url}/metadata"),
                 ("Artifact ID", str(metadata.get("artifact_id", ""))),
                 ("Service kind", str(metadata.get("service_kind", ""))),
                 (
@@ -636,6 +662,29 @@ def _wait_for_interrupt() -> None:
     """Keep a foreground service command alive until interrupted."""
     while True:
         time.sleep(1.0)
+
+
+def _count_high_risk_cohorts(run_result) -> int:
+    return sum(1 for cohort in run_result.cohort_summaries if cohort.risk_level == "high")
+
+
+def _audit_launch_status(run_result) -> str:
+    high_risk_count = _count_high_risk_cohorts(run_result)
+    medium_risk_count = sum(
+        1 for cohort in run_result.cohort_summaries if cohort.risk_level == "medium"
+    )
+    if high_risk_count > 0:
+        return "needs review"
+    if medium_risk_count > 0 or run_result.risk_flags:
+        return "watch"
+    return "clear"
+
+
+def _load_json_summary(path: str) -> dict[str, object]:
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
 
 
 def _print_summary(title: str, rows: tuple[tuple[str, str], ...]) -> None:

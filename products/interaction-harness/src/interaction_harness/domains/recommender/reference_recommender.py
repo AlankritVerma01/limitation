@@ -66,11 +66,20 @@ def _handler_for_backend(backend: ReferenceRecommendationBackend):
 
 
 @contextmanager
-def run_reference_recommender_service(artifact_dir: str | None = None):
+def run_reference_recommender_service(
+    artifact_dir: str | None = None,
+    host: str | None = "127.0.0.1",
+    port: int | None = 0,
+):
     """Start the artifact-backed reference service and yield its base URL."""
     artifact_path = ensure_reference_artifacts(artifact_dir)
     backend = ReferenceRecommendationBackend(artifact_path.parent)
-    server = ThreadingHTTPServer(("127.0.0.1", 0), _handler_for_backend(backend))
+    resolved_host = host or "127.0.0.1"
+    resolved_port = 0 if port is None else port
+    server = ThreadingHTTPServer(
+        (resolved_host, resolved_port),
+        _handler_for_backend(backend),
+    )
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:

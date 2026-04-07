@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import socket
 from pathlib import Path
 from unittest.mock import patch
 
@@ -106,6 +107,9 @@ def test_generation_command_shows_progress_and_summary(
 
 def test_serve_reference_reports_ready_url(tmp_path: Path, capsys) -> None:
     artifact_dir = tmp_path / "reference-artifacts"
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        explicit_port = probe.getsockname()[1]
 
     with patch("interaction_harness.cli._wait_for_interrupt", return_value=None):
         result = main(
@@ -115,13 +119,18 @@ def test_serve_reference_reports_ready_url(tmp_path: Path, capsys) -> None:
                 "recommender",
                 "--artifact-dir",
                 str(artifact_dir),
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(explicit_port),
             ]
         )
 
     captured = capsys.readouterr()
     assert "Preparing reference artifacts" in captured.err
     assert "Reference service ready" in captured.out
-    assert str(result["base_url"]).startswith("http://127.0.0.1:")
+    assert "Health URL" in captured.out
+    assert str(result["base_url"]) == f"http://127.0.0.1:{explicit_port}"
 
 
 def test_public_cli_domain_choices_hide_stub(capsys) -> None:
@@ -139,3 +148,15 @@ def test_public_cli_domain_choices_hide_stub(capsys) -> None:
             pass
     captured = capsys.readouterr()
     assert "stub" not in captured.out
+
+
+def test_audit_help_uses_domain_neutral_target_wording(capsys) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["audit", "--help"])
+
+    captured = capsys.readouterr()
+    assert exc_info.value.code == 0
+    assert "Existing system endpoint to audit" in captured.out
+    assert "selected domain" in captured.out
+    assert "Optional artifact directory" in captured.out
+    assert "local reference" in captured.out
