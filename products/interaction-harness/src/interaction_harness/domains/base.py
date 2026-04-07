@@ -23,6 +23,7 @@ from typing import Callable, Protocol
 from ..adapters.base import SystemAdapter
 from ..agents.base import AgentPolicy
 from ..analysis.base import Analyzer
+from ..cli_progress import ProgressCallback, emit_progress
 from ..judges.base import Judge
 from ..reporting.base import DomainReportingHooks
 from ..rollout.engine import run_rollouts
@@ -78,6 +79,7 @@ class DomainRunner(Protocol):
         run_name: str | None = None,
         semantic_mode: str = "off",
         semantic_model: str = "gpt-5",
+        progress_callback: ProgressCallback | None = None,
     ) -> RunResult:
         """Run one audit and return the in-memory result."""
 
@@ -89,6 +91,7 @@ class DomainRunner(Protocol):
         output_dir: str,
         scenario_names: tuple[str, ...] | None = None,
         population_pack_path: str | None = None,
+        progress_callback: ProgressCallback | None = None,
     ) -> RunResult:
         """Run one regression rerun against a concrete target."""
 
@@ -164,9 +167,16 @@ class StandardDomainRunner:
         run_name: str | None = None,
         semantic_mode: str = "off",
         semantic_model: str = "gpt-5",
+        progress_callback: ProgressCallback | None = None,
     ) -> RunResult:
         """Run one audit using only the domain-owned plug-in hooks."""
         resolved_service_mode = "external" if adapter_base_url is not None else service_mode
+        emit_progress(
+            progress_callback,
+            phase="resolve_inputs",
+            message="Resolving scenarios and population",
+            stage="start",
+        )
         run_config, resolved_inputs = self.definition.build_run_config(
             seed=seed,
             output_dir=output_dir,
@@ -182,7 +192,19 @@ class StandardDomainRunner:
         judge = self.definition.build_judge()
         analyzer = self.definition.build_analyzer()
         scenarios = self.definition.build_runtime_scenarios(run_config.scenarios)
+        emit_progress(
+            progress_callback,
+            phase="resolve_inputs",
+            message="Resolved scenarios and population",
+            stage="finish",
+        )
 
+        emit_progress(
+            progress_callback,
+            phase="prepare_target",
+            message="Preparing target",
+            stage="start",
+        )
         with self.definition.open_service_context(run_config) as (base_url, context_metadata):
             return self._execute_with_adapter(
                 run_config=run_config,
@@ -195,6 +217,7 @@ class StandardDomainRunner:
                 resolved_input_metadata=resolved_inputs.metadata,
                 semantic_mode=semantic_mode,
                 semantic_model=semantic_model,
+                progress_callback=progress_callback,
             )
 
     def execute_target_audit(
@@ -205,6 +228,7 @@ class StandardDomainRunner:
         output_dir: str,
         scenario_names: tuple[str, ...] | None = None,
         population_pack_path: str | None = None,
+        progress_callback: ProgressCallback | None = None,
     ) -> RunResult:
         """Run one regression rerun against one target using the shared shell."""
         audit_kwargs: dict[str, object] = {
@@ -216,7 +240,7 @@ class StandardDomainRunner:
             "semantic_mode": "off",
         }
         audit_kwargs.update(self.definition.build_target_audit_kwargs(target))
-        return self.execute_audit(**audit_kwargs)
+        return self.execute_audit(**audit_kwargs, progress_callback=progress_callback)
 
     def _execute_with_adapter(
         self,
@@ -231,6 +255,7 @@ class StandardDomainRunner:
         resolved_input_metadata: dict[str, str | int] | None = None,
         semantic_mode: str = "off",
         semantic_model: str = "gpt-5",
+        progress_callback: ProgressCallback | None = None,
     ) -> RunResult:
         """Execute one audit against an already running domain adapter."""
         adapter = self.definition.build_adapter(
@@ -238,6 +263,12 @@ class StandardDomainRunner:
             run_config.rollout.service_timeout_seconds,
         )
         service_metadata = adapter.get_service_metadata()
+        emit_progress(
+            progress_callback,
+            phase="prepare_target",
+            message="Prepared target",
+            stage="finish",
+        )
         combined_service_metadata = {
             **(context_metadata or {}),
             **service_metadata,
@@ -248,13 +279,53 @@ class StandardDomainRunner:
             combined_service_metadata["service_metadata_status"] = (
                 "unavailable"
             )
-        traces = run_rollouts(adapter, scenarios, policy, run_config)
-        trace_scores = tuple(judge.score_trace(trace, run_config.scoring) for trace in traces)
-        analysis_result = analyzer.analyze(trace_scores, traces, run_config)
+        traces = run_rollouts(
+            adapter,
+            scenarios,
+            policy,
+            run_config,
+            progress_callback=progress_callback,
+        )
+        emit_progress(
+            progress_callback,
+            phase="score_traces",
+            message="Scoring traces",
+            stage="start",
+        )
+        trace_scores: list = []
+        for index, trace in enumerate(traces, start=1):
+            trace_scores.append(judge.score_trace(trace, run_config.scoring))
+            emit_progress(
+                progress_callback,
+                phase="score_traces",
+                message="Scoring traces",
+                stage="update",
+                current=index,
+                total=len(traces),
+            )
+        emit_progress(
+            progress_callback,
+            phase="score_traces",
+            message="Scored traces",
+            stage="finish",
+        )
+        emit_progress(
+            progress_callback,
+            phase="analyze_run",
+            message="Analyzing cohorts and slices",
+            stage="start",
+        )
+        analysis_result = analyzer.analyze(tuple(trace_scores), traces, run_config)
+        emit_progress(
+            progress_callback,
+            phase="analyze_run",
+            message="Analyzed cohorts and slices",
+            stage="finish",
+        )
         base_run_result = RunResult(
             run_config=run_config,
             traces=traces,
-            trace_scores=trace_scores,
+            trace_scores=tuple(trace_scores),
             cohort_summaries=analysis_result.cohort_summaries,
             risk_flags=analysis_result.risk_flags,
             slice_discovery=analysis_result.slice_discovery,
@@ -302,10 +373,26 @@ class StandardDomainRunner:
                 **(resolved_input_metadata or {}),
             },
         )
+        emit_progress(
+            progress_callback,
+            phase="interpret_semantics",
+            message="Interpreting semantics",
+            stage="start",
+        )
         semantic_interpretation = interpret_run_semantics(
             base_run_result,
             mode=semantic_mode,
             model_name=semantic_model,
+        )
+        emit_progress(
+            progress_callback,
+            phase="interpret_semantics",
+            message=(
+                "Semantic interpretation skipped"
+                if semantic_mode == "off"
+                else "Interpreted semantics"
+            ),
+            stage="finish",
         )
         return RunResult(
             run_config=base_run_result.run_config,

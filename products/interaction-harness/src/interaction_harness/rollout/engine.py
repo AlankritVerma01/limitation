@@ -6,6 +6,7 @@ from random import Random
 
 from ..adapters.base import SystemAdapter
 from ..agents.base import AgentPolicy
+from ..cli_progress import ProgressCallback, emit_progress
 from ..scenarios.base import Scenario
 from ..schema import RunConfig, SessionTrace, TraceStep
 
@@ -15,12 +16,22 @@ def run_rollouts(
     scenarios: tuple[Scenario, ...],
     agent_policy: AgentPolicy,
     run_config: RunConfig,
+    *,
+    progress_callback: ProgressCallback | None = None,
 ) -> tuple[SessionTrace, ...]:
     """Run seeded traces without scoring or report generation."""
     traces: list[SessionTrace] = []
     scenario_config_by_id = {
         (config.scenario_id or config.name): config for config in run_config.scenarios
     }
+    total_traces = len(scenarios) * len(run_config.agent_seeds)
+    completed_traces = 0
+    emit_progress(
+        progress_callback,
+        phase="run_traces",
+        message="Running traces",
+        stage="start",
+    )
     for scenario_index, scenario in enumerate(scenarios):
         matching_config = scenario_config_by_id.get(scenario.scenario_id)
         if matching_config is None:
@@ -88,4 +99,19 @@ def run_rollouts(
                     completed_steps=len(trace_steps),
                 )
             )
+            completed_traces += 1
+            emit_progress(
+                progress_callback,
+                phase="run_traces",
+                message="Running traces",
+                stage="update",
+                current=completed_traces,
+                total=total_traces,
+            )
+    emit_progress(
+        progress_callback,
+        phase="run_traces",
+        message="Running traces",
+        stage="finish",
+    )
     return tuple(traces)

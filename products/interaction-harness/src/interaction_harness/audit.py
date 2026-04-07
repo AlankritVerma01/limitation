@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .cli_progress import ProgressCallback, emit_progress
 from .domain_registry import get_domain_definition
 from .reporting.chart import CohortChartWriter
 from .reporting.json import JsonReportWriter
@@ -25,6 +26,7 @@ def execute_domain_audit(
     run_name: str | None = None,
     semantic_mode: str = "off",
     semantic_model: str = "gpt-5",
+    progress_callback: ProgressCallback | None = None,
 ) -> RunResult:
     """Run one audit through the registered in-repo domain plug-in."""
     definition = get_domain_definition(domain_name)
@@ -42,6 +44,7 @@ def execute_domain_audit(
         run_name=run_name,
         semantic_mode=semantic_mode,
         semantic_model=semantic_model,
+        progress_callback=progress_callback,
     )
 
 
@@ -58,6 +61,7 @@ def execute_recommender_audit(
     run_name: str | None = None,
     semantic_mode: str = "off",
     semantic_model: str = "gpt-5",
+    progress_callback: ProgressCallback | None = None,
 ) -> RunResult:
     """Run one recommender audit and return the in-memory result."""
     return execute_domain_audit(
@@ -73,12 +77,23 @@ def execute_recommender_audit(
         run_name=run_name,
         semantic_mode=semantic_mode,
         semantic_model=semantic_model,
+        progress_callback=progress_callback,
     )
 
 
-def write_run_artifacts(run_result: RunResult) -> dict[str, str]:
+def write_run_artifacts(
+    run_result: RunResult,
+    *,
+    progress_callback: ProgressCallback | None = None,
+) -> dict[str, str]:
     """Write the standard artifact bundle for one audit result."""
     resolved_output_dir = Path(run_result.run_config.rollout.output_dir)
+    emit_progress(
+        progress_callback,
+        phase="write_artifacts",
+        message="Writing artifacts",
+        stage="start",
+    )
     markdown_paths = MarkdownReportWriter().write(run_result, resolved_output_dir)
     include_slice_membership = bool(
         run_result.metadata.get("include_slice_membership", False)
@@ -87,6 +102,12 @@ def write_run_artifacts(run_result: RunResult) -> dict[str, str]:
         include_slice_membership=include_slice_membership
     ).write(run_result, resolved_output_dir)
     chart_paths = CohortChartWriter().write(run_result, resolved_output_dir)
+    emit_progress(
+        progress_callback,
+        phase="write_artifacts",
+        message="Wrote artifacts",
+        stage="finish",
+    )
     return {**markdown_paths, **json_paths, **chart_paths}
 
 
@@ -104,6 +125,7 @@ def run_recommender_audit(
     include_slice_membership: bool = False,
     semantic_mode: str = "off",
     semantic_model: str = "gpt-5",
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, str]:
     """Run the recommender audit and write report artifacts."""
     run_result = execute_recommender_audit(
@@ -118,6 +140,7 @@ def run_recommender_audit(
         run_name=run_name,
         semantic_mode=semantic_mode,
         semantic_model=semantic_model,
+        progress_callback=progress_callback,
     )
     run_result.metadata["include_slice_membership"] = include_slice_membership
-    return write_run_artifacts(run_result)
+    return write_run_artifacts(run_result, progress_callback=progress_callback)

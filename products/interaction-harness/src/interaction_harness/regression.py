@@ -9,6 +9,7 @@ from hashlib import sha1
 from pathlib import Path
 
 from .audit import write_run_artifacts
+from .cli_progress import ProgressCallback, emit_progress
 from .config import DEFAULT_OUTPUT_DIR, slugify_name
 from .domain_registry import get_domain_definition
 from .domains.base import DomainDefinition
@@ -58,6 +59,7 @@ def run_regression_audit(
     policy: RegressionPolicy | None = None,
     metric_overrides: tuple[RegressionPolicyOverride, ...] = (),
     cohort_overrides: tuple[RegressionPolicyOverride, ...] = (),
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, str | int]:
     """Run rerun summaries and baseline-vs-candidate diff artifacts."""
     return run_domain_regression_audit(
@@ -75,6 +77,7 @@ def run_regression_audit(
         policy=policy,
         metric_overrides=metric_overrides,
         cohort_overrides=cohort_overrides,
+        progress_callback=progress_callback,
     )
 
 
@@ -94,6 +97,7 @@ def run_domain_regression_audit(
     policy: RegressionPolicy | None = None,
     metric_overrides: tuple[RegressionPolicyOverride, ...] = (),
     cohort_overrides: tuple[RegressionPolicyOverride, ...] = (),
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, str | int]:
     """Run one regression comparison through the registered domain plug-in."""
     domain_definition = get_domain_definition(domain_name)
@@ -115,6 +119,9 @@ def run_domain_regression_audit(
         population_pack_path=population_pack_path,
         output_dir=resolved_output_dir / "baseline",
         domain_definition=domain_definition,
+        progress_callback=progress_callback,
+        phase_label="baseline_reruns",
+        phase_message="Running baseline reruns",
     )
     candidate_summary, candidate_runs = _run_target_reruns(
         target=candidate_target,
@@ -124,10 +131,19 @@ def run_domain_regression_audit(
         population_pack_path=population_pack_path,
         output_dir=resolved_output_dir / "candidate",
         domain_definition=domain_definition,
+        progress_callback=progress_callback,
+        phase_label="candidate_reruns",
+        phase_message="Running candidate reruns",
     )
     resolved_policy = policy or domain_definition.build_default_regression_policy(
         metric_overrides,
         cohort_overrides,
+    )
+    emit_progress(
+        progress_callback,
+        phase="build_regression_diff",
+        message="Building regression diff",
+        stage="start",
     )
     regression_diff = RegressionDiff(
         gating_mode=policy_mode,
@@ -154,6 +170,18 @@ def run_domain_regression_audit(
             domain_definition=domain_definition,
         ),
     )
+    emit_progress(
+        progress_callback,
+        phase="build_regression_diff",
+        message="Built regression diff",
+        stage="finish",
+    )
+    emit_progress(
+        progress_callback,
+        phase="apply_regression_policy",
+        message="Applying regression policy",
+        stage="start",
+    )
     regression_diff = RegressionDiff(
         gating_mode=regression_diff.gating_mode,
         baseline_summary=regression_diff.baseline_summary,
@@ -170,6 +198,18 @@ def run_domain_regression_audit(
             gating_mode=policy_mode,
         ),
         metadata=regression_diff.metadata,
+    )
+    emit_progress(
+        progress_callback,
+        phase="apply_regression_policy",
+        message="Applied regression policy",
+        stage="finish",
+    )
+    emit_progress(
+        progress_callback,
+        phase="interpret_semantics",
+        message="Interpreting semantics",
+        stage="start",
     )
     regression_diff = RegressionDiff(
         gating_mode=regression_diff.gating_mode,
@@ -192,8 +232,30 @@ def run_domain_regression_audit(
             "semantic_model": semantic_model if semantic_mode != "off" else "",
         },
     )
+    emit_progress(
+        progress_callback,
+        phase="interpret_semantics",
+        message=(
+            "Semantic interpretation skipped"
+            if semantic_mode == "off"
+            else "Interpreted semantics"
+        ),
+        stage="finish",
+    )
+    emit_progress(
+        progress_callback,
+        phase="write_artifacts",
+        message="Writing regression artifacts",
+        stage="start",
+    )
     markdown_paths = RegressionMarkdownWriter().write(regression_diff, resolved_output_dir)
     json_paths = RegressionJsonWriter().write(regression_diff, resolved_output_dir)
+    emit_progress(
+        progress_callback,
+        phase="write_artifacts",
+        message="Wrote regression artifacts",
+        stage="finish",
+    )
     decision = regression_diff.decision
     return {
         **markdown_paths,
@@ -284,6 +346,9 @@ def _run_target_reruns(
     population_pack_path: str | None,
     output_dir: Path,
     domain_definition: DomainDefinition,
+    progress_callback: ProgressCallback | None = None,
+    phase_label: str = "reruns",
+    phase_message: str = "Running reruns",
 ) -> tuple[RerunSummary, tuple[RunResult, ...]]:
     """Execute one target repeatedly and collect both results and artifact paths."""
     if domain_definition.runner is None:
@@ -291,6 +356,12 @@ def _run_target_reruns(
     seed_schedule = build_seed_schedule(base_seed, rerun_count)
     run_results: list[RunResult] = []
     run_artifacts: list[RunArtifactPaths] = []
+    emit_progress(
+        progress_callback,
+        phase=phase_label,
+        message=phase_message,
+        stage="start",
+    )
     for seed in seed_schedule:
         run_output_dir = output_dir / f"seed-{seed}"
         run_result = domain_definition.runner.execute_target_audit(
@@ -299,6 +370,7 @@ def _run_target_reruns(
             output_dir=str(run_output_dir),
             scenario_names=scenario_names,
             population_pack_path=population_pack_path,
+            progress_callback=progress_callback,
         )
         artifact_paths = write_run_artifacts(run_result)
         run_results.append(run_result)
@@ -312,6 +384,20 @@ def _run_target_reruns(
                 chart_path=artifact_paths["chart_path"],
             )
         )
+        emit_progress(
+            progress_callback,
+            phase=phase_label,
+            message=phase_message,
+            stage="update",
+            current=len(run_results),
+            total=len(seed_schedule),
+        )
+    emit_progress(
+        progress_callback,
+        phase=phase_label,
+        message=phase_message,
+        stage="finish",
+    )
 
     return (
         _summarize_target_runs(
