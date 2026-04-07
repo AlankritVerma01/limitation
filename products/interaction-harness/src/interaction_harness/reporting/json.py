@@ -1,4 +1,4 @@
-"""JSON and trace artifact writer for the recommender audit."""
+"""JSON and trace artifact writer for shared audit bundles."""
 
 from __future__ import annotations
 
@@ -87,7 +87,7 @@ class JsonReportWriter:
             key=lambda cohort: cohort.mean_session_utility,
             default=None,
         )
-        return {
+        summary = {
             "display_name": str(run_result.metadata.get("display_name", run_result.run_config.run_name)),
             "run_id": str(run_result.metadata.get("run_id", "")),
             "generated_at_utc": str(run_result.metadata.get("generated_at_utc", "")),
@@ -114,28 +114,38 @@ class JsonReportWriter:
                     len(run_result.slice_discovery.slice_summaries),
                 )
             ),
-            "mean_first_impression_score": (
-                sum(score.first_impression_score for score in run_result.trace_scores)
-                / len(run_result.trace_scores)
-                if run_result.trace_scores
-                else 0.0
-            ),
-            "mean_abandonment_pressure": (
-                sum(score.abandonment_pressure for score in run_result.trace_scores)
-                / len(run_result.trace_scores)
-                if run_result.trace_scores
-                else 0.0
-            ),
             "high_risk_cohort_count": len(high_risk),
             "medium_risk_cohort_count": len(medium_risk),
             "risk_flag_count": len(run_result.risk_flags),
-            "strongest_cohort": (
-                {
-                    "scenario_name": strongest.scenario_name,
-                    "archetype_label": strongest.archetype_label,
-                    "mean_session_utility": strongest.mean_session_utility,
-                }
-                if strongest is not None
-                else None
-            ),
+            "strongest_cohort": None,
+            "domain_metrics": self._domain_metrics(run_result),
         }
+        if strongest is not None:
+            summary["strongest_cohort"] = {
+                "scenario_name": strongest.scenario_name,
+                "archetype_label": strongest.archetype_label,
+                "mean_session_utility": strongest.mean_session_utility,
+            }
+        summary.update(self._domain_summary_fields(run_result))
+        return summary
+
+    def _domain_metrics(self, run_result: RunResult) -> dict[str, float]:
+        domain_name = str(run_result.metadata.get("domain_name", ""))
+        if not domain_name:
+            return {}
+        from ..domain_registry import get_domain_definition
+
+        definition = get_domain_definition(domain_name)
+        return definition.summarize_run_metrics(run_result)
+
+    def _domain_summary_fields(self, run_result: RunResult) -> dict[str, object]:
+        domain_name = str(run_result.metadata.get("domain_name", ""))
+        if not domain_name:
+            return {}
+        from ..domain_registry import get_domain_definition
+
+        definition = get_domain_definition(domain_name)
+        hooks = definition.reporting_hooks
+        if hooks is None or hooks.build_run_summary_fields is None:
+            return {}
+        return hooks.build_run_summary_fields(run_result)

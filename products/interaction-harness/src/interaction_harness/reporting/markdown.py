@@ -1,10 +1,11 @@
-"""Markdown artifact writer for the polished recommender audit."""
+"""Markdown artifact writer for shared audit bundles."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from ..contracts.core import RunResult
+from .base import ReportBulletSection, ReportTableSection
 
 _RISK_ORDER = {"low": 0, "medium": 1, "high": 2}
 
@@ -73,6 +74,9 @@ class MarkdownReportWriter:
 
     def _scenario_coverage_lines(self, run_result: RunResult) -> list[str]:
         """Render the scenario pack used for this run."""
+        hook = self._reporting_hook(run_result, "build_scenario_coverage_section")
+        if hook is not None:
+            return self._render_bullet_section(hook(run_result))
         lines = ["", "## Scenario Coverage", ""]
         for scenario in run_result.run_config.scenarios:
             risk_tags = ", ".join(scenario.risk_focus_tags) or "n/a"
@@ -87,6 +91,9 @@ class MarkdownReportWriter:
 
     def _cohort_summary_lines(self, run_result: RunResult) -> list[str]:
         """Render the cohort summary table."""
+        hook = self._reporting_hook(run_result, "build_cohort_summary_section")
+        if hook is not None:
+            return self._render_table_section(hook(run_result))
         lines = [
             "",
             "## Cohort Summary",
@@ -140,7 +147,7 @@ class MarkdownReportWriter:
 
     def _metadata_lines(self, run_result: RunResult) -> list[str]:
         """Render the reproducibility and metadata section."""
-        return [
+        lines = [
             "",
             "## Reproducibility And Metadata",
             "",
@@ -155,11 +162,11 @@ class MarkdownReportWriter:
             f"- Population size source: `{run_result.metadata.get('population_size_source', 'built_in')}`",
             f"- Discovered slices: `{run_result.metadata.get('slice_count', len(run_result.slice_discovery.slice_summaries))}`",
             f"- Semantic mode: `{run_result.metadata.get('semantic_mode', 'off')}`",
-            f"- Target identity: `{run_result.metadata.get('target_identity', 'unknown')}`",
-            f"- Target endpoint host: `{run_result.metadata.get('target_endpoint_host', 'n/a')}`",
-            f"- Service metadata status: `{run_result.metadata.get('service_metadata_status', 'unknown')}`",
-            f"- Contract version: `{run_result.metadata.get('artifact_contract_version', 'v1')}`",
         ]
+        hook = self._reporting_hook(run_result, "build_metadata_highlights_section")
+        if hook is not None:
+            lines.extend(self._render_bullet_section(hook(run_result), include_heading=False))
+        return lines
 
     def _semantic_advisory_lines(self, run_result: RunResult) -> list[str]:
         """Render the optional advisory semantic interpretation section."""
@@ -207,6 +214,9 @@ class MarkdownReportWriter:
 
     def _trace_score_lines(self, run_result: RunResult) -> list[str]:
         """Render the compact per-trace score table."""
+        hook = self._reporting_hook(run_result, "build_trace_score_section")
+        if hook is not None:
+            return self._render_table_section(hook(run_result))
         lines = [
             "",
             "## Trace Scores",
@@ -222,6 +232,39 @@ class MarkdownReportWriter:
                 f"{score.trust_delta:.3f} | "
                 f"{score.abandoned} |"
             )
+        return lines
+
+    def _reporting_hook(self, run_result: RunResult, hook_name: str):
+        domain_name = str(run_result.metadata.get("domain_name", ""))
+        if not domain_name:
+            return None
+        from ..domain_registry import get_domain_definition
+
+        definition = get_domain_definition(domain_name)
+        hooks = definition.reporting_hooks
+        if hooks is None:
+            return None
+        return getattr(hooks, hook_name, None)
+
+    def _render_bullet_section(
+        self,
+        section: ReportBulletSection,
+        *,
+        include_heading: bool = True,
+    ) -> list[str]:
+        lines = [""] if include_heading else []
+        if include_heading:
+            lines.extend([f"## {section.title}", ""])
+        lines.extend(f"- {bullet}" for bullet in section.bullets)
+        return lines
+
+    def _render_table_section(self, section: ReportTableSection) -> list[str]:
+        lines = ["", f"## {section.title}", ""]
+        header = "| " + " | ".join(section.columns) + " |"
+        divider = "| " + " | ".join("---" for _ in section.columns) + " |"
+        lines.extend([header, divider])
+        for row in section.rows:
+            lines.append("| " + " | ".join(row) + " |")
         return lines
 
     def _executive_summary(self, run_result: RunResult) -> list[str]:
