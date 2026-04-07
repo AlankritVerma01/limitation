@@ -6,10 +6,8 @@ import re
 from pathlib import Path
 
 from .domains.base import ResolvedRuntimeInputs
-from .domains.recommender.inputs import resolve_recommender_inputs
-from .domains.recommender.policy import build_seeded_archetypes
+from .domains.recommender.reference_artifacts import DEFAULT_REFERENCE_ARTIFACT_DIR
 from .schema import AgentSeed, RolloutConfig, RunConfig, ScenarioConfig, ScoringConfig
-from .services.reference_artifacts import DEFAULT_REFERENCE_ARTIFACT_DIR
 
 DEFAULT_OUTPUT_DIR = (
     Path(__file__).resolve().parents[4] / "products" / "interaction-harness" / "output"
@@ -35,6 +33,9 @@ def build_default_run_config(
     run_name: str | None = None,
 ) -> RunConfig:
     """Build the compatibility default single-run config for the recommender harness."""
+    from .domains.recommender.inputs import resolve_recommender_inputs
+    from .domains.recommender.policy import build_seeded_archetypes
+
     if scenarios is not None and scenario_names is not None:
         raise ValueError("scenario_names cannot be combined with explicit scenarios.")
     if scenarios is not None or agent_seeds is not None:

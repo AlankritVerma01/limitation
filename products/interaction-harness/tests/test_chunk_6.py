@@ -4,12 +4,12 @@ import json
 from pathlib import Path
 
 from interaction_harness.cli import main
-from interaction_harness.regression import build_seed_schedule, run_regression_audit
-from interaction_harness.schema import RegressionTarget
-from interaction_harness.services.reference_artifacts import (
+from interaction_harness.domains.recommender import (
     ARTIFACT_FILENAME,
     ensure_reference_artifacts,
 )
+from interaction_harness.regression import build_seed_schedule, run_regression_audit
+from interaction_harness.schema import RegressionTarget
 
 
 def test_seed_schedule_is_deterministic() -> None:

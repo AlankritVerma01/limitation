@@ -5,6 +5,10 @@ import runpy
 from pathlib import Path
 
 import pytest
+from interaction_harness.domains.recommender import (
+    ARTIFACT_FILENAME,
+    ensure_reference_artifacts,
+)
 from interaction_harness.regression import run_regression_audit
 from interaction_harness.regression_policy import (
     default_regression_policy,
@@ -22,10 +26,6 @@ from interaction_harness.schema import (
     RerunSummary,
     RiskFlagDelta,
     TraceDelta,
-)
-from interaction_harness.services.reference_artifacts import (
-    ARTIFACT_FILENAME,
-    ensure_reference_artifacts,
 )
 
 

@@ -6,23 +6,19 @@ from urllib import request
 from urllib.error import HTTPError
 
 import pytest
-from interaction_harness.adapters.http import HttpRecommenderAdapter
-from interaction_harness.agents.recommender import (
-    RecommenderAgentPolicy,
-    initial_state_from_seed,
-)
 from interaction_harness.cli import run_recommender_audit
 from interaction_harness.config import build_default_run_config
-from interaction_harness.rollout.engine import run_rollouts
-from interaction_harness.scenarios.recommender import build_scenarios
-from interaction_harness.services.reference_artifacts import (
+from interaction_harness.domains.recommender import (
     ARTIFACT_FILENAME,
+    HttpRecommenderAdapter,
+    RecommenderAgentPolicy,
     build_reference_artifacts,
+    build_scenarios,
+    initial_state_from_seed,
     load_reference_artifacts,
-)
-from interaction_harness.services.reference_recommender import (
     run_reference_recommender_service,
 )
+from interaction_harness.rollout.engine import run_rollouts
 
 
 @pytest.fixture()
