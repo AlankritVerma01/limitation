@@ -20,6 +20,10 @@ from interaction_harness.regression import (
     _default_regression_output_dir,
     run_regression_audit,
 )
+from interaction_harness.scenario_generation import (
+    generate_scenario_pack,
+    write_scenario_pack,
+)
 from interaction_harness.schema import RegressionTarget
 
 
@@ -79,6 +83,7 @@ def test_shared_build_run_config_does_not_resolve_recommender_inputs() -> None:
     resolver.assert_not_called()
     assert run_config.scenarios == scenarios
     assert run_config.agent_seeds == ()
+    assert run_config.rollout.service_artifact_dir is None
 
 
 def test_recommender_run_config_still_resolves_inputs() -> None:
@@ -157,6 +162,41 @@ def test_compare_supports_external_url_targets(tmp_path: Path) -> None:
     assert report_text.startswith("# Interaction Harness Regression Audit")
 
 
+def test_compare_honors_scenario_pack_path(tmp_path: Path) -> None:
+    baseline_dir = tmp_path / "baseline"
+    candidate_dir = tmp_path / "candidate"
+    ensure_reference_artifacts(baseline_dir)
+    ensure_reference_artifacts(candidate_dir)
+    scenario_pack = generate_scenario_pack(
+        "test trust and exploration balance for returning users",
+        generator_mode="fixture",
+    )
+    pack_path = tmp_path / "scenario-pack.json"
+    write_scenario_pack(scenario_pack, pack_path)
+
+    result = run_regression_audit(
+        baseline_target=RegressionTarget(
+            label="baseline",
+            mode="reference_artifact",
+            service_artifact_dir=str(baseline_dir),
+        ),
+        candidate_target=RegressionTarget(
+            label="candidate",
+            mode="reference_artifact",
+            service_artifact_dir=str(candidate_dir),
+        ),
+        base_seed=4,
+        rerun_count=1,
+        output_dir=str(tmp_path / "regression"),
+        scenario_pack_path=str(pack_path),
+    )
+
+    payload = json.loads(Path(result["regression_summary_path"]).read_text(encoding="utf-8"))
+    assert payload["metadata"]["scenario_pack_path"] == "<normalized>"
+    assert payload["baseline_summary"]["metadata"]["scenario_pack_id"] == scenario_pack.metadata.pack_id
+    assert payload["candidate_summary"]["metadata"]["scenario_pack_id"] == scenario_pack.metadata.pack_id
+
+
 def test_cli_compare_requires_exactly_one_target_reference(tmp_path: Path) -> None:
     artifact_dir = tmp_path / "artifacts"
     ensure_reference_artifacts(artifact_dir)
@@ -222,6 +262,7 @@ def test_compare_help_mentions_external_urls(capsys: pytest.CaptureFixture[str])
     captured = capsys.readouterr()
     assert "compare" in captured.out
     assert "serve-reference" in captured.out
+    assert "--domain" in captured.out
 
 
 def test_help_marks_reference_service_as_supported_local_path(
@@ -231,7 +272,7 @@ def test_help_marks_reference_service_as_supported_local_path(
         main(["audit", "--help"])
     captured = capsys.readouterr()
     audit_help = " ".join(captured.out.split())
-    assert "local reference recommender" in audit_help
+    assert "supported local reference target" in audit_help
     assert "test/debug runs" in audit_help
 
 
@@ -241,5 +282,5 @@ def test_help_recommends_provider_for_richer_ai_workflows(
     with pytest.raises(SystemExit):
         main(["--help"])
     captured = capsys.readouterr()
-    assert "provider-backed scenario/population authoring" in captured.out
+    assert "Canonical usage now includes `--domain`" in captured.out
     assert "runtime and regression core stay deterministic" in captured.out

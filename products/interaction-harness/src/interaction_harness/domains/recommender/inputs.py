@@ -5,11 +5,11 @@ from __future__ import annotations
 from ...domains.base import ResolvedRuntimeInputs
 from ...schema import (
     AgentSeed,
-    GeneratedPersona,
     PopulationPack,
     ScenarioConfig,
     ScenarioPack,
 )
+from .generation import project_recommender_persona_to_agent_seed
 from .policy import build_seeded_archetypes
 from .scenarios import (
     BUILT_IN_RECOMMENDER_SCENARIO_NAMES,
@@ -87,7 +87,7 @@ def project_recommender_scenarios(pack: ScenarioPack) -> tuple[ScenarioConfig, .
 
 def project_recommender_population(pack: PopulationPack) -> tuple[AgentSeed, ...]:
     """Project a saved recommender population pack into deterministic agent seeds."""
-    return tuple(_project_persona_to_agent_seed(persona) for persona in pack.personas)
+    return tuple(project_recommender_persona_to_agent_seed(persona) for persona in pack.personas)
 
 
 def _resolve_scenarios(
@@ -152,84 +152,3 @@ def _resolve_population(
             "population_pack_path": population_pack_path,
         },
     )
-
-
-def _project_persona_to_agent_seed(persona: GeneratedPersona) -> AgentSeed:
-    """Turn one saved generated persona into the deterministic recommender runtime seed."""
-    hints = _require_recommender_hints(persona)
-    preferred_genres = _require_hint_string_list(hints, persona.persona_id, "preferred_genres")
-    patience = _require_hint_int(hints, persona.persona_id, "patience", minimum=1)
-    skip_tolerance = _require_hint_int(hints, persona.persona_id, "skip_tolerance", minimum=0)
-    return AgentSeed(
-        agent_id=persona.persona_id,
-        archetype_label=persona.display_label,
-        preferred_genres=tuple(preferred_genres),
-        popularity_preference=_require_hint_float(hints, persona.persona_id, "popularity_preference"),
-        novelty_preference=_require_hint_float(hints, persona.persona_id, "novelty_preference"),
-        repetition_tolerance=_require_hint_float(hints, persona.persona_id, "repetition_tolerance"),
-        sparse_history_confidence=_require_hint_float(hints, persona.persona_id, "sparse_history_confidence"),
-        abandonment_sensitivity=_require_hint_float(hints, persona.persona_id, "abandonment_sensitivity"),
-        patience=patience,
-        engagement_baseline=_require_hint_float(hints, persona.persona_id, "engagement_baseline"),
-        quality_sensitivity=_require_hint_float(hints, persona.persona_id, "quality_sensitivity"),
-        repeat_exposure_penalty=_require_hint_float(hints, persona.persona_id, "repeat_exposure_penalty"),
-        novelty_fatigue=_require_hint_float(hints, persona.persona_id, "novelty_fatigue"),
-        frustration_recovery=_require_hint_float(hints, persona.persona_id, "frustration_recovery"),
-        history_reliance=_require_hint_float(hints, persona.persona_id, "history_reliance"),
-        skip_tolerance=skip_tolerance,
-        abandonment_threshold=_require_hint_float(hints, persona.persona_id, "abandonment_threshold"),
-        persona_summary=persona.persona_summary,
-        behavior_goal=persona.behavior_goal,
-        diversity_tags=persona.diversity_tags,
-    )
-
-
-def _require_hint_string_list(
-    hints: dict[str, str | int | float | bool | list[str]],
-    persona_id: str,
-    key: str,
-) -> list[str]:
-    value = hints.get(key)
-    if not isinstance(value, list) or not value or not all(isinstance(item, str) for item in value):
-        raise ValueError(f"Persona `{persona_id}` has invalid recommender hint `{key}`.")
-    normalized = [item.strip() for item in value if item.strip()]
-    if not normalized:
-        raise ValueError(f"Persona `{persona_id}` has invalid recommender hint `{key}`.")
-    return normalized
-
-
-def _require_recommender_hints(
-    persona: GeneratedPersona,
-) -> dict[str, str | int | float | bool | list[str]]:
-    """Return recommender adapter hints or fail clearly before runtime."""
-    hints = persona.adapter_hints.get("recommender")
-    if not isinstance(hints, dict):
-        raise ValueError(f"Persona `{persona.persona_id}` is missing recommender adapter hints.")
-    return hints
-
-
-def _require_hint_float(
-    hints: dict[str, str | int | float | bool | list[str]],
-    persona_id: str,
-    key: str,
-) -> float:
-    value = hints.get(key)
-    if not isinstance(value, int | float) or isinstance(value, bool):
-        raise ValueError(f"Persona `{persona_id}` has invalid recommender hint `{key}`.")
-    value = float(value)
-    if not 0.0 <= value <= 1.0:
-        raise ValueError(f"Persona `{persona_id}` has out-of-range recommender hint `{key}`.")
-    return value
-
-
-def _require_hint_int(
-    hints: dict[str, str | int | float | bool | list[str]],
-    persona_id: str,
-    key: str,
-    *,
-    minimum: int = 0,
-) -> int:
-    value = hints.get(key)
-    if not isinstance(value, int) or isinstance(value, bool) or value < minimum:
-        raise ValueError(f"Persona `{persona_id}` has invalid recommender hint `{key}`.")
-    return value

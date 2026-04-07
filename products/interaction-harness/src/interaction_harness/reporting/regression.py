@@ -45,6 +45,8 @@ def _normalize_regression_payload(payload: dict[str, Any]) -> dict[str, Any]:
             summary["metadata"]["adapter_base_url"] = "<normalized>"
     if "generated_at_utc" in payload.get("metadata", {}):
         payload["metadata"]["generated_at_utc"] = "<normalized>"
+    if "scenario_pack_path" in payload.get("metadata", {}):
+        payload["metadata"]["scenario_pack_path"] = "<normalized>"
     if "population_pack_path" in payload.get("metadata", {}):
         payload["metadata"]["population_pack_path"] = "<normalized>"
     if "semantic_interpretation" in payload and payload["semantic_interpretation"] is None:
@@ -185,8 +187,8 @@ class RegressionMarkdownWriter:
             "",
             "## Cohort Changes",
             "",
-            "| Scenario | Archetype | Baseline Risk | Candidate Risk | Failure Mode | Utility Δ | Abandon Δ | Trust Δ | Skip Δ |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Scenario | Archetype | Baseline Risk | Candidate Risk | Failure Mode | Utility Δ |",
+            "| --- | --- | --- | --- | --- | --- |",
         ]
         for cohort in regression_diff.cohort_deltas:
             failure_mode = (
@@ -196,8 +198,7 @@ class RegressionMarkdownWriter:
             )
             lines.append(
                 f"| {cohort.scenario_name} | {cohort.archetype_label} | {cohort.baseline_risk_level} | "
-                f"{cohort.candidate_risk_level} | {failure_mode} | {cohort.session_utility_delta:+.3f} | "
-                f"{cohort.abandonment_rate_delta:+.3f} | {cohort.trust_delta_delta:+.3f} | {cohort.skip_rate_delta:+.3f} |"
+                f"{cohort.candidate_risk_level} | {failure_mode} | {cohort.session_utility_delta:+.3f} |"
             )
         return lines
 
@@ -246,8 +247,8 @@ class RegressionMarkdownWriter:
             return lines
         lines.extend(
             [
-                "| Signature | Change | Baseline Count | Candidate Count | Risk | Failure Mode | Utility Δ | Trust Δ | Skip Δ |",
-                "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+                "| Signature | Change | Baseline Count | Candidate Count | Risk | Failure Mode | Utility Δ |",
+                "| --- | --- | --- | --- | --- | --- | --- |",
             ]
         )
         for slice_delta in visible_slices:
@@ -264,8 +265,7 @@ class RegressionMarkdownWriter:
             lines.append(
                 f"| {signature} | {slice_delta.change_type} | {slice_delta.baseline_trace_count} | "
                 f"{slice_delta.candidate_trace_count} | {risk} | {failure_mode} | "
-                f"{slice_delta.session_utility_delta:+.3f} | {slice_delta.trust_delta_delta:+.3f} | "
-                f"{slice_delta.skip_rate_delta:+.3f} |"
+                f"{slice_delta.session_utility_delta:+.3f} |"
             )
         return lines
 
@@ -348,16 +348,16 @@ class RegressionMarkdownWriter:
         improved = 0
         regressed = 0
         for cohort in regression_diff.cohort_deltas:
-            score = (
-                cohort.session_utility_delta
-                - (0.6 * cohort.abandonment_rate_delta)
-                + (0.4 * cohort.trust_delta_delta)
-                - (0.3 * cohort.skip_rate_delta)
-                + (0.08 * (_risk_rank(cohort.baseline_risk_level) - _risk_rank(cohort.candidate_risk_level)))
+            score = cohort.session_utility_delta + (
+                0.08
+                * (
+                    _risk_rank(cohort.baseline_risk_level)
+                    - _risk_rank(cohort.candidate_risk_level)
+                )
             )
-            if score > 0.05:
+            if score > 0.03:
                 improved += 1
-            elif score < -0.05:
+            elif score < -0.03:
                 regressed += 1
         added_risks = sum(
             1
@@ -419,17 +419,15 @@ class RegressionMarkdownWriter:
                 return definition.build_regression_important_changes(regression_diff)
         changes: list[str] = []
         for cohort in regression_diff.cohort_deltas[:3]:
-            magnitude = (
-                abs(cohort.session_utility_delta)
-                + abs(cohort.abandonment_rate_delta)
-                + abs(cohort.trust_delta_delta)
-                + abs(cohort.skip_rate_delta)
+            magnitude = abs(cohort.session_utility_delta) + abs(
+                _risk_rank(cohort.baseline_risk_level)
+                - _risk_rank(cohort.candidate_risk_level)
             )
             if magnitude < 0.01:
                 continue
             changes.append(
                 f"{cohort.scenario_name} / {cohort.archetype_label}: utility {cohort.session_utility_delta:+.3f}, "
-                f"abandonment {cohort.abandonment_rate_delta:+.3f}, trust {cohort.trust_delta_delta:+.3f}"
+                f"risk {cohort.baseline_risk_level} -> {cohort.candidate_risk_level}"
             )
         for risk in regression_diff.risk_flag_deltas:
             if risk.delta != 0:

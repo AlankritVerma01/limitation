@@ -98,15 +98,14 @@ class MarkdownReportWriter:
             "",
             "## Cohort Summary",
             "",
-            "| Scenario | Archetype | Risk | Failure Mode | Utility | First Impression | Abandon Pressure | Trust Δ |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Scenario | Archetype | Risk | Failure Mode | Utility | Trust Δ |",
+            "| --- | --- | --- | --- | --- | --- |",
         ]
         for cohort in run_result.cohort_summaries:
             lines.append(
                 f"| {cohort.scenario_name} | {cohort.archetype_label} | "
                 f"{cohort.risk_level} | {cohort.dominant_failure_mode} | "
-                f"{cohort.mean_session_utility:.3f} | {cohort.mean_first_impression_score:.3f} | "
-                f"{cohort.mean_abandonment_pressure:.3f} | {cohort.mean_trust_delta:.3f} |"
+                f"{cohort.mean_session_utility:.3f} | {cohort.mean_trust_delta:.3f} |"
             )
         return lines
 
@@ -221,15 +220,14 @@ class MarkdownReportWriter:
             "",
             "## Trace Scores",
             "",
-            "| Trace | Scenario | Archetype | Utility | First Impression | Abandon Pressure | Failure Mode | Trust Δ | Abandoned |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Trace | Scenario | Archetype | Utility | Failure Mode | Risk | Abandoned |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
         ]
         for score in run_result.trace_scores:
             lines.append(
                 f"| {score.trace_id} | {score.scenario_name} | {score.archetype_label} | "
-                f"{score.session_utility:.3f} | {score.first_impression_score:.3f} | "
-                f"{score.abandonment_pressure:.3f} | {score.dominant_failure_mode} | "
-                f"{score.trust_delta:.3f} | "
+                f"{score.session_utility:.3f} | {score.dominant_failure_mode} | "
+                f"{score.trace_risk_score:.3f} | "
                 f"{score.abandoned} |"
             )
         return lines

@@ -9,6 +9,7 @@ from .config import (
 from .domain_registry import (
     get_domain_definition,
     list_domain_definitions,
+    list_public_domain_definitions,
     register_domain_definition,
 )
 from .population_generation import generate_population_pack, load_population_pack
@@ -110,6 +111,7 @@ __all__ = [
     "generate_scenario_pack",
     "get_domain_definition",
     "list_domain_definitions",
+    "list_public_domain_definitions",
     "load_population_pack",
     "load_scenario_pack",
     "register_domain_definition",

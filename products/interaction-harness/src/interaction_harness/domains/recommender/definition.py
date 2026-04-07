@@ -6,12 +6,27 @@ from dataclasses import replace
 
 from ...regression_policy import default_regression_policy
 from ...schema import RegressionPolicyOverride, RunConfig, RunResult, ScenarioConfig
-from ..base import DomainDefinition, ResolvedRuntimeInputs, StandardDomainRunner
+from ..base import (
+    DomainDefinition,
+    DomainGenerationHooks,
+    ResolvedRuntimeInputs,
+    StandardDomainRunner,
+)
 from .adapters import HttpRecommenderAdapter
 from .analyzer import RecommenderAnalyzer
+from .generation import (
+    build_fixture_recommender_population_candidates,
+    build_fixture_recommender_scenarios,
+    build_recommender_population_brief_clarification,
+    build_recommender_population_generation_prompt,
+    build_recommender_scenario_brief_clarification,
+    build_recommender_scenario_generation_prompt,
+    select_recommender_population_personas,
+)
 from .inputs import resolve_recommender_inputs
 from .judge import RecommenderJudge
 from .policy import RecommenderAgentPolicy
+from .reference_recommender import run_reference_recommender_service
 from .reporting import (
     RECOMMENDER_REPORTING_HOOKS,
     build_recommender_regression_important_changes,
@@ -61,6 +76,16 @@ def build_recommender_domain_definition() -> DomainDefinition:
         summary_metric_names=_SUMMARY_METRICS,
         summarize_run_metrics=summarize_recommender_run_metrics,
         build_default_regression_policy=build_recommender_default_regression_policy,
+        generation_hooks=DomainGenerationHooks(
+            build_scenario_brief_clarification=build_recommender_scenario_brief_clarification,
+            build_fixture_scenarios=build_fixture_recommender_scenarios,
+            build_scenario_prompt=build_recommender_scenario_generation_prompt,
+            build_population_brief_clarification=build_recommender_population_brief_clarification,
+            build_fixture_population_candidates=build_fixture_recommender_population_candidates,
+            build_population_prompt=build_recommender_population_generation_prompt,
+            select_population_personas=select_recommender_population_personas,
+        ),
+        run_reference_service=run_reference_recommender_service,
         reporting_hooks=RECOMMENDER_REPORTING_HOOKS,
         build_run_executive_summary=build_recommender_run_executive_summary,
         select_representative_cohorts=select_recommender_representative_cohorts,
@@ -85,19 +110,23 @@ def build_recommender_run_config(
 ) -> tuple[RunConfig, ResolvedRuntimeInputs]:
     """Resolve recommender runtime inputs, then build a run config from them."""
     from ...config import build_run_config
+    from .reference_artifacts import DEFAULT_REFERENCE_ARTIFACT_DIR
 
     resolved_inputs = resolve_recommender_inputs(
         scenario_names=scenario_names,
         scenario_pack_path=scenario_pack_path,
         population_pack_path=population_pack_path,
     )
+    resolved_service_artifact_dir = service_artifact_dir
+    if service_mode == "reference" and service_artifact_dir is None:
+        resolved_service_artifact_dir = str(DEFAULT_REFERENCE_ARTIFACT_DIR)
     run_config = build_run_config(
         seed=seed,
         output_dir=output_dir,
         scenarios=resolved_inputs.scenarios,
         agent_seeds=resolved_inputs.agent_seeds,
         service_mode=service_mode,
-        service_artifact_dir=service_artifact_dir,
+        service_artifact_dir=resolved_service_artifact_dir,
         adapter_base_url=adapter_base_url,
         run_name=run_name,
     )

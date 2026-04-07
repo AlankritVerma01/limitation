@@ -31,6 +31,7 @@ from ..scenarios.base import Scenario
 from ..schema import (
     AgentSeed,
     CohortSummary,
+    GeneratedPersona,
     RegressionDiff,
     RegressionPolicy,
     RegressionPolicyOverride,
@@ -90,10 +91,29 @@ class DomainRunner(Protocol):
         seed: int,
         output_dir: str,
         scenario_names: tuple[str, ...] | None = None,
+        scenario_pack_path: str | None = None,
         population_pack_path: str | None = None,
         progress_callback: ProgressCallback | None = None,
-    ) -> RunResult:
+        ) -> RunResult:
         """Run one regression rerun against a concrete target."""
+
+
+@dataclass(frozen=True)
+class DomainGenerationHooks:
+    """Domain-owned generation semantics used by the shared generation shell."""
+
+    build_scenario_brief_clarification: Callable[[str], str | None] | None = None
+    build_fixture_scenarios: Callable[[str, int], list[dict[str, object]]] | None = None
+    build_scenario_prompt: Callable[[str, int, str], str] | None = None
+    build_population_brief_clarification: Callable[[str], str | None] | None = None
+    build_fixture_population_candidates: Callable[
+        [str, int], tuple[dict[str, object], ...]
+    ] | None = None
+    build_population_prompt: Callable[[str, int, str], str] | None = None
+    select_population_personas: Callable[
+        [tuple[GeneratedPersona, ...], int],
+        tuple[GeneratedPersona, ...],
+    ] | None = None
 
 
 @dataclass(frozen=True)
@@ -131,6 +151,12 @@ class DomainDefinition:
         [tuple[RegressionPolicyOverride, ...], tuple[RegressionPolicyOverride, ...]],
         RegressionPolicy,
     ]
+    public: bool = True
+    generation_hooks: DomainGenerationHooks | None = None
+    run_reference_service: Callable[
+        [str | None],
+        AbstractContextManager[tuple[str, dict[str, str | int | float]]],
+    ] | None = None
     reporting_hooks: DomainReportingHooks | None = None
     build_run_executive_summary: Callable[[RunResult], list[str]] | None = None
     select_representative_cohorts: Callable[
@@ -227,6 +253,7 @@ class StandardDomainRunner:
         seed: int,
         output_dir: str,
         scenario_names: tuple[str, ...] | None = None,
+        scenario_pack_path: str | None = None,
         population_pack_path: str | None = None,
         progress_callback: ProgressCallback | None = None,
     ) -> RunResult:
@@ -235,6 +262,7 @@ class StandardDomainRunner:
             "seed": seed,
             "output_dir": output_dir,
             "scenario_names": scenario_names,
+            "scenario_pack_path": scenario_pack_path,
             "population_pack_path": population_pack_path,
             "run_name": f"regression-{target.label}-seed-{seed}",
             "semantic_mode": "off",

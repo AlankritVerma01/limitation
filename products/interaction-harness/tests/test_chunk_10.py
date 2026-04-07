@@ -230,7 +230,15 @@ def test_population_pack_requires_full_requested_swarm_size() -> None:
 
 def test_cli_population_generation_mode_requires_brief(tmp_path: Path) -> None:
     try:
-        main(["generate-population", "--output-dir", str(tmp_path)])
+        main(
+            [
+                "generate-population",
+                "--domain",
+                "recommender",
+                "--output-dir",
+                str(tmp_path),
+            ]
+        )
     except SystemExit as exc:
         assert exc.code == 2
     else:
@@ -241,6 +249,8 @@ def test_cli_population_generation_mode_writes_population_pack(tmp_path: Path) -
     result = main(
         [
             "generate-population",
+            "--domain",
+            "recommender",
             "--mode",
             "fixture",
             "--brief",
@@ -273,6 +283,8 @@ def test_cli_provider_population_generation_routes_through_generation_layer(tmp_
         result = main(
             [
                 "generate-population",
+                "--domain",
+                "recommender",
                 "--mode",
                 "provider",
                 "--model",
@@ -350,6 +362,8 @@ def test_fixture_generated_population_pack_can_be_reused_for_single_run(tmp_path
     result = main(
         [
             "audit",
+            "--domain",
+            "recommender",
             "--seed",
             "5",
             "--use-mock",
@@ -369,6 +383,19 @@ def test_fixture_generated_population_pack_can_be_reused_for_single_run(tmp_path
     assert len(payload["traces"]) == (
         payload["summary"]["agent_count"] * payload["summary"]["scenario_count"]
     )
+
+
+def test_underspecified_population_generation_brief_requests_clarification() -> None:
+    try:
+        generate_population_pack(
+            "audience",
+            generator_mode="fixture",
+            domain_label="recommender",
+        )
+    except ValueError as exc:
+        assert "more specific recommender audience" in str(exc)
+    else:
+        raise AssertionError("Expected a clarification-style error for vague population generation.")
 
 
 def test_population_pack_can_be_reused_for_regression_runs(tmp_path: Path) -> None:

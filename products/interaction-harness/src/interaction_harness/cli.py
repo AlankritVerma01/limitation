@@ -12,19 +12,22 @@ import sys
 import time
 from contextlib import suppress
 
-from .audit import run_recommender_audit
+from .audit import (
+    execute_domain_audit,
+    write_run_artifacts,
+)
+from .audit import (
+    run_recommender_audit as _run_recommender_audit,
+)
 from .cli_progress import ProgressCallback, TerminalProgressRenderer, emit_progress
 from .config import DEFAULT_OUTPUT_DIR
-from .domains.recommender import (
-    BUILT_IN_RECOMMENDER_SCENARIO_NAMES,
-    run_reference_recommender_service,
-)
+from .domain_registry import get_domain_definition, list_public_domain_definitions
 from .population_generation import (
     build_default_population_pack_path,
     generate_population_pack,
     write_population_pack,
 )
-from .regression import run_regression_audit
+from .regression import run_domain_regression_audit
 from .scenario_generation import (
     DEFAULT_PROVIDER_MODEL,
     build_default_scenario_pack_path,
@@ -33,18 +36,22 @@ from .scenario_generation import (
 )
 from .schema import RegressionTarget
 
+run_recommender_audit = _run_recommender_audit
+
 
 def _build_parser() -> argparse.ArgumentParser:
     """Build the CLI parser for the supported recommender workflows."""
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
-            "Run the supported recommender audit workflow through the interaction harness.\n\n"
+            "Run interaction-harness workflows through the shared CLI.\n\n"
+            "Canonical usage now includes `--domain` on every command.\n"
+            "During the compatibility phase, omitted domains still default to `recommender`.\n\n"
             "Recommended paths:\n"
-            "- `audit`: local reference recommender or an external recommender URL\n"
-            "- `compare`: artifact-backed baselines/candidates or external recommender URLs\n"
-            "- `generate-scenarios` / `generate-population`: provider-backed scenario/population authoring on top of a deterministic core\n"
-            "- `serve-reference`: explicit local reference-service workflow for repeatable demos and audits\n\n"
+            "- `audit --domain recommender`: local reference recommender or an external URL\n"
+            "- `compare --domain recommender`: artifact-backed baselines/candidates or external URLs\n"
+            "- `generate-scenarios --domain recommender` / `generate-population --domain recommender`\n"
+            "- `serve-reference --domain recommender`: explicit local reference-service workflow\n\n"
             "The runtime and regression core stay deterministic."
         ),
     )
@@ -65,8 +72,8 @@ def _build_audit_parser(
         "audit",
         help="Run a recommender audit and write the standard artifact bundle.",
         description=(
-            "Run a recommender audit against the supported local reference "
-            "recommender service or an external recommender URL."
+            "Run one domain audit against a supported local reference target "
+            "or an external URL."
         ),
     )
     parser.set_defaults(handler=_handle_audit_command)
@@ -112,8 +119,7 @@ def _build_compare_parser(
         "compare",
         help="Compare baseline and candidate recommender targets across reruns.",
         description=(
-            "Run regression compare mode for artifact-backed or external-URL "
-            "recommender targets."
+            "Run regression compare mode for artifact-backed or external-URL targets."
         ),
     )
     parser.set_defaults(handler=_handle_compare_command)
@@ -170,11 +176,12 @@ def _build_generate_scenarios_parser(
         "generate-scenarios",
         help="Generate and save a structured recommender scenario pack.",
         description=(
-            "Generate a structured recommender scenario pack. Use `provider` for "
+            "Generate a structured scenario pack for one domain. Use `provider` for "
             "richer authored workflows and `fixture` for deterministic CI/demo runs."
         ),
     )
     parser.set_defaults(handler=_handle_generate_scenarios_command)
+    _add_domain_argument(parser)
     parser.add_argument(
         "--brief",
         required=True,
@@ -217,11 +224,12 @@ def _build_generate_population_parser(
         "generate-population",
         help="Generate and save a structured recommender population pack.",
         description=(
-            "Generate a structured recommender population pack. Use `provider` for "
+            "Generate a structured population pack for one domain. Use `provider` for "
             "richer authored workflows and `fixture` for deterministic CI/demo runs."
         ),
     )
     parser.set_defaults(handler=_handle_generate_population_command)
+    _add_domain_argument(parser)
     parser.add_argument(
         "--brief",
         required=True,
@@ -270,11 +278,11 @@ def _build_serve_reference_parser(
         "serve-reference",
         help="Start the local reference recommender service and print its URL.",
         description=(
-            "Start the local reference recommender service for repeatable audits, "
-            "local demos, or external CLI integration."
+            "Start the local reference service for one domain when supported."
         ),
     )
     parser.set_defaults(handler=_handle_serve_reference_command)
+    _add_domain_argument(parser)
     parser.add_argument(
         "--artifact-dir",
         default=None,
@@ -284,6 +292,7 @@ def _build_serve_reference_parser(
 
 
 def _add_shared_run_arguments(parser: argparse.ArgumentParser) -> None:
+    _add_domain_argument(parser)
     parser.add_argument("--seed", type=int, default=0, help="Seed for deterministic rollouts.")
     parser.add_argument(
         "--output-dir",
@@ -293,8 +302,7 @@ def _add_shared_run_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--scenario",
         default="all",
-        choices=("all", *BUILT_IN_RECOMMENDER_SCENARIO_NAMES),
-        help="Built-in scenario selection for the run.",
+        help="Optional built-in scenario selection for the chosen domain. Use `all` for all built-ins.",
     )
     parser.add_argument(
         "--scenario-pack-path",
@@ -322,6 +330,18 @@ def _add_shared_run_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_domain_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--domain",
+        default=None,
+        choices=list_public_domain_definitions(),
+        help=(
+            "Supported domain for this command. Canonical usage includes this flag; "
+            "omitting it still defaults to `recommender` during the compatibility phase."
+        ),
+    )
+
+
 def main(argv: list[str] | None = None) -> dict[str, str | int]:
     """Run the CLI entrypoint and return the generated artifact paths."""
     raw_argv = list(argv) if argv is not None else sys.argv[1:]
@@ -345,9 +365,14 @@ def _handle_audit_command(
     args: argparse.Namespace,
     progress_callback: ProgressCallback,
 ) -> dict[str, str | int]:
+    domain_name = _resolve_domain_name(args.domain)
     scenario_names = _resolve_scenario_names(args.scenario)
-    service_mode, service_artifact_dir, adapter_base_url = _resolve_audit_target(args)
-    result = run_recommender_audit(
+    service_mode, service_artifact_dir, adapter_base_url = _resolve_audit_target(
+        args,
+        domain_name=domain_name,
+    )
+    run_result = execute_domain_audit(
+        domain_name=domain_name,
         seed=args.seed,
         output_dir=args.output_dir,
         scenario_names=scenario_names,
@@ -357,11 +382,12 @@ def _handle_audit_command(
         service_artifact_dir=service_artifact_dir,
         adapter_base_url=adapter_base_url,
         run_name=args.run_name,
-        include_slice_membership=args.include_slice_membership,
         semantic_mode=args.semantic_mode,
         semantic_model=args.semantic_model,
         progress_callback=progress_callback,
     )
+    run_result.metadata["include_slice_membership"] = args.include_slice_membership
+    result = write_run_artifacts(run_result, progress_callback=progress_callback)
     _print_summary(
         "Audit complete",
         (
@@ -378,6 +404,7 @@ def _handle_compare_command(
     args: argparse.Namespace,
     progress_callback: ProgressCallback,
 ) -> dict[str, str | int]:
+    domain_name = _resolve_domain_name(args.domain)
     scenario_names = _resolve_scenario_names(args.scenario)
     baseline_target = _build_compare_target(
         label=args.baseline_label,
@@ -391,13 +418,15 @@ def _handle_compare_command(
         url=args.candidate_url,
         side_name="candidate",
     )
-    result = run_regression_audit(
+    result = run_domain_regression_audit(
+        domain_name=domain_name,
         baseline_target=baseline_target,
         candidate_target=candidate_target,
         base_seed=args.seed,
         rerun_count=args.rerun_count,
         output_dir=args.output_dir,
         scenario_names=scenario_names,
+        scenario_pack_path=args.scenario_pack_path,
         population_pack_path=args.population_pack_path,
         semantic_mode=args.semantic_mode,
         semantic_model=args.semantic_model,
@@ -422,6 +451,7 @@ def _handle_generate_scenarios_command(
     progress_callback: ProgressCallback,
 ) -> dict[str, str | int]:
     output_root = args.output_dir or str(DEFAULT_OUTPUT_DIR)
+    domain_name = _resolve_domain_name(args.domain)
     scenario_pack_path = args.scenario_pack_path or build_default_scenario_pack_path(
         output_root,
         brief=args.brief,
@@ -431,6 +461,7 @@ def _handle_generate_scenarios_command(
         args.brief,
         generator_mode=args.mode,
         scenario_count=args.scenario_count,
+        domain_label=domain_name,
         model_name=args.model,
         progress_callback=progress_callback,
     )
@@ -467,6 +498,7 @@ def _handle_generate_population_command(
     progress_callback: ProgressCallback,
 ) -> dict[str, str | int]:
     output_root = args.output_dir or str(DEFAULT_OUTPUT_DIR)
+    domain_name = _resolve_domain_name(args.domain)
     population_pack_path = args.population_pack_path or build_default_population_pack_path(
         output_root,
         brief=args.brief,
@@ -477,6 +509,7 @@ def _handle_generate_population_command(
         generator_mode=args.mode,
         population_size=args.population_size,
         candidate_count=args.population_candidate_count,
+        domain_label=domain_name,
         model_name=args.model,
         progress_callback=progress_callback,
     )
@@ -513,13 +546,19 @@ def _handle_serve_reference_command(
     args: argparse.Namespace,
     progress_callback: ProgressCallback,
 ) -> dict[str, str | int]:
+    domain_name = _resolve_domain_name(args.domain)
+    definition = get_domain_definition(domain_name)
+    if definition.run_reference_service is None:
+        raise SystemExit(
+            f"`serve-reference` is not supported for domain `{domain_name}`."
+        )
     emit_progress(
         progress_callback,
         phase="prepare_reference_service",
         message="Preparing reference artifacts",
         stage="start",
     )
-    with run_reference_recommender_service(args.artifact_dir) as (base_url, metadata):
+    with definition.run_reference_service(args.artifact_dir) as (base_url, metadata):
         emit_progress(
             progress_callback,
             phase="prepare_reference_service",
@@ -568,6 +607,8 @@ def _resolve_scenario_names(scenario_name: str) -> tuple[str, ...] | None:
 
 def _resolve_audit_target(
     args: argparse.Namespace,
+    *,
+    domain_name: str,
 ) -> tuple[str, str | None, str | None]:
     if args.target_url is not None and args.use_mock:
         raise SystemExit("--target-url cannot be combined with --use-mock.")
@@ -576,10 +617,16 @@ def _resolve_audit_target(
             "--target-url cannot be combined with --reference-artifact-dir."
         )
     if args.use_mock:
+        if domain_name != "recommender":
+            raise SystemExit("--use-mock is only supported for the recommender domain.")
         return "mock", None, None
     if args.target_url is not None:
         return "reference", None, args.target_url
     return "reference", args.reference_artifact_dir, None
+
+
+def _resolve_domain_name(domain_name: str | None) -> str:
+    return domain_name or "recommender"
 
 
 def _build_compare_target(

@@ -34,3 +34,14 @@ def register_domain_definition(definition: DomainDefinition) -> None:
 def list_domain_definitions() -> tuple[str, ...]:
     """Return the sorted list of registered domain names."""
     return tuple(sorted(_DOMAIN_DEFINITIONS))
+
+
+def list_public_domain_definitions() -> tuple[str, ...]:
+    """Return the sorted list of public domain names exposed through the CLI."""
+    return tuple(
+        sorted(
+            definition.name
+            for definition in _DOMAIN_DEFINITIONS.values()
+            if definition.public
+        )
+    )

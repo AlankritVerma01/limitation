@@ -6,7 +6,6 @@ import re
 from pathlib import Path
 
 from .domains.base import ResolvedRuntimeInputs
-from .domains.recommender.reference_artifacts import DEFAULT_REFERENCE_ARTIFACT_DIR
 from .schema import AgentSeed, RolloutConfig, RunConfig, ScenarioConfig, ScoringConfig
 
 DEFAULT_OUTPUT_DIR = (
@@ -35,9 +34,13 @@ def build_default_run_config(
     """Build the compatibility default single-run config for the recommender harness."""
     from .domains.recommender.inputs import resolve_recommender_inputs
     from .domains.recommender.policy import build_seeded_archetypes
+    from .domains.recommender.reference_artifacts import DEFAULT_REFERENCE_ARTIFACT_DIR
 
     if scenarios is not None and scenario_names is not None:
         raise ValueError("scenario_names cannot be combined with explicit scenarios.")
+    resolved_service_artifact_dir = service_artifact_dir
+    if service_mode == "reference" and service_artifact_dir is None:
+        resolved_service_artifact_dir = str(DEFAULT_REFERENCE_ARTIFACT_DIR)
     if scenarios is not None or agent_seeds is not None:
         return build_run_config(
             seed=seed,
@@ -45,7 +48,7 @@ def build_default_run_config(
             scenarios=scenarios or resolve_recommender_inputs(scenario_names=scenario_names).scenarios,
             agent_seeds=agent_seeds or build_seeded_archetypes(),
             service_mode=service_mode,
-            service_artifact_dir=service_artifact_dir,
+            service_artifact_dir=resolved_service_artifact_dir,
             adapter_base_url=adapter_base_url,
             run_name=run_name,
         )
@@ -54,7 +57,7 @@ def build_default_run_config(
         output_dir=output_dir,
         scenario_names=scenario_names,
         service_mode=service_mode,
-        service_artifact_dir=service_artifact_dir,
+        service_artifact_dir=resolved_service_artifact_dir,
         adapter_base_url=adapter_base_url,
         run_name=run_name,
     )
@@ -81,11 +84,7 @@ def build_run_config(
             or DEFAULT_OUTPUT_DIR / slugify_name(resolved_run_name) / f"seed-{seed}"
         ),
         service_mode=service_mode,
-        service_artifact_dir=(
-            str(service_artifact_dir or DEFAULT_REFERENCE_ARTIFACT_DIR)
-            if service_mode == "reference"
-            else service_artifact_dir
-        ),
+        service_artifact_dir=service_artifact_dir,
         adapter_base_url=adapter_base_url,
         service_timeout_seconds=2.0,
     )

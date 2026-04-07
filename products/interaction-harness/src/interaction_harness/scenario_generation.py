@@ -11,12 +11,11 @@ from pathlib import Path
 from typing import Protocol
 
 from .cli_progress import ProgressCallback, emit_progress
-from .domains.recommender.scenarios import BUILT_IN_RECOMMENDER_SCENARIO_NAMES
+from .domain_registry import get_domain_definition
 from .generation_support import (
     DEFAULT_PROVIDER_MODEL,
     DEFAULT_PROVIDER_NAME,
     build_responses_endpoint,
-    extract_focus_tokens,
     extract_response_text,
     load_dotenv_if_present,
     read_retry_count,
@@ -31,7 +30,6 @@ from .schema import (
 )
 
 DEFAULT_SCENARIO_COUNT = 3
-_SUPPORTED_RUNTIME_PROFILES = set(BUILT_IN_RECOMMENDER_SCENARIO_NAMES)
 
 
 class ScenarioGenerator(Protocol):
@@ -56,110 +54,10 @@ class FixtureScenarioGenerator:
         scenario_count: int,
         domain_label: str,
     ) -> list[dict[str, object]]:
-        focus_tokens = extract_focus_tokens(brief)
-        focus_label = " ".join(focus_tokens[:3]) or "general recommendation quality"
-        base_slug = "-".join(focus_tokens[:3]) or "generated"
-        templates = (
-            {
-                "slug": "context-rich",
-                "runtime_profile": "returning-user-home-feed",
-                "history_depth": 4,
-                "max_steps": 5,
-                "risk_focus_tags": ["staleness", "over-specialization"],
-                "description": (
-                    f"Returning-user session for `{focus_label}` with meaningful prior history."
-                ),
-                "test_goal": (
-                    f"Check whether the system keeps recommendations relevant without becoming stale around {focus_label}."
-                ),
-            },
-            {
-                "slug": "thin-context",
-                "runtime_profile": "sparse-history-home-feed",
-                "history_depth": 1,
-                "max_steps": 5,
-                "risk_focus_tags": ["cold-start", "popularity-bias"],
-                "description": (
-                    f"Thin-context session for `{focus_label}` where the system has very little prior evidence."
-                ),
-                "test_goal": (
-                    f"Check whether the system falls back too hard to generic popularity when the brief is {focus_label}."
-                ),
-            },
-            {
-                "slug": "taste-elicitation",
-                "runtime_profile": "taste-elicitation-home-feed",
-                "history_depth": 0,
-                "max_steps": 4,
-                "risk_focus_tags": ["cold-start", "weak-first-impression", "novelty-mismatch"],
-                "description": (
-                    f"Onboarding-style session for `{focus_label}` where the system needs to infer taste with almost no prior evidence."
-                ),
-                "test_goal": (
-                    f"Check whether the system can earn an early click for {focus_label} while still learning fresh taste signals."
-                ),
-            },
-            {
-                "slug": "exploration-pressure",
-                "runtime_profile": "returning-user-home-feed",
-                "history_depth": 2,
-                "max_steps": 6,
-                "risk_focus_tags": ["novelty-mismatch", "trust-drop"],
-                "description": (
-                    f"Mixed-history session for `{focus_label}` with stronger pressure to balance novelty against familiarity."
-                ),
-                "test_goal": (
-                    f"Check whether the system explores enough for {focus_label} without causing trust collapse."
-                ),
-            },
-            {
-                "slug": "low-patience",
-                "runtime_profile": "sparse-history-home-feed",
-                "history_depth": 1,
-                "max_steps": 4,
-                "risk_focus_tags": ["early-abandonment", "weak-first-impression"],
-                "description": (
-                    f"Short low-patience session for `{focus_label}` where the first few slates matter heavily."
-                ),
-                "test_goal": (
-                    f"Check whether the system earns early engagement for {focus_label} before patience runs out."
-                ),
-            },
-            {
-                "slug": "re-engagement",
-                "runtime_profile": "re-engagement-home-feed",
-                "history_depth": 2,
-                "max_steps": 5,
-                "risk_focus_tags": ["staleness", "trust-drop", "weak-first-impression"],
-                "description": (
-                    f"Drifted-user return session for `{focus_label}` where stale or off-target recommendations can quickly collapse trust."
-                ),
-                "test_goal": (
-                    f"Check whether the system can rebuild trust for {focus_label} after a period of low engagement."
-                ),
-            },
-        )
-        scenarios: list[dict[str, object]] = []
-        for index, template in enumerate(templates[:scenario_count], start=1):
-            scenarios.append(
-                {
-                    "scenario_id": f"{base_slug}-{template['slug']}-{index}",
-                    "name": f"{focus_label.title()} / {template['slug'].replace('-', ' ')}",
-                    "description": template["description"],
-                    "test_goal": template["test_goal"],
-                    "risk_focus_tags": template["risk_focus_tags"],
-                    "max_steps": template["max_steps"],
-                    "allowed_actions": ["click", "skip", "abandon"],
-                    "adapter_hints": {
-                        "recommender": {
-                            "runtime_profile": template["runtime_profile"],
-                            "history_depth": template["history_depth"],
-                            "context_hint": focus_label,
-                        }
-                    },
-                }
-            )
-        return scenarios
+        hooks = _require_generation_hooks(domain_label)
+        if hooks.build_fixture_scenarios is None:
+            raise ValueError(f"Domain `{domain_label}` does not support fixture scenario generation.")
+        return hooks.build_fixture_scenarios(brief, scenario_count=scenario_count)
 
 
 class ProviderScenarioGenerator:
@@ -228,36 +126,11 @@ class ProviderScenarioGenerator:
         return scenarios
 
     def _build_prompt(self, *, brief: str, scenario_count: int, domain_label: str) -> str:
-        """Build a narrow JSON-only prompt for scenario generation."""
-        return (
-            "You generate portable scenario packs for testing non-deterministic software.\n"
-            "Return JSON only. No markdown, no prose outside the JSON object.\n"
-            f"Generate exactly {scenario_count} scenarios for the domain `{domain_label}`.\n"
-            "Return this exact top-level shape:\n"
-            "{\n"
-            '  "scenarios": [\n'
-            "    {\n"
-            '      "scenario_id": "string",\n'
-            '      "name": "string",\n'
-            '      "description": "string",\n'
-            '      "test_goal": "string",\n'
-            '      "risk_focus_tags": ["string"],\n'
-            '      "max_steps": 5,\n'
-            '      "allowed_actions": ["click", "skip", "abandon"],\n'
-            '      "adapter_hints": {\n'
-            '        "recommender": {\n'
-            '          "runtime_profile": "returning-user-home-feed, sparse-history-home-feed, taste-elicitation-home-feed, or re-engagement-home-feed",\n'
-            '          "history_depth": 1,\n'
-            '          "context_hint": "string"\n'
-            "        }\n"
-            "      }\n"
-            "    }\n"
-            "  ]\n"
-            "}\n"
-            "Make the scenarios related but meaningfully different. Vary prior context, exploration pressure, "
-            "and risk focus. Keep them clear, concise, and runtime-friendly.\n"
-            f"Brief: {brief}"
-        )
+        """Build a narrow JSON-only prompt for one domain's scenario generation."""
+        hooks = _require_generation_hooks(domain_label)
+        if hooks.build_scenario_prompt is None:
+            raise ValueError(f"Domain `{domain_label}` does not support provider scenario generation.")
+        return hooks.build_scenario_prompt(brief, scenario_count, domain_label)
 
 
 def generate_scenario_pack(
@@ -274,6 +147,9 @@ def generate_scenario_pack(
         raise ValueError("scenario brief must not be empty")
     if scenario_count < 1:
         raise ValueError("scenario_count must be at least 1")
+    clarification = _build_scenario_brief_clarification(domain_label, brief)
+    if clarification is not None:
+        raise ValueError(clarification)
 
     emit_progress(
         progress_callback,
@@ -416,7 +292,24 @@ def build_default_scenario_pack_path(
 ) -> str:
     """Build the default artifact path for a generated scenario pack."""
     slug = re.sub(r"[^a-z0-9]+", "-", brief.lower()).strip("-") or "scenario-pack"
-    return str(Path(output_root) / "scenario-packs" / f"{slug}-{generator_mode}.json")
+    return str(
+        Path(output_root) / "scenario-packs" / f"{slug}-{generator_mode}.json"
+    )
+
+
+def _build_scenario_brief_clarification(domain_label: str, brief: str) -> str | None:
+    hooks = _require_generation_hooks(domain_label)
+    if hooks.build_scenario_brief_clarification is None:
+        return None
+    return hooks.build_scenario_brief_clarification(brief)
+
+
+def _require_generation_hooks(domain_label: str):
+    definition = get_domain_definition(domain_label)
+    hooks = definition.generation_hooks
+    if hooks is None:
+        raise ValueError(f"Domain `{domain_label}` does not define generation hooks.")
+    return hooks
 
 def _parse_generated_scenario(payload: dict[str, object]) -> GeneratedScenario:
     """Validate one raw generated scenario entry."""

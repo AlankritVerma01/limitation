@@ -69,6 +69,7 @@ def build_stub_domain_definition() -> DomainDefinition:
         summary_metric_names=_SUMMARY_METRICS,
         summarize_run_metrics=summarize_stub_run_metrics,
         build_default_regression_policy=build_stub_default_regression_policy,
+        public=False,
         runner=None,
     )
     return replace(definition, runner=StandardDomainRunner(definition=definition))

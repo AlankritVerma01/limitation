@@ -187,7 +187,15 @@ def test_invalid_recommender_adapter_hints_fail_before_runtime() -> None:
 
 def test_cli_generation_mode_requires_brief(tmp_path: Path) -> None:
     try:
-        main(["generate-scenarios", "--output-dir", str(tmp_path)])
+        main(
+            [
+                "generate-scenarios",
+                "--domain",
+                "recommender",
+                "--output-dir",
+                str(tmp_path),
+            ]
+        )
     except SystemExit as exc:
         assert exc.code == 2
     else:
@@ -198,6 +206,8 @@ def test_cli_generation_mode_writes_scenario_pack(tmp_path: Path) -> None:
     result = main(
         [
             "generate-scenarios",
+            "--domain",
+            "recommender",
             "--mode",
             "fixture",
             "--brief",
@@ -231,6 +241,8 @@ def test_cli_provider_generation_mode_routes_through_generation_layer(tmp_path: 
         result = main(
             [
                 "generate-scenarios",
+                "--domain",
+                "recommender",
                 "--mode",
                 "provider",
                 "--model",
@@ -258,6 +270,8 @@ def test_fixture_generated_pack_can_be_reused_for_single_run(tmp_path: Path) -> 
     result = main(
         [
             "audit",
+            "--domain",
+            "recommender",
             "--seed",
             "5",
             "--use-mock",
@@ -273,3 +287,16 @@ def test_fixture_generated_pack_can_be_reused_for_single_run(tmp_path: Path) -> 
     assert payload["metadata"]["scenario_pack_mode"] == "fixture"
     assert payload["metadata"]["scenario_pack_path"] == "<normalized>"
     assert all(trace["scenario_id"] for trace in payload["traces"])
+
+
+def test_underspecified_scenario_generation_brief_requests_clarification() -> None:
+    try:
+        generate_scenario_pack(
+            "users",
+            generator_mode="fixture",
+            domain_label="recommender",
+        )
+    except ValueError as exc:
+        assert "more specific recommender goal" in str(exc)
+    else:
+        raise AssertionError("Expected a clarification-style error for vague scenario generation.")
