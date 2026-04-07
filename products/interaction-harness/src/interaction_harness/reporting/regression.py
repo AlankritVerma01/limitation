@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from ..contracts.core import RegressionDiff
+from .base import ReportBulletSection, ReportTableSection
 
 _RISK_ORDER = {"low": 0, "medium": 1, "high": 2}
 
@@ -177,6 +178,9 @@ class RegressionMarkdownWriter:
 
     def _cohort_change_lines(self, regression_diff: RegressionDiff) -> list[str]:
         """Render the cohort-level diff table."""
+        hook = self._reporting_hook(regression_diff, "build_regression_cohort_change_section")
+        if hook is not None:
+            return self._render_section(hook(regression_diff))
         lines = [
             "",
             "## Cohort Changes",
@@ -199,6 +203,9 @@ class RegressionMarkdownWriter:
 
     def _risk_change_lines(self, regression_diff: RegressionDiff) -> list[str]:
         """Render human-readable risk flag changes."""
+        hook = self._reporting_hook(regression_diff, "build_regression_risk_change_section")
+        if hook is not None:
+            return self._render_section(hook(regression_diff))
         lines = ["", "## Risk Changes", ""]
         visible_risks = [
             risk
@@ -218,6 +225,9 @@ class RegressionMarkdownWriter:
 
     def _slice_change_lines(self, regression_diff: RegressionDiff) -> list[str]:
         """Render the deterministic discovered-slice diff table."""
+        hook = self._reporting_hook(regression_diff, "build_regression_slice_change_section")
+        if hook is not None:
+            return self._render_section(hook(regression_diff))
         lines = [
             "",
             "## Discovered Slice Changes",
@@ -261,6 +271,9 @@ class RegressionMarkdownWriter:
 
     def _trace_change_lines(self, regression_diff: RegressionDiff) -> list[str]:
         """Render the trace-level diff table."""
+        hook = self._reporting_hook(regression_diff, "build_regression_trace_change_section")
+        if hook is not None:
+            return self._render_section(hook(regression_diff))
         lines = [
             "",
             "## Notable Trace Changes",
@@ -274,6 +287,32 @@ class RegressionMarkdownWriter:
                 f"{trace.session_utility_delta:+.3f} | {trace.trace_risk_score_delta:+.3f} | "
                 f"{trace.baseline_failure_mode} | {trace.candidate_failure_mode} |"
             )
+        return lines
+
+    def _reporting_hook(self, regression_diff: RegressionDiff, hook_name: str):
+        domain_name = str(regression_diff.metadata.get("domain_name", ""))
+        if not domain_name:
+            return None
+        from ..domain_registry import get_domain_definition
+
+        definition = get_domain_definition(domain_name)
+        hooks = definition.reporting_hooks
+        if hooks is None:
+            return None
+        return getattr(hooks, hook_name, None)
+
+    def _render_section(
+        self,
+        section: ReportBulletSection | ReportTableSection,
+    ) -> list[str]:
+        if isinstance(section, ReportBulletSection):
+            return ["", f"## {section.title}", "", *(f"- {bullet}" for bullet in section.bullets)]
+        lines = ["", f"## {section.title}", ""]
+        header = "| " + " | ".join(section.columns) + " |"
+        divider = "| " + " | ".join("---" for _ in section.columns) + " |"
+        lines.extend([header, divider])
+        for row in section.rows:
+            lines.append("| " + " | ".join(row) + " |")
         return lines
 
     def _semantic_advisory_lines(self, regression_diff: RegressionDiff) -> list[str]:
