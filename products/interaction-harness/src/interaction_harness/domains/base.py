@@ -24,6 +24,7 @@ from ..adapters.base import SystemAdapter
 from ..agents.base import AgentPolicy
 from ..analysis.base import Analyzer
 from ..judges.base import Judge
+from ..reporting.base import DomainReportingHooks
 from ..rollout.engine import run_rollouts
 from ..scenarios.base import Scenario
 from ..schema import (
@@ -127,6 +128,7 @@ class DomainDefinition:
         [tuple[RegressionPolicyOverride, ...], tuple[RegressionPolicyOverride, ...]],
         RegressionPolicy,
     ]
+    reporting_hooks: DomainReportingHooks | None = None
     build_run_executive_summary: Callable[[RunResult], list[str]] | None = None
     select_representative_cohorts: Callable[
         [RunResult],

@@ -13,6 +13,7 @@ from .inputs import resolve_recommender_inputs
 from .judge import RecommenderJudge
 from .policy import RecommenderAgentPolicy
 from .reporting import (
+    RECOMMENDER_REPORTING_HOOKS,
     build_recommender_regression_important_changes,
     build_recommender_regression_summary,
     build_recommender_run_executive_summary,
@@ -60,6 +61,7 @@ def build_recommender_domain_definition() -> DomainDefinition:
         summary_metric_names=_SUMMARY_METRICS,
         summarize_run_metrics=summarize_recommender_run_metrics,
         build_default_regression_policy=build_recommender_default_regression_policy,
+        reporting_hooks=RECOMMENDER_REPORTING_HOOKS,
         build_run_executive_summary=build_recommender_run_executive_summary,
         select_representative_cohorts=select_recommender_representative_cohorts,
         build_regression_summary=build_recommender_regression_summary,
