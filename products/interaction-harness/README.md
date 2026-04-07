@@ -113,7 +113,8 @@ The product remains independent from the study package. Ideas are reused, but th
 ## Package Layout
 
 - `src/interaction_harness/cli.py`
-  - CLI entrypoint for single-run and compare modes
+  - CLI entrypoint for task-shaped commands: `audit`, `compare`,
+    `generate-scenarios`, `generate-population`, and `serve-reference`
 - `src/interaction_harness/audit.py`
   - single-run orchestration
 - `src/interaction_harness/regression.py`
@@ -158,24 +159,27 @@ From the repository root:
 PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness
 ```
 
+The no-argument path defaults to `audit` and now prints live progress while the
+run is executing so users are not left staring at a silent wait.
+
 Run one scenario only:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --scenario returning-user-home-feed --seed 7 --service-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/demo
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness audit --scenario returning-user-home-feed --seed 7 --reference-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/demo
 ```
 
 Generate a saved scenario pack from a brief with the deterministic fixture path
 for CI, tests, or offline demos:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --generate-scenarios --generation-mode fixture --scenario-brief "test recommendation quality for sparse-history users who still want novelty" --output-dir products/interaction-harness/output/generated-scenarios
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness generate-scenarios --mode fixture --brief "test recommendation quality for sparse-history users who still want novelty" --output-dir products/interaction-harness/output/generated-scenarios
 ```
 
 Generate a saved scenario pack through the provider-backed path recommended for
 real authored workflows:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --generate-scenarios --generation-mode provider --scenario-brief "test trust and exploration balance for returning users" --scenario-pack-path products/interaction-harness/output/generated-scenarios/provider-pack.json
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness generate-scenarios --mode provider --brief "test trust and exploration balance for returning users" --scenario-pack-path products/interaction-harness/output/generated-scenarios/provider-pack.json
 ```
 
 Provider mode will auto-read a root `.env` when present. Useful environment
@@ -190,21 +194,21 @@ Reuse a saved scenario pack in a normal audit run against the supported local
 reference service:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --scenario-pack-path products/interaction-harness/output/generated-scenarios/provider-pack.json --service-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/generated-pack-run
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness audit --scenario-pack-path products/interaction-harness/output/generated-scenarios/provider-pack.json --reference-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/generated-pack-run
 ```
 
 Generate a saved recommender population pack with the deterministic fixture path
 for CI, tests, or offline demos:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --generate-population --population-generation-mode fixture --population-brief "test a broad swarm of novelty-seeking and low-patience viewers" --population-size 12 --output-dir products/interaction-harness/output/generated-populations
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness generate-population --mode fixture --brief "test a broad swarm of novelty-seeking and low-patience viewers" --population-size 12 --output-dir products/interaction-harness/output/generated-populations
 ```
 
 Generate a saved recommender population pack through the provider-backed path
 recommended for real authored workflows:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --generate-population --population-generation-mode provider --population-brief "test a broad swarm of risk-sensitive and exploration-seeking viewers" --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness generate-population --mode provider --brief "test a broad swarm of risk-sensitive and exploration-seeking viewers" --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json
 ```
 
 If `--population-size` is omitted, provider mode may suggest the final explicit
@@ -214,58 +218,65 @@ Reuse a saved population pack in a normal audit run against the supported local
 reference service:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json --service-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/generated-population-run
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness audit --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json --reference-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/generated-population-run
 ```
 
 Run a single audit with fixture-backed semantic interpretation for offline demos
 or tests:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --semantic-mode fixture --service-artifact-dir products/interaction-harness/output/reference-artifacts
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness audit --semantic-mode fixture --reference-artifact-dir products/interaction-harness/output/reference-artifacts
 ```
 
 Run a single audit with provider-backed semantic interpretation for a richer
 user-facing explanation workflow:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --semantic-mode provider --semantic-model gpt-5-mini --service-artifact-dir products/interaction-harness/output/reference-artifacts
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness audit --semantic-mode provider --semantic-model gpt-5-mini --reference-artifact-dir products/interaction-harness/output/reference-artifacts
 ```
 
 Use the mock fixture explicitly only for narrow testing/debugging:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --service-mode mock
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness audit --use-mock
+```
+
+Start the local reference recommender service explicitly when you want a stable
+URL for repeated manual checks or external integration:
+
+```bash
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness serve-reference --artifact-dir products/interaction-harness/output/reference-artifacts
 ```
 
 Run compare mode against two artifact-backed targets:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
 ```
 
 Run compare mode against an artifact-backed baseline and an external URL
 candidate:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-base-url http://localhost:8010 --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-url http://localhost:8010 --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
 ```
 
 Reuse one saved population pack across compare reruns:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
 ```
 
 Add advisory semantic interpretation to compare mode:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --semantic-mode fixture --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --semantic-mode fixture --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
 ```
 
 Use custom labels in compare mode:
 
 ```bash
-PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness --compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --baseline-label current-prod --candidate-label next-build
+PYTHONPATH=products/interaction-harness/src .venv/bin/python -m interaction_harness compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --baseline-label current-prod --candidate-label next-build
 ```
 
 See all CLI options:
