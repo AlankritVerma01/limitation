@@ -10,6 +10,7 @@ from hashlib import sha1
 from pathlib import Path
 from typing import Protocol
 
+from .cli_progress import ProgressCallback, emit_progress
 from .generation_support import (
     DEFAULT_PROVIDER_MODEL,
     DEFAULT_PROVIDER_NAME,
@@ -215,6 +216,7 @@ def generate_population_pack(
     candidate_count: int | None = None,
     domain_label: str = "recommender",
     model_name: str = DEFAULT_PROVIDER_MODEL,
+    progress_callback: ProgressCallback | None = None,
 ) -> PopulationPack:
     """Generate, select, and return a structured recommender population pack."""
     if not brief.strip():
@@ -222,7 +224,25 @@ def generate_population_pack(
     if population_size is not None and population_size < 1:
         raise ValueError("population_size must be at least 1")
     resolved_candidate_count = _resolve_candidate_count(candidate_count, population_size)
+    emit_progress(
+        progress_callback,
+        phase="build_generation_input",
+        message="Building population-generation input",
+        stage="start",
+    )
+    emit_progress(
+        progress_callback,
+        phase="build_generation_input",
+        message="Built population-generation input",
+        stage="finish",
+    )
 
+    emit_progress(
+        progress_callback,
+        phase="generate_candidates",
+        message="Generating population candidates",
+        stage="start",
+    )
     if generator_mode == "fixture":
         generated = FixturePopulationGenerator().generate(
             brief,
@@ -240,13 +260,31 @@ def generate_population_pack(
         )
         provider_name = generator.provider_name
         resolved_model_name = generator.model_name
+    emit_progress(
+        progress_callback,
+        phase="generate_candidates",
+        message="Generated population candidates",
+        stage="finish",
+    )
     resolved_population_size, size_source = _resolve_population_size(
         explicit_population_size=population_size,
         suggested_population_size=generated.suggested_population_size,
         candidate_count=len(generated.personas),
     )
     generated_at_utc = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-    return build_population_pack(
+    emit_progress(
+        progress_callback,
+        phase="validate_generation_output",
+        message="Validating population candidates",
+        stage="start",
+    )
+    emit_progress(
+        progress_callback,
+        phase="select_generation_output",
+        message="Selecting final population",
+        stage="start",
+    )
+    pack = build_population_pack(
         list(generated.personas),
         brief=brief,
         generator_mode=generator_mode,
@@ -258,6 +296,19 @@ def generate_population_pack(
         provider_name=provider_name,
         model_name=resolved_model_name,
     )
+    emit_progress(
+        progress_callback,
+        phase="select_generation_output",
+        message="Selected final population",
+        stage="finish",
+    )
+    emit_progress(
+        progress_callback,
+        phase="validate_generation_output",
+        message="Validated population candidates",
+        stage="finish",
+    )
+    return pack
 
 
 def build_population_pack(

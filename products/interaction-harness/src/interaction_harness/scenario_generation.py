@@ -10,6 +10,7 @@ from hashlib import sha1
 from pathlib import Path
 from typing import Protocol
 
+from .cli_progress import ProgressCallback, emit_progress
 from .domains.recommender.scenarios import BUILT_IN_RECOMMENDER_SCENARIO_NAMES
 from .generation_support import (
     DEFAULT_PROVIDER_MODEL,
@@ -266,6 +267,7 @@ def generate_scenario_pack(
     scenario_count: int = DEFAULT_SCENARIO_COUNT,
     domain_label: str = "recommender",
     model_name: str = DEFAULT_PROVIDER_MODEL,
+    progress_callback: ProgressCallback | None = None,
 ) -> ScenarioPack:
     """Generate, validate, and return a structured scenario pack."""
     if not brief.strip():
@@ -273,6 +275,24 @@ def generate_scenario_pack(
     if scenario_count < 1:
         raise ValueError("scenario_count must be at least 1")
 
+    emit_progress(
+        progress_callback,
+        phase="build_generation_input",
+        message="Building scenario-generation input",
+        stage="start",
+    )
+    emit_progress(
+        progress_callback,
+        phase="build_generation_input",
+        message="Built scenario-generation input",
+        stage="finish",
+    )
+    emit_progress(
+        progress_callback,
+        phase="generate_candidates",
+        message="Generating scenario candidates",
+        stage="start",
+    )
     if generator_mode == "fixture":
         raw_scenarios = FixtureScenarioGenerator().generate(
             brief,
@@ -290,8 +310,20 @@ def generate_scenario_pack(
         )
         provider_name = generator.provider_name
         resolved_model_name = generator.model_name
+    emit_progress(
+        progress_callback,
+        phase="generate_candidates",
+        message="Generated scenario candidates",
+        stage="finish",
+    )
     generated_at_utc = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-    return build_scenario_pack(
+    emit_progress(
+        progress_callback,
+        phase="validate_generation_output",
+        message="Validating generated scenarios",
+        stage="start",
+    )
+    pack = build_scenario_pack(
         raw_scenarios,
         brief=brief,
         generator_mode=generator_mode,
@@ -300,6 +332,13 @@ def generate_scenario_pack(
         provider_name=provider_name,
         model_name=resolved_model_name,
     )
+    emit_progress(
+        progress_callback,
+        phase="validate_generation_output",
+        message="Validated generated scenarios",
+        stage="finish",
+    )
+    return pack
 
 
 def build_scenario_pack(
