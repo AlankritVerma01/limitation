@@ -3,8 +3,40 @@
 from __future__ import annotations
 
 from ...contracts.core import RegressionDiff, RunResult
+from ...reporting.base import (
+    DomainReportingHooks,
+    ReportBulletSection,
+    ReportTableSection,
+)
 
 _RISK_ORDER = {"low": 0, "medium": 1, "high": 2}
+
+
+RECOMMENDER_REPORTING_HOOKS = DomainReportingHooks(
+    build_scenario_coverage_section=lambda run_result: build_recommender_scenario_coverage_section(
+        run_result
+    ),
+    build_cohort_summary_section=lambda run_result: build_recommender_cohort_summary_section(
+        run_result
+    ),
+    build_trace_score_section=lambda run_result: build_recommender_trace_score_section(run_result),
+    build_metadata_highlights_section=lambda run_result: build_recommender_metadata_highlights_section(
+        run_result
+    ),
+    build_run_summary_fields=lambda run_result: build_recommender_run_summary_fields(run_result),
+    build_regression_cohort_change_section=lambda regression_diff: build_recommender_regression_cohort_change_section(
+        regression_diff
+    ),
+    build_regression_risk_change_section=lambda regression_diff: build_recommender_regression_risk_change_section(
+        regression_diff
+    ),
+    build_regression_slice_change_section=lambda regression_diff: build_recommender_regression_slice_change_section(
+        regression_diff
+    ),
+    build_regression_trace_change_section=lambda regression_diff: build_recommender_regression_trace_change_section(
+        regression_diff
+    ),
+)
 
 
 def build_recommender_run_executive_summary(run_result: RunResult) -> list[str]:
@@ -194,6 +226,272 @@ def build_recommender_regression_important_changes(
         if len(changes) >= 3:
             break
     return changes[:3]
+
+
+def build_recommender_scenario_coverage_section(run_result: RunResult) -> ReportBulletSection:
+    """Build the recommender scenario coverage section for shared markdown rendering."""
+    bullets = []
+    for scenario in run_result.run_config.scenarios:
+        risk_tags = ", ".join(scenario.risk_focus_tags) or "n/a"
+        context_hint = scenario.context_hint or "n/a"
+        bullets.append(
+            f"`{scenario.name}`: {scenario.description} "
+            f"(history depth `{scenario.history_depth}`, max steps `{scenario.max_steps}`, "
+            f"goal `{scenario.test_goal or 'n/a'}`, risk tags `{risk_tags}`, "
+            f"context hint `{context_hint}`)"
+        )
+    return ReportBulletSection(
+        title="Scenario Coverage",
+        bullets=tuple(bullets),
+    )
+
+
+def build_recommender_cohort_summary_section(run_result: RunResult) -> ReportTableSection:
+    """Build the recommender cohort summary table for shared markdown rendering."""
+    return ReportTableSection(
+        title="Cohort Summary",
+        columns=(
+            "Scenario",
+            "Archetype",
+            "Risk",
+            "Failure Mode",
+            "Utility",
+            "First Impression",
+            "Abandon Pressure",
+            "Trust Δ",
+        ),
+        rows=tuple(
+            (
+                cohort.scenario_name,
+                cohort.archetype_label,
+                cohort.risk_level,
+                cohort.dominant_failure_mode,
+                f"{cohort.mean_session_utility:.3f}",
+                f"{cohort.mean_first_impression_score:.3f}",
+                f"{cohort.mean_abandonment_pressure:.3f}",
+                f"{cohort.mean_trust_delta:.3f}",
+            )
+            for cohort in run_result.cohort_summaries
+        ),
+    )
+
+
+def build_recommender_trace_score_section(run_result: RunResult) -> ReportTableSection:
+    """Build the recommender trace-score table for shared markdown rendering."""
+    return ReportTableSection(
+        title="Trace Scores",
+        columns=(
+            "Trace",
+            "Scenario",
+            "Archetype",
+            "Utility",
+            "First Impression",
+            "Abandon Pressure",
+            "Failure Mode",
+            "Trust Δ",
+            "Abandoned",
+        ),
+        rows=tuple(
+            (
+                score.trace_id,
+                score.scenario_name,
+                score.archetype_label,
+                f"{score.session_utility:.3f}",
+                f"{score.first_impression_score:.3f}",
+                f"{score.abandonment_pressure:.3f}",
+                score.dominant_failure_mode,
+                f"{score.trust_delta:.3f}",
+                str(score.abandoned),
+            )
+            for score in run_result.trace_scores
+        ),
+    )
+
+
+def build_recommender_metadata_highlights_section(run_result: RunResult) -> ReportBulletSection:
+    """Build recommender-specific metadata highlights for the shared metadata section."""
+    return ReportBulletSection(
+        title="Metadata Highlights",
+        bullets=(
+            f"Target identity: `{run_result.metadata.get('target_identity', 'unknown')}`",
+            f"Target endpoint host: `{run_result.metadata.get('target_endpoint_host', 'n/a')}`",
+            f"Service metadata status: `{run_result.metadata.get('service_metadata_status', 'unknown')}`",
+            f"Contract version: `{run_result.metadata.get('artifact_contract_version', 'v1')}`",
+        ),
+    )
+
+
+def build_recommender_run_summary_fields(run_result: RunResult) -> dict[str, object]:
+    """Build additive recommender summary fields for results.json."""
+    strongest = max(
+        run_result.cohort_summaries,
+        key=lambda cohort: cohort.mean_session_utility,
+        default=None,
+    )
+    return {
+        "mean_first_impression_score": (
+            sum(score.first_impression_score for score in run_result.trace_scores)
+            / len(run_result.trace_scores)
+            if run_result.trace_scores
+            else 0.0
+        ),
+        "mean_abandonment_pressure": (
+            sum(score.abandonment_pressure for score in run_result.trace_scores)
+            / len(run_result.trace_scores)
+            if run_result.trace_scores
+            else 0.0
+        ),
+        "strongest_cohort": (
+            {
+                "scenario_name": strongest.scenario_name,
+                "archetype_label": strongest.archetype_label,
+                "mean_session_utility": strongest.mean_session_utility,
+            }
+            if strongest is not None
+            else None
+        ),
+    }
+
+
+def build_recommender_regression_cohort_change_section(
+    regression_diff: RegressionDiff,
+) -> ReportTableSection:
+    """Build the recommender cohort-change table for shared regression rendering."""
+    return ReportTableSection(
+        title="Cohort Changes",
+        columns=(
+            "Scenario",
+            "Archetype",
+            "Baseline Risk",
+            "Candidate Risk",
+            "Failure Mode",
+            "Utility Δ",
+            "Abandon Δ",
+            "Trust Δ",
+            "Skip Δ",
+        ),
+        rows=tuple(
+            (
+                cohort.scenario_name,
+                cohort.archetype_label,
+                cohort.baseline_risk_level,
+                cohort.candidate_risk_level,
+                (
+                    cohort.candidate_failure_mode
+                    if cohort.candidate_failure_mode != "no_major_failure"
+                    else cohort.baseline_failure_mode
+                ),
+                f"{cohort.session_utility_delta:+.3f}",
+                f"{cohort.abandonment_rate_delta:+.3f}",
+                f"{cohort.trust_delta_delta:+.3f}",
+                f"{cohort.skip_rate_delta:+.3f}",
+            )
+            for cohort in regression_diff.cohort_deltas
+        ),
+    )
+
+
+def build_recommender_regression_risk_change_section(
+    regression_diff: RegressionDiff,
+) -> ReportBulletSection:
+    """Build the recommender risk-change section for shared regression rendering."""
+    visible_risks = [
+        risk
+        for risk in regression_diff.risk_flag_deltas
+        if risk.baseline_count != 0 or risk.candidate_count != 0
+    ]
+    bullets = (
+        tuple(
+            f"{risk.scenario_name} / {risk.archetype_label}: "
+            f"baseline `{risk.baseline_count}` ({risk.baseline_top_severity or 'none'}) -> "
+            f"candidate `{risk.candidate_count}` ({risk.candidate_top_severity or 'none'})"
+            for risk in visible_risks
+        )
+        if visible_risks
+        else ("No risk flag changes were detected.",)
+    )
+    return ReportBulletSection(title="Risk Changes", bullets=bullets)
+
+
+def build_recommender_regression_slice_change_section(
+    regression_diff: RegressionDiff,
+) -> ReportTableSection | ReportBulletSection:
+    """Build the recommender slice-change section for shared regression rendering."""
+    visible_slices = [
+        slice_delta
+        for slice_delta in regression_diff.slice_deltas
+        if slice_delta.change_type != "stable"
+        or abs(slice_delta.session_utility_delta) >= 0.01
+        or abs(slice_delta.trust_delta_delta) >= 0.01
+        or abs(slice_delta.skip_rate_delta) >= 0.01
+    ]
+    if not visible_slices:
+        return ReportBulletSection(
+            title="Discovered Slice Changes",
+            bullets=("No material discovered-slice changes were detected.",),
+        )
+    return ReportTableSection(
+        title="Discovered Slice Changes",
+        columns=(
+            "Signature",
+            "Change",
+            "Baseline Count",
+            "Candidate Count",
+            "Risk",
+            "Failure Mode",
+            "Utility Δ",
+            "Trust Δ",
+            "Skip Δ",
+        ),
+        rows=tuple(
+            (
+                ", ".join(slice_delta.feature_signature),
+                slice_delta.change_type,
+                str(slice_delta.baseline_trace_count),
+                str(slice_delta.candidate_trace_count),
+                f"{slice_delta.baseline_risk_level or 'none'} -> {slice_delta.candidate_risk_level or 'none'}",
+                (
+                    slice_delta.candidate_failure_mode
+                    if slice_delta.candidate_failure_mode != "no_major_failure"
+                    else slice_delta.baseline_failure_mode
+                ),
+                f"{slice_delta.session_utility_delta:+.3f}",
+                f"{slice_delta.trust_delta_delta:+.3f}",
+                f"{slice_delta.skip_rate_delta:+.3f}",
+            )
+            for slice_delta in visible_slices
+        ),
+    )
+
+
+def build_recommender_regression_trace_change_section(
+    regression_diff: RegressionDiff,
+) -> ReportTableSection:
+    """Build the recommender trace-change table for shared regression rendering."""
+    return ReportTableSection(
+        title="Notable Trace Changes",
+        columns=(
+            "Trace",
+            "Scenario",
+            "Archetype",
+            "Utility Δ",
+            "Risk Δ",
+            "Baseline Failure",
+            "Candidate Failure",
+        ),
+        rows=tuple(
+            (
+                trace.trace_id,
+                trace.scenario_name,
+                trace.archetype_label,
+                f"{trace.session_utility_delta:+.3f}",
+                f"{trace.trace_risk_score_delta:+.3f}",
+                trace.baseline_failure_mode,
+                trace.candidate_failure_mode,
+            )
+            for trace in regression_diff.notable_trace_deltas
+        ),
+    )
 
 
 def _risk_rank(severity: str | None) -> int:
