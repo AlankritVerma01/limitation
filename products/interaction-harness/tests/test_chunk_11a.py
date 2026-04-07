@@ -3,17 +3,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from interaction_harness.analysis.recommender_slices import (
+from interaction_harness.audit import execute_recommender_audit
+from interaction_harness.domains.recommender import (
+    ARTIFACT_FILENAME,
     discover_recommender_slices,
+    ensure_reference_artifacts,
     extract_recommender_slice_features,
 )
-from interaction_harness.audit import execute_recommender_audit
 from interaction_harness.regression import run_regression_audit
 from interaction_harness.schema import RegressionTarget
-from interaction_harness.services.reference_artifacts import (
-    ARTIFACT_FILENAME,
-    ensure_reference_artifacts,
-)
 
 
 def _build_modified_candidate_artifacts(baseline_dir: Path, candidate_dir: Path) -> None:

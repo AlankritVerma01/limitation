@@ -5,21 +5,22 @@ import random
 from dataclasses import asdict
 from pathlib import Path
 
-from interaction_harness.adapters.http import HttpRecommenderAdapter
-from interaction_harness.agents.recommender import (
+from interaction_harness.cli import main, run_recommender_audit
+from interaction_harness.config import build_default_run_config
+from interaction_harness.domains.recommender import (
+    HttpRecommenderAdapter,
     RecommenderAgentPolicy,
+    RecommenderAnalyzer,
+    RecommenderJudge,
+    build_scenarios,
     build_seeded_archetypes,
     initial_state_from_seed,
     normalize_runtime_item_signals,
+    run_mock_recommender_service,
 )
-from interaction_harness.analysis.recommender import RecommenderAnalyzer
-from interaction_harness.cli import main, run_recommender_audit
-from interaction_harness.config import build_default_run_config
-from interaction_harness.judges.recommender import RecommenderJudge
 from interaction_harness.reporting.json import JsonReportWriter
 from interaction_harness.reporting.markdown import MarkdownReportWriter
 from interaction_harness.rollout.engine import run_rollouts
-from interaction_harness.scenarios.recommender import build_scenarios
 from interaction_harness.schema import (
     Action,
     CohortSummary,
@@ -39,7 +40,6 @@ from interaction_harness.schema import (
     TraceStep,
     UtilityBreakdown,
 )
-from interaction_harness.services.mock_recommender import run_mock_recommender_service
 
 
 def test_schema_objects_are_dataclass_serialization_friendly() -> None:

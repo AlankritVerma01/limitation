@@ -6,14 +6,14 @@ from unittest.mock import patch
 
 import pytest
 from interaction_harness.audit import execute_recommender_audit, write_run_artifacts
+from interaction_harness.domains.recommender import (
+    ARTIFACT_FILENAME,
+    ensure_reference_artifacts,
+)
 from interaction_harness.regression import run_regression_audit
 from interaction_harness.schema import RegressionTarget
 from interaction_harness.semantic_interpretation import (
     interpret_run_semantics,
-)
-from interaction_harness.services.reference_artifacts import (
-    ARTIFACT_FILENAME,
-    ensure_reference_artifacts,
 )
 
 
