@@ -12,10 +12,10 @@ from interaction_harness.schema import RegressionTarget
 def test_single_run_report_includes_executive_summary_and_compact_traces(tmp_path: Path) -> None:
     result = main(
         [
+            "audit",
             "--seed",
             "11",
-            "--service-mode",
-            "mock",
+            "--use-mock",
             "--run-name",
             "Polished Demo Run",
             "--output-dir",
@@ -62,15 +62,12 @@ def test_regression_outputs_include_summary_and_most_important_changes(tmp_path:
 
 def test_cli_help_mentions_compare_and_run_name() -> None:
     help_text = _build_parser().format_help()
-    assert "--compare" in help_text
-    assert "--run-name" in help_text
-    assert "--generate-scenarios" in help_text
-    assert "--generate-population" in help_text
-    assert "--scenario-pack-path" in help_text
-    assert "--population-pack-path" in help_text
-    assert "--baseline-label" in help_text
-    assert "--candidate-label" in help_text
-    assert "--policy-mode" in help_text
+    assert "audit" in help_text
+    assert "compare" in help_text
+    assert "generate-scenarios" in help_text
+    assert "generate-population" in help_text
+    assert "serve-reference" in help_text
+    assert "--compare" not in help_text
 
 
 def test_compare_mode_accepts_label_overrides(tmp_path: Path) -> None:
@@ -80,7 +77,7 @@ def test_compare_mode_accepts_label_overrides(tmp_path: Path) -> None:
     ensure_reference_artifacts(candidate_dir)
     result = main(
         [
-            "--compare",
+            "compare",
             "--seed",
             "5",
             "--rerun-count",

@@ -187,9 +187,9 @@ def test_invalid_recommender_adapter_hints_fail_before_runtime() -> None:
 
 def test_cli_generation_mode_requires_brief(tmp_path: Path) -> None:
     try:
-        main(["--generate-scenarios", "--output-dir", str(tmp_path)])
+        main(["generate-scenarios", "--output-dir", str(tmp_path)])
     except SystemExit as exc:
-        assert "--generate-scenarios requires --scenario-brief" in str(exc)
+        assert exc.code == 2
     else:
         raise AssertionError("Expected generation mode without a brief to fail.")
 
@@ -197,10 +197,10 @@ def test_cli_generation_mode_requires_brief(tmp_path: Path) -> None:
 def test_cli_generation_mode_writes_scenario_pack(tmp_path: Path) -> None:
     result = main(
         [
-            "--generate-scenarios",
-            "--generation-mode",
+            "generate-scenarios",
+            "--mode",
             "fixture",
-            "--scenario-brief",
+            "--brief",
             "test robustness for sparse history users",
             "--output-dir",
             str(tmp_path),
@@ -230,12 +230,12 @@ def test_cli_provider_generation_mode_routes_through_generation_layer(tmp_path: 
     with patch("interaction_harness.cli.generate_scenario_pack", return_value=fake_pack) as mock_generate:
         result = main(
             [
-                "--generate-scenarios",
-                "--generation-mode",
+                "generate-scenarios",
+                "--mode",
                 "provider",
-                "--generation-model",
+                "--model",
                 "gpt-5",
-                "--scenario-brief",
+                "--brief",
                 "provider brief",
                 "--scenario-pack-path",
                 str(tmp_path / "provider-pack.json"),
@@ -257,10 +257,10 @@ def test_fixture_generated_pack_can_be_reused_for_single_run(tmp_path: Path) -> 
 
     result = main(
         [
+            "audit",
             "--seed",
             "5",
-            "--service-mode",
-            "mock",
+            "--use-mock",
             "--scenario-pack-path",
             str(pack_path),
             "--output-dir",

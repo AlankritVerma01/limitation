@@ -230,9 +230,9 @@ def test_population_pack_requires_full_requested_swarm_size() -> None:
 
 def test_cli_population_generation_mode_requires_brief(tmp_path: Path) -> None:
     try:
-        main(["--generate-population", "--output-dir", str(tmp_path)])
+        main(["generate-population", "--output-dir", str(tmp_path)])
     except SystemExit as exc:
-        assert "--generate-population requires --population-brief" in str(exc)
+        assert exc.code == 2
     else:
         raise AssertionError("Expected population generation without a brief to fail.")
 
@@ -240,10 +240,10 @@ def test_cli_population_generation_mode_requires_brief(tmp_path: Path) -> None:
 def test_cli_population_generation_mode_writes_population_pack(tmp_path: Path) -> None:
     result = main(
         [
-            "--generate-population",
-            "--population-generation-mode",
+            "generate-population",
+            "--mode",
             "fixture",
-            "--population-brief",
+            "--brief",
             "test an explicit swarm of patient and impatient viewers",
             "--population-size",
             "12",
@@ -272,12 +272,12 @@ def test_cli_provider_population_generation_routes_through_generation_layer(tmp_
     with patch("interaction_harness.cli.generate_population_pack", return_value=fake_pack) as mock_generate:
         result = main(
             [
-                "--generate-population",
-                "--population-generation-mode",
+                "generate-population",
+                "--mode",
                 "provider",
-                "--population-generation-model",
+                "--model",
                 "gpt-5-mini",
-                "--population-brief",
+                "--brief",
                 "provider population brief",
                 "--population-pack-path",
                 str(tmp_path / "provider-population.json"),
@@ -349,10 +349,10 @@ def test_fixture_generated_population_pack_can_be_reused_for_single_run(tmp_path
 
     result = main(
         [
+            "audit",
             "--seed",
             "5",
-            "--service-mode",
-            "mock",
+            "--use-mock",
             "--population-pack-path",
             str(pack_path),
             "--output-dir",

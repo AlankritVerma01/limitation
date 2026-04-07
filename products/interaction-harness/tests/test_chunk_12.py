@@ -164,19 +164,19 @@ def test_cli_compare_requires_exactly_one_target_reference(tmp_path: Path) -> No
     with pytest.raises(SystemExit) as exc_info:
         main(
             [
-                "--compare",
+                "compare",
                 "--baseline-artifact-dir",
                 str(artifact_dir),
                 "--candidate-artifact-dir",
                 str(artifact_dir),
-                "--candidate-base-url",
+                "--candidate-url",
                 "http://localhost:9999",
             ]
         )
 
     assert (
         str(exc_info.value)
-        == "--compare requires exactly one of --candidate-artifact-dir or --candidate-base-url."
+        == "compare requires exactly one of --candidate-artifact-dir or --candidate-url."
     )
 
 
@@ -220,17 +220,19 @@ def test_compare_help_mentions_external_urls(capsys: pytest.CaptureFixture[str])
     with pytest.raises(SystemExit):
         main(["--help"])
     captured = capsys.readouterr()
-    assert "artifact-backed or external URL targets" in captured.out
+    assert "compare" in captured.out
+    assert "serve-reference" in captured.out
 
 
 def test_help_marks_reference_service_as_supported_local_path(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     with pytest.raises(SystemExit):
-        main(["--help"])
+        main(["audit", "--help"])
     captured = capsys.readouterr()
-    assert "supported local" in captured.out
-    assert "narrow test/debug fixture" in captured.out
+    audit_help = " ".join(captured.out.split())
+    assert "local reference recommender" in audit_help
+    assert "test/debug runs" in audit_help
 
 
 def test_help_recommends_provider_for_richer_ai_workflows(

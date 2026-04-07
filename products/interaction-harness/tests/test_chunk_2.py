@@ -682,11 +682,12 @@ def test_different_seed_changes_output(tmp_path: Path) -> None:
 def test_cli_runs_end_to_end_and_writes_outputs(tmp_path: Path) -> None:
     result = main(
         [
+            "audit",
             "--seed",
             "7",
             "--scenario",
             "returning-user-home-feed",
-            "--service-artifact-dir",
+            "--reference-artifact-dir",
             str(tmp_path / "artifacts"),
             "--output-dir",
             str(tmp_path),
@@ -700,11 +701,12 @@ def test_cli_runs_end_to_end_and_writes_outputs(tmp_path: Path) -> None:
 def test_cli_runs_both_scenarios(tmp_path: Path) -> None:
     result = main(
         [
+            "audit",
             "--seed",
             "4",
             "--scenario",
             "all",
-            "--service-artifact-dir",
+            "--reference-artifact-dir",
             str(tmp_path / "artifacts"),
             "--output-dir",
             str(tmp_path),
