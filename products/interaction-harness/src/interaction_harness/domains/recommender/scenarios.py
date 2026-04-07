@@ -60,8 +60,6 @@ BUILT_IN_RECOMMENDER_SCENARIOS = (
 BUILT_IN_RECOMMENDER_SCENARIO_NAMES = tuple(
     scenario.name for scenario in BUILT_IN_RECOMMENDER_SCENARIOS
 )
-# Compatibility alias retained while older module paths are still supported.
-BUILT_IN_RECOMMENDER_SCENARIO_CONFIGS = BUILT_IN_RECOMMENDER_SCENARIOS
 
 
 class RecommenderScenario:

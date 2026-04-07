@@ -8,7 +8,10 @@ helpers exported here rather than on scattered recommender-owned modules.
 from .adapters import HttpRecommenderAdapter
 from .analyzer import RecommenderAnalyzer
 from .catalog import CATALOG, history_for_genres
-from .definition import build_recommender_domain_definition
+from .definition import (
+    build_recommender_domain_definition,
+    build_recommender_run_config,
+)
 from .inputs import (
     project_recommender_population,
     project_recommender_scenarios,
@@ -30,7 +33,6 @@ from .reference_artifacts import (
 )
 from .reference_recommender import run_reference_recommender_service
 from .scenarios import (
-    BUILT_IN_RECOMMENDER_SCENARIO_CONFIGS,
     BUILT_IN_RECOMMENDER_SCENARIO_NAMES,
     BUILT_IN_RECOMMENDER_SCENARIOS,
     RecommenderScenario,
@@ -45,7 +47,6 @@ from .slices import (
 __all__ = [
     "ARTIFACT_FILENAME",
     "CATALOG",
-    "BUILT_IN_RECOMMENDER_SCENARIO_CONFIGS",
     "BUILT_IN_RECOMMENDER_SCENARIOS",
     "BUILT_IN_RECOMMENDER_SCENARIO_NAMES",
     "HttpRecommenderAdapter",
@@ -55,6 +56,7 @@ __all__ = [
     "RecommenderScenario",
     "build_reference_artifacts",
     "build_recommender_domain_definition",
+    "build_recommender_run_config",
     "build_scenarios",
     "build_seeded_archetypes",
     "discover_recommender_slices",

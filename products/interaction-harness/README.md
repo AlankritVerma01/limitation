@@ -18,18 +18,22 @@ In the current build, it audits recommender systems by:
 5. summarizing cohort-level risks and representative traces
 6. optionally comparing baseline vs candidate systems across reruns
 
-Today it is recommender-first. Over time, the same core is meant to support broader non-deterministic systems without throwing away the rollout, judging, and regression machinery.
+The current supported product domain is recommender evaluation. The same core
+is designed to support broader non-deterministic systems through domain modules
+without changing rollout, judging, and regression fundamentals.
 
 ## Domain Plug-In Direction
 
-The package now uses an in-repo domain plug-in shape:
+The package uses an in-repo domain plug-in shape:
 
 - the shared foundation owns rollout, traces, artifacts, semantic layering, and regression lifecycle
 - each domain module owns its own runtime inputs, adapter construction, policy, judge, analyzer, and domain-level regression semantics
-- the recommender wedge is the first full implementation of that contract and now lives primarily in `src/interaction_harness/domains/recommender/`
+- the recommender wedge is the first full implementation of that contract and lives in `src/interaction_harness/domains/recommender/`
 - a small stub domain exists only as test-only architecture infrastructure to prove that new systems can plug in without shared-core surgery
 
-The CLI is still recommender-first on purpose, but internally new systems are meant to land as domain modules rather than as branches spread through generic code.
+The CLI is domain-explicit, with recommender as the current public supported
+domain. New systems land as domain modules rather than branches spread through
+generic code.
 
 ## Current Capabilities
 
@@ -148,8 +152,8 @@ The product remains independent from the study package. Ideas are reused, but th
 - `src/interaction_harness/domains/`
   - in-repo domain plug-ins plus the shared domain runner shell
 
-The older recommender compatibility modules have been removed. Recommender code
-should now be imported directly from `src/interaction_harness/domains/recommender/`.
+Recommender code is imported directly from
+`src/interaction_harness/domains/recommender/`.
 
 ## Run The Recommender Audit
 
@@ -157,30 +161,31 @@ From the repository root:
 
 ```bash
 .venv/bin/python -m pip install -e products/interaction-harness
-.venv/bin/python -m interaction_harness
+.venv/bin/python -m interaction_harness --help
 ```
 
-The no-argument path defaults to `audit` and now prints live progress while the
-run is executing so users are not left staring at a silent wait.
+Every runtime and generation command requires an explicit `--domain`.
+Progress is shown live while commands run so users are not left staring at a
+silent wait.
 
 Run one scenario only:
 
 ```bash
-.venv/bin/python -m interaction_harness audit --scenario returning-user-home-feed --seed 7 --reference-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/demo
+.venv/bin/python -m interaction_harness audit --domain recommender --scenario returning-user-home-feed --seed 7 --reference-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/demo
 ```
 
 Generate a saved scenario pack from a brief with the deterministic fixture path
 for CI, tests, or offline demos:
 
 ```bash
-.venv/bin/python -m interaction_harness generate-scenarios --mode fixture --brief "test recommendation quality for sparse-history users who still want novelty" --output-dir products/interaction-harness/output/generated-scenarios
+.venv/bin/python -m interaction_harness generate-scenarios --domain recommender --mode fixture --brief "test recommendation quality for sparse-history users who still want novelty" --output-dir products/interaction-harness/output/generated-scenarios
 ```
 
 Generate a saved scenario pack through the provider-backed path recommended for
 real authored workflows:
 
 ```bash
-.venv/bin/python -m interaction_harness generate-scenarios --mode provider --brief "test trust and exploration balance for returning users" --scenario-pack-path products/interaction-harness/output/generated-scenarios/provider-pack.json
+.venv/bin/python -m interaction_harness generate-scenarios --domain recommender --mode provider --brief "test trust and exploration balance for returning users" --scenario-pack-path products/interaction-harness/output/generated-scenarios/provider-pack.json
 ```
 
 Provider mode will auto-read a root `.env` when present. Useful environment
@@ -195,21 +200,21 @@ Reuse a saved scenario pack in a normal audit run against the supported local
 reference service:
 
 ```bash
-.venv/bin/python -m interaction_harness audit --scenario-pack-path products/interaction-harness/output/generated-scenarios/provider-pack.json --reference-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/generated-pack-run
+.venv/bin/python -m interaction_harness audit --domain recommender --scenario-pack-path products/interaction-harness/output/generated-scenarios/provider-pack.json --reference-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/generated-pack-run
 ```
 
 Generate a saved recommender population pack with the deterministic fixture path
 for CI, tests, or offline demos:
 
 ```bash
-.venv/bin/python -m interaction_harness generate-population --mode fixture --brief "test a broad swarm of novelty-seeking and low-patience viewers" --population-size 12 --output-dir products/interaction-harness/output/generated-populations
+.venv/bin/python -m interaction_harness generate-population --domain recommender --mode fixture --brief "test a broad swarm of novelty-seeking and low-patience viewers" --population-size 12 --output-dir products/interaction-harness/output/generated-populations
 ```
 
 Generate a saved recommender population pack through the provider-backed path
 recommended for real authored workflows:
 
 ```bash
-.venv/bin/python -m interaction_harness generate-population --mode provider --brief "test a broad swarm of risk-sensitive and exploration-seeking viewers" --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json
+.venv/bin/python -m interaction_harness generate-population --domain recommender --mode provider --brief "test a broad swarm of risk-sensitive and exploration-seeking viewers" --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json
 ```
 
 If `--population-size` is omitted, provider mode may suggest the final explicit
@@ -219,65 +224,65 @@ Reuse a saved population pack in a normal audit run against the supported local
 reference service:
 
 ```bash
-.venv/bin/python -m interaction_harness audit --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json --reference-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/generated-population-run
+.venv/bin/python -m interaction_harness audit --domain recommender --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json --reference-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/generated-population-run
 ```
 
 Run a single audit with fixture-backed semantic interpretation for offline demos
 or tests:
 
 ```bash
-.venv/bin/python -m interaction_harness audit --semantic-mode fixture --reference-artifact-dir products/interaction-harness/output/reference-artifacts
+.venv/bin/python -m interaction_harness audit --domain recommender --semantic-mode fixture --reference-artifact-dir products/interaction-harness/output/reference-artifacts
 ```
 
 Run a single audit with provider-backed semantic interpretation for a richer
 user-facing explanation workflow:
 
 ```bash
-.venv/bin/python -m interaction_harness audit --semantic-mode provider --semantic-model gpt-5-mini --reference-artifact-dir products/interaction-harness/output/reference-artifacts
+.venv/bin/python -m interaction_harness audit --domain recommender --semantic-mode provider --semantic-model gpt-5-mini --reference-artifact-dir products/interaction-harness/output/reference-artifacts
 ```
 
 Use the mock fixture explicitly only for narrow testing/debugging:
 
 ```bash
-.venv/bin/python -m interaction_harness audit --use-mock
+.venv/bin/python -m interaction_harness audit --domain recommender --use-mock
 ```
 
 Start the local reference recommender service explicitly when you want a stable
 URL for repeated manual checks or external integration:
 
 ```bash
-.venv/bin/python -m interaction_harness serve-reference --artifact-dir products/interaction-harness/output/reference-artifacts
+.venv/bin/python -m interaction_harness serve-reference --domain recommender --artifact-dir products/interaction-harness/output/reference-artifacts
 ```
 
 Run compare mode against two artifact-backed targets:
 
 ```bash
-.venv/bin/python -m interaction_harness compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
+.venv/bin/python -m interaction_harness compare --domain recommender --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
 ```
 
 Run compare mode against an artifact-backed baseline and an external URL
 candidate:
 
 ```bash
-.venv/bin/python -m interaction_harness compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-url http://localhost:8010 --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
+.venv/bin/python -m interaction_harness compare --domain recommender --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-url http://localhost:8010 --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
 ```
 
 Reuse one saved population pack across compare reruns:
 
 ```bash
-.venv/bin/python -m interaction_harness compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
+.venv/bin/python -m interaction_harness compare --domain recommender --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
 ```
 
 Add advisory semantic interpretation to compare mode:
 
 ```bash
-.venv/bin/python -m interaction_harness compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --semantic-mode fixture --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
+.venv/bin/python -m interaction_harness compare --domain recommender --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --semantic-mode fixture --rerun-count 3 --output-dir products/interaction-harness/output/regression-demo
 ```
 
 Use custom labels in compare mode:
 
 ```bash
-.venv/bin/python -m interaction_harness compare --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --baseline-label current-prod --candidate-label next-build
+.venv/bin/python -m interaction_harness compare --domain recommender --baseline-artifact-dir products/interaction-harness/output/reference-artifacts-baseline --candidate-artifact-dir products/interaction-harness/output/reference-artifacts-candidate --baseline-label current-prod --candidate-label next-build
 ```
 
 See all CLI options:
@@ -310,20 +315,24 @@ Regression compare bundles include:
 
 ## Current Limits
 
-- built-in synthetic users are still hand-authored as the baseline path
-- generated population packs are recommender-specific and still project into deterministic `AgentSeed` values, even though richer persona metadata now shapes runtime behavior on top
-- scenario coverage is broader now, but it is still focused on short recommender home-feed style sessions rather than a wide set of product environments
-- generated scenario packs are real now, but only the recommender projection is
+- built-in synthetic users are hand-authored as the baseline path
+- generated population packs are recommender-specific and project into
+  deterministic `AgentSeed` values, while richer persona metadata shapes
+  runtime behavior on top
+- scenario coverage is focused on short recommender home-feed style sessions
+  rather than a wide set of product environments
+- generated scenario packs are structured and reproducible, and only the
+  recommender projection is
   implemented today
-- regression policy is real now, but still early and not the final long-term
+- regression policy is implemented and remains early relative to the long-term
   gating model
 - semantic interpretation is advisory only and does not influence gating
 - no LLM judge or LLM agents are in the critical path
-- external service integrations are clearer and more trustworthy now, but still early
-- the internal portability seam is now cleaner, but the recommender wedge is
-  still the only fully implemented domain
-- the shared config builder is now explicit-input-first, while recommender
-  defaults remain available through compatibility wrappers
+- external service integrations are available and remain early
+- the internal portability seam is clean, and recommender is the only fully
+  implemented domain
+- the shared config builder is explicit-input-first, and recommender-specific
+  config building lives under the recommender domain package
 
 ## Development
 

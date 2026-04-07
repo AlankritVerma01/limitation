@@ -27,17 +27,20 @@ def test_public_domain_list_excludes_internal_stub_domain() -> None:
     assert "stub" not in list_public_domain_definitions()
 
 
-def test_generate_scenarios_compatibility_without_domain_still_works(tmp_path: Path) -> None:
-    result = main(
-        [
-            "generate-scenarios",
-            "--mode",
-            "fixture",
-            "--brief",
-            "evaluate recommendation quality for brand new users",
-            "--output-dir",
-            str(tmp_path),
-        ]
-    )
-
-    assert Path(str(result["scenario_pack_path"])).exists()
+def test_generate_scenarios_requires_explicit_domain(tmp_path: Path) -> None:
+    try:
+        main(
+            [
+                "generate-scenarios",
+                "--mode",
+                "fixture",
+                "--brief",
+                "evaluate recommendation quality for brand new users",
+                "--output-dir",
+                str(tmp_path),
+            ]
+        )
+    except SystemExit as exc:
+        assert exc.code == 2
+    else:
+        raise AssertionError("Expected missing --domain to be rejected.")

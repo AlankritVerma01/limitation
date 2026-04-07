@@ -5,13 +5,14 @@ import random
 from dataclasses import asdict
 from pathlib import Path
 
-from interaction_harness.cli import main, run_recommender_audit
-from interaction_harness.config import build_default_run_config
+from interaction_harness.audit import run_recommender_audit
+from interaction_harness.cli import main
 from interaction_harness.domains.recommender import (
     HttpRecommenderAdapter,
     RecommenderAgentPolicy,
     RecommenderAnalyzer,
     RecommenderJudge,
+    build_recommender_run_config,
     build_scenarios,
     build_seeded_archetypes,
     initial_state_from_seed,
@@ -40,6 +41,11 @@ from interaction_harness.schema import (
     TraceStep,
     UtilityBreakdown,
 )
+
+
+def _build_recommender_run_config_only(**kwargs) -> RunConfig:
+    run_config, _resolved_inputs = build_recommender_run_config(**kwargs)
+    return run_config
 
 
 def test_schema_objects_are_dataclass_serialization_friendly() -> None:
@@ -72,7 +78,10 @@ def test_schema_objects_are_dataclass_serialization_friendly() -> None:
 
 
 def test_http_adapter_normalizes_service_response() -> None:
-    run_config = build_default_run_config(seed=4, scenario_names=("returning-user-home-feed",))
+    run_config = _build_recommender_run_config_only(
+        seed=4,
+        scenario_names=("returning-user-home-feed",),
+    )
     scenario = build_scenarios(run_config.scenarios)[0]
     agent_seed = run_config.agent_seeds[0]
     observation = scenario.initialize(agent_seed, run_config)
@@ -85,22 +94,24 @@ def test_http_adapter_normalizes_service_response() -> None:
     assert slate.items[0].rank == 1
 
 
-def test_default_run_config_uses_product_run_name() -> None:
-    run_config = build_default_run_config()
+def test_recommender_run_config_uses_product_run_name() -> None:
+    run_config = _build_recommender_run_config_only()
     assert run_config.run_name == "interaction-harness-audit"
 
 
 def test_unknown_scenario_names_raise_clear_error() -> None:
     try:
-        build_default_run_config(scenario_names=("unknown-scenario",))
+        _build_recommender_run_config_only(scenario_names=("unknown-scenario",))
     except ValueError as exc:
         assert "Unknown scenario names" in str(exc)
     else:
-        raise AssertionError("Expected build_default_run_config to reject unknown scenarios.")
+        raise AssertionError(
+            "Expected recommender run config builder to reject unknown scenarios."
+        )
 
 
 def test_scenarios_initialize_differently() -> None:
-    run_config = build_default_run_config(seed=3)
+    run_config = _build_recommender_run_config_only(seed=3)
     scenarios = {scenario.name: scenario for scenario in build_scenarios(run_config.scenarios)}
     agent_seed = run_config.agent_seeds[0]
     returning = scenarios["returning-user-home-feed"].initialize(agent_seed, run_config)
@@ -434,7 +445,10 @@ def test_repeated_low_fit_slates_can_trigger_abandonment() -> None:
 
 def test_analyzer_groups_and_ranks_risks() -> None:
     analyzer = RecommenderAnalyzer()
-    run_config = build_default_run_config(seed=2, scenario_names=("returning-user-home-feed",))
+    run_config = _build_recommender_run_config_only(
+        seed=2,
+        scenario_names=("returning-user-home-feed",),
+    )
     traces = (
         SessionTrace(
             trace_id="trace-a",
@@ -505,7 +519,7 @@ def test_analyzer_groups_and_ranks_risks() -> None:
 
 
 def test_report_writers_consume_precomputed_result_only(tmp_path: Path) -> None:
-    run_config = build_default_run_config(seed=2, output_dir=str(tmp_path))
+    run_config = _build_recommender_run_config_only(seed=2, output_dir=str(tmp_path))
     run_result = RunResult(
         run_config=run_config,
         traces=(
@@ -625,7 +639,7 @@ def test_json_output_includes_enriched_score_fields(tmp_path: Path) -> None:
 
 
 def test_trace_steps_include_decision_explanations() -> None:
-    run_config = build_default_run_config(
+    run_config = _build_recommender_run_config_only(
         seed=6,
         scenario_names=("returning-user-home-feed",),
         service_mode="mock",
@@ -683,6 +697,8 @@ def test_cli_runs_end_to_end_and_writes_outputs(tmp_path: Path) -> None:
     result = main(
         [
             "audit",
+            "--domain",
+            "recommender",
             "--seed",
             "7",
             "--scenario",
@@ -702,6 +718,8 @@ def test_cli_runs_both_scenarios(tmp_path: Path) -> None:
     result = main(
         [
             "audit",
+            "--domain",
+            "recommender",
             "--seed",
             "4",
             "--scenario",
@@ -723,7 +741,7 @@ def test_cli_runs_both_scenarios(tmp_path: Path) -> None:
 
 
 def test_rollout_engine_is_transport_agnostic() -> None:
-    run_config = build_default_run_config(
+    run_config = _build_recommender_run_config_only(
         seed=6,
         scenario_names=("returning-user-home-feed",),
         service_mode="mock",

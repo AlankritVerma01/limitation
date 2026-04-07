@@ -103,6 +103,8 @@ def test_cli_compare_mode_writes_regression_artifacts(tmp_path: Path) -> None:
     result = main(
         [
             "compare",
+            "--domain",
+            "recommender",
             "--seed",
             "7",
             "--rerun-count",

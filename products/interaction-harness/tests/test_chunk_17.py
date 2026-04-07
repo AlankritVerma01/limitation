@@ -1,33 +1,21 @@
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
 from interaction_harness.cli import main
 from interaction_harness.domains.recommender import ensure_reference_artifacts
 
 
-def test_main_without_args_defaults_to_audit_command(tmp_path: Path) -> None:
-    artifact_dir = tmp_path / "artifacts"
-    ensure_reference_artifacts(artifact_dir)
-    sentinel = SimpleNamespace(metadata={})
-    with patch(
-        "interaction_harness.cli.execute_domain_audit",
-        return_value=sentinel,
-    ) as mock_audit, patch(
-        "interaction_harness.cli.write_run_artifacts",
-        return_value={
-            "report_path": str(tmp_path / "report.md"),
-            "results_path": str(tmp_path / "results.json"),
-            "traces_path": str(tmp_path / "traces.jsonl"),
-            "chart_path": str(tmp_path / "chart.svg"),
-        },
-    ) as mock_write:
+def test_main_without_args_prints_help_instead_of_assuming_a_domain(capsys) -> None:
+    with pytest.raises(SystemExit) as exc_info:
         main([])
 
-    assert mock_audit.call_count == 1
-    assert mock_write.call_count == 1
+    captured = capsys.readouterr()
+    assert exc_info.value.code == 0
+    assert "usage:" in captured.out
+    assert "audit --domain recommender" in captured.out
 
 
 def test_audit_progress_and_summary_are_visible(

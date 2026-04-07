@@ -8,10 +8,11 @@ import interaction_harness as ih
 import pytest
 from interaction_harness.audit import execute_recommender_audit, write_run_artifacts
 from interaction_harness.cli import main
-from interaction_harness.config import build_recommender_run_config, build_run_config
+from interaction_harness.config import build_run_config
 from interaction_harness.domain_registry import get_domain_definition
 from interaction_harness.domains.recommender import (
     ARTIFACT_FILENAME,
+    build_recommender_run_config,
     ensure_reference_artifacts,
     resolve_built_in_recommender_scenarios,
     run_reference_recommender_service,
@@ -65,8 +66,8 @@ def test_domain_registry_resolves_recommender_definition() -> None:
 
 def test_light_public_surface_exports_new_helpers() -> None:
     assert ih.build_run_config is build_run_config
-    assert ih.build_recommender_run_config is build_recommender_run_config
     assert ih.get_domain_definition is get_domain_definition
+    assert not hasattr(ih, "build_recommender_run_config")
 
 
 def test_shared_build_run_config_does_not_resolve_recommender_inputs() -> None:
@@ -205,6 +206,8 @@ def test_cli_compare_requires_exactly_one_target_reference(tmp_path: Path) -> No
         main(
             [
                 "compare",
+                "--domain",
+                "recommender",
                 "--baseline-artifact-dir",
                 str(artifact_dir),
                 "--candidate-artifact-dir",
@@ -282,5 +285,5 @@ def test_help_recommends_provider_for_richer_ai_workflows(
     with pytest.raises(SystemExit):
         main(["--help"])
     captured = capsys.readouterr()
-    assert "Canonical usage now includes `--domain`" in captured.out
+    assert "audit --domain recommender" in captured.out
     assert "runtime and regression core stay deterministic" in captured.out

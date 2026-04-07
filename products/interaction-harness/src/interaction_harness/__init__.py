@@ -1,11 +1,7 @@
 """Public package surface for the interaction harness."""
 
-from .audit import execute_domain_audit, run_recommender_audit
-from .config import (
-    build_default_run_config,
-    build_recommender_run_config,
-    build_run_config,
-)
+from .audit import execute_domain_audit
+from .config import build_run_config
 from .domain_registry import (
     get_domain_definition,
     list_domain_definitions,
@@ -103,8 +99,6 @@ __all__ = [
     "TraceScore",
     "TraceStep",
     "UtilityBreakdown",
-    "build_default_run_config",
-    "build_recommender_run_config",
     "build_run_config",
     "execute_domain_audit",
     "generate_population_pack",
@@ -117,5 +111,4 @@ __all__ = [
     "register_domain_definition",
     "run_domain_regression_audit",
     "run_regression_audit",
-    "run_recommender_audit",
 ]

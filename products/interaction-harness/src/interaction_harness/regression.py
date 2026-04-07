@@ -85,7 +85,7 @@ def run_regression_audit(
 
 def run_domain_regression_audit(
     *,
-    domain_name: str = "recommender",
+    domain_name: str,
     baseline_target: RegressionTarget,
     candidate_target: RegressionTarget,
     base_seed: int = 0,

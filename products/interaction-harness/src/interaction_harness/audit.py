@@ -14,7 +14,7 @@ from .schema import RunResult
 
 def execute_domain_audit(
     *,
-    domain_name: str = "recommender",
+    domain_name: str,
     seed: int = 0,
     output_dir: str | None = None,
     scenario_names: tuple[str, ...] | None = None,

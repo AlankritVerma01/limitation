@@ -13,6 +13,8 @@ def test_single_run_report_includes_executive_summary_and_compact_traces(tmp_pat
     result = main(
         [
             "audit",
+            "--domain",
+            "recommender",
             "--seed",
             "11",
             "--use-mock",
@@ -78,6 +80,8 @@ def test_compare_mode_accepts_label_overrides(tmp_path: Path) -> None:
     result = main(
         [
             "compare",
+            "--domain",
+            "recommender",
             "--seed",
             "5",
             "--rerun-count",

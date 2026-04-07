@@ -6,12 +6,12 @@ from urllib import request
 from urllib.error import HTTPError
 
 import pytest
-from interaction_harness.cli import run_recommender_audit
-from interaction_harness.config import build_default_run_config
+from interaction_harness.audit import run_recommender_audit
 from interaction_harness.domains.recommender import (
     ARTIFACT_FILENAME,
     HttpRecommenderAdapter,
     RecommenderAgentPolicy,
+    build_recommender_run_config,
     build_reference_artifacts,
     build_scenarios,
     initial_state_from_seed,
@@ -62,7 +62,7 @@ def test_reference_service_rejects_malformed_requests(reference_artifact_dir: Pa
 
 
 def test_http_adapter_works_against_reference_service(reference_artifact_dir: Path) -> None:
-    run_config = build_default_run_config(
+    run_config, _resolved_inputs = build_recommender_run_config(
         seed=4,
         scenario_names=("returning-user-home-feed",),
         service_artifact_dir=str(reference_artifact_dir),
@@ -81,7 +81,7 @@ def test_http_adapter_works_against_reference_service(reference_artifact_dir: Pa
 
 
 def test_rollout_runs_against_reference_service(reference_artifact_dir: Path) -> None:
-    run_config = build_default_run_config(
+    run_config, _resolved_inputs = build_recommender_run_config(
         seed=6,
         scenario_names=("returning-user-home-feed",),
         service_artifact_dir=str(reference_artifact_dir),
