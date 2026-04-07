@@ -8,9 +8,9 @@ from urllib.parse import urlparse
 
 from ...config import slugify_name
 from ...schema import RegressionTarget, RunConfig
-from ...services.mock_recommender import run_mock_recommender_service
-from ...services.reference_artifacts import ensure_reference_artifacts
-from ...services.reference_recommender import run_reference_recommender_service
+from .mock_recommender import run_mock_recommender_service
+from .reference_artifacts import ensure_reference_artifacts
+from .reference_recommender import run_reference_recommender_service
 
 
 def open_recommender_service_context(run_config: RunConfig):

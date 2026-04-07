@@ -4,9 +4,9 @@ import json
 from pathlib import Path
 
 from interaction_harness.cli import _build_parser, main
+from interaction_harness.domains.recommender import ensure_reference_artifacts
 from interaction_harness.regression import run_regression_audit
 from interaction_harness.schema import RegressionTarget
-from interaction_harness.services.reference_artifacts import ensure_reference_artifacts
 
 
 def test_single_run_report_includes_executive_summary_and_compact_traces(tmp_path: Path) -> None:
