@@ -119,36 +119,36 @@ The product remains independent from the study package. Ideas are reused, but th
 - `src/interaction_harness/regression.py`
   - reruns and baseline-vs-candidate orchestration
 - `src/interaction_harness/config.py`
-  - shared explicit-input run-config builder plus thin recommender compatibility wrappers
+  - shared explicit-input run-config builder plus a small recommender entrypoint
 - `src/interaction_harness/scenario_generation.py`
-  - scenario-pack generation, validation, storage, and a shared bridge into recommender projection
+  - scenario-pack generation, validation, and storage
 - `src/interaction_harness/population_generation.py`
-  - population-pack generation, selection, storage, and a shared bridge into recommender projection
+  - population-pack generation, selection, and storage
 - `src/interaction_harness/domains/recommender/`
   - the real cross-cutting recommender domain package:
-    inputs, scenarios, policy, judge, analyzer, metrics, slices, service/adapters wiring, and reporting hooks
-- `src/interaction_harness/services/`
-  - supported local reference service, reference artifacts, and a narrow mock fixture for tests/debugging
+    inputs, scenarios, policy, judge, analyzer, metrics, slices, local
+    reference/mock services, catalog/reference-artifact helpers, and reporting
+    hooks
 - `src/interaction_harness/adapters/`
-  - shared adapter namespace plus transitional compatibility shims for moved domain-owned adapters
+  - shared adapter interfaces only
 - `src/interaction_harness/agents/`
-  - shared agent namespace plus transitional compatibility shims for moved domain-owned policies
+  - shared agent interfaces only
 - `src/interaction_harness/rollout/`
   - session execution loop
 - `src/interaction_harness/judges/`
-  - shared judge namespace plus transitional compatibility shims for moved domain-owned judges
+  - shared judge interfaces only
 - `src/interaction_harness/analysis/`
-  - shared analysis namespace plus transitional compatibility shims for moved domain-owned analyzers
+  - shared analysis interfaces plus shared slice-discovery infrastructure
 - `src/interaction_harness/reporting/`
-  - markdown, JSON, and chart writers
+  - shared markdown, JSON, regression, and chart writers driven by
+    domain-supplied reporting hooks
 - `src/interaction_harness/domain_registry.py`
   - internal adapter-domain registry
 - `src/interaction_harness/domains/`
   - in-repo domain plug-ins plus the shared domain runner shell
 
-The old recommender module paths are still available as transitional
-compatibility shims for one cleanup phase so current imports and tests keep
-working while the real ownership sits behind the recommender domain package.
+The older recommender compatibility modules have been removed. Recommender code
+should now be imported directly from `src/interaction_harness/domains/recommender/`.
 
 ## Run The Recommender Audit
 
