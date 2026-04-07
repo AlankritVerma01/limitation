@@ -2,14 +2,11 @@
 
 This package is the active product track for the repository.
 
-It is intentionally separate from the older
-`studies/01-recommender-offline-eval` proof package.
-
 ## What It Does
 
 Interaction Harness is a deterministic interaction-testing tool.
 
-In the current build, it audits recommender systems by:
+V1 audits recommender systems by:
 
 1. calling a system under test through a normalized adapter
 2. running seeded synthetic users through short scenarios
@@ -18,22 +15,15 @@ In the current build, it audits recommender systems by:
 5. summarizing cohort-level risks and representative traces
 6. optionally comparing baseline vs candidate systems across reruns
 
-The current supported product domain is recommender evaluation. The same core
-is designed to support broader non-deterministic systems through domain modules
-without changing rollout, judging, and regression fundamentals.
+The supported product domain in v1 is recommender evaluation.
 
-## Domain Plug-In Direction
+## Architecture
 
-The package uses an in-repo domain plug-in shape:
+The package is organized around:
 
 - the shared foundation owns rollout, traces, artifacts, semantic layering, and regression lifecycle
 - each domain module owns its own runtime inputs, adapter construction, policy, judge, analyzer, and domain-level regression semantics
-- the recommender wedge is the first full implementation of that contract and lives in `src/interaction_harness/domains/recommender/`
-- a small stub domain exists only as test-only architecture infrastructure to prove that new systems can plug in without shared-core surgery
-
-The CLI is domain-explicit, with recommender as the current public supported
-domain. New systems land as domain modules rather than branches spread through
-generic code.
+- the recommender implementation lives in `src/interaction_harness/domains/recommender/`
 
 ## Current Capabilities
 
@@ -62,15 +52,15 @@ generic code.
 
 ## Supported User Path
 
-Today the supported product path is:
+The supported product path is:
 
 - CLI-first recommender audits
 - local reference recommender service for repeatable local runs
 - external recommender base URLs for real-system integration
 - artifact bundles as the main user-facing output
 
-The mock recommender service still exists, but only as a narrow test/debug
-fixture. It is not the primary user path.
+The mock recommender service exists only as a narrow test/debug fixture. It is
+not the primary user path.
 
 ## AI Boundary
 
@@ -82,7 +72,7 @@ AI is used for:
 - population-pack generation
 - advisory semantic interpretation
 
-The deterministic core still owns:
+The deterministic core owns:
 
 - rollout execution
 - agent-policy decisions
@@ -98,21 +88,12 @@ Recommended user stance:
   demos, and no-key environments
 - rely on the deterministic runtime and regression outputs as the source of truth
 
-## How It Differs From The Existing Study
+## Relationship To The Study Package
 
-The existing study package is a public offline-evaluation proof.
-
-This new package is the foundation for a broader interaction-testing product:
-
-- system adapter
-- seeded agents
-- rollout engine
-- judge
-- analyzer
-- reproducibility harness
-- report
-
-The product remains independent from the study package. Ideas are reused, but the new runtime does not import the old `recommender_offline_eval` code.
+The repository also contains `studies/01-recommender-offline-eval/`, which is a
+separate proof package. Interaction Harness is the product package. Ideas are
+reused, but the runtime does not import the `recommender_offline_eval`
+code.
 
 ## Package Layout
 
@@ -124,7 +105,7 @@ The product remains independent from the study package. Ideas are reused, but th
 - `src/interaction_harness/regression.py`
   - reruns and baseline-vs-candidate orchestration
 - `src/interaction_harness/config.py`
-  - shared explicit-input run-config builder plus a small recommender entrypoint
+  - shared explicit-input run-config builder
 - `src/interaction_harness/scenario_generation.py`
   - scenario-pack generation, validation, and storage
 - `src/interaction_harness/population_generation.py`
@@ -150,10 +131,7 @@ The product remains independent from the study package. Ideas are reused, but th
 - `src/interaction_harness/domain_registry.py`
   - internal adapter-domain registry
 - `src/interaction_harness/domains/`
-  - in-repo domain plug-ins plus the shared domain runner shell
-
-Recommender code is imported directly from
-`src/interaction_harness/domains/recommender/`.
+  - in-repo domain modules plus the shared domain runner shell
 
 ## Run The Recommender Audit
 
@@ -313,26 +291,15 @@ Regression compare bundles include:
 - nested `baseline/` and `candidate/` rerun directories with per-seed audit bundles
 - semantic mode adds a structured `semantic_interpretation` block and a `Semantic Advisory` report section
 
-## Current Limits
+## Scope
 
-- built-in synthetic users are hand-authored as the baseline path
-- generated population packs are recommender-specific and project into
-  deterministic `AgentSeed` values, while richer persona metadata shapes
-  runtime behavior on top
-- scenario coverage is focused on short recommender home-feed style sessions
-  rather than a wide set of product environments
-- generated scenario packs are structured and reproducible, and only the
-  recommender projection is
-  implemented today
-- regression policy is implemented and remains early relative to the long-term
-  gating model
-- semantic interpretation is advisory only and does not influence gating
+- built-in synthetic users provide the default baseline path
+- generated population packs project into deterministic `AgentSeed` values,
+  with richer persona metadata shaping runtime behavior on top
+- scenario coverage focuses on short recommender home-feed sessions
+- generated scenario packs project into the recommender domain
+- semantic interpretation is advisory and does not influence gating
 - no LLM judge or LLM agents are in the critical path
-- external service integrations are available and remain early
-- the internal portability seam is clean, and recommender is the only fully
-  implemented domain
-- the shared config builder is explicit-input-first, and recommender-specific
-  config building lives under the recommender domain package
 
 ## Development
 
