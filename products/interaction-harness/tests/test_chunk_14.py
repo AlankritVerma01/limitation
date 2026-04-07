@@ -5,29 +5,23 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from interaction_harness.adapters.http import HttpRecommenderAdapter
 from interaction_harness.audit import execute_recommender_audit, write_run_artifacts
-from interaction_harness.domains.recommender.inputs import project_recommender_scenarios
-from interaction_harness.domains.recommender.policy import (
+from interaction_harness.domains.recommender import (
+    HttpRecommenderAdapter,
     build_seeded_archetypes,
+    ensure_reference_artifacts,
     initial_state_from_seed,
-)
-from interaction_harness.population_generation import (
-    generate_population_pack,
     project_recommender_population,
+    project_recommender_scenarios,
+    resolve_built_in_recommender_scenarios,
+    run_reference_recommender_service,
 )
+from interaction_harness.population_generation import generate_population_pack
 from interaction_harness.scenario_generation import (
     build_scenario_pack,
     generate_scenario_pack,
 )
-from interaction_harness.scenarios.recommender import (
-    resolve_built_in_recommender_scenarios,
-)
 from interaction_harness.schema import ScenarioContext
-from interaction_harness.services.reference_artifacts import ensure_reference_artifacts
-from interaction_harness.services.reference_recommender import (
-    run_reference_recommender_service,
-)
 
 
 def test_built_in_recommender_scenarios_now_include_broader_session_families() -> None:

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from ...catalog import history_for_genres
 from ...schema import AgentSeed, Observation, RunConfig, ScenarioConfig, ScenarioContext
-from ...services.reference_artifacts import (
+from .catalog import history_for_genres
+from .reference_artifacts import (
     ensure_reference_artifacts,
     history_for_reference_genres,
 )

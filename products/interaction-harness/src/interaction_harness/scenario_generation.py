@@ -24,7 +24,6 @@ from .generation_support import (
 )
 from .schema import (
     GeneratedScenario,
-    ScenarioConfig,
     ScenarioGeneratorMode,
     ScenarioPack,
     ScenarioPackMetadata,
@@ -379,14 +378,6 @@ def build_default_scenario_pack_path(
     """Build the default artifact path for a generated scenario pack."""
     slug = re.sub(r"[^a-z0-9]+", "-", brief.lower()).strip("-") or "scenario-pack"
     return str(Path(output_root) / "scenario-packs" / f"{slug}-{generator_mode}.json")
-
-
-def project_recommender_scenarios(pack: ScenarioPack) -> tuple[ScenarioConfig, ...]:
-    """Compatibility shim for recommender scenario-pack projection."""
-    from .domains.recommender.inputs import project_recommender_scenarios as _project
-
-    return _project(pack)
-
 
 def _parse_generated_scenario(payload: dict[str, object]) -> GeneratedScenario:
     """Validate one raw generated scenario entry."""

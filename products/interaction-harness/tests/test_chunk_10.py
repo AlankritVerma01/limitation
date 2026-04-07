@@ -5,17 +5,19 @@ from pathlib import Path
 from unittest.mock import patch
 
 from interaction_harness.cli import main
+from interaction_harness.domains.recommender import (
+    ensure_reference_artifacts,
+    project_recommender_population,
+)
 from interaction_harness.population_generation import (
     GeneratedPopulationCandidates,
     build_population_pack,
     generate_population_pack,
     load_population_pack,
-    project_recommender_population,
     write_population_pack,
 )
 from interaction_harness.regression import run_regression_audit
 from interaction_harness.schema import RegressionTarget
-from interaction_harness.services.reference_artifacts import ensure_reference_artifacts
 
 
 def test_fixture_population_generation_returns_valid_and_stable_pack() -> None:

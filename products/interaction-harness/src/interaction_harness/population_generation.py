@@ -353,14 +353,6 @@ def build_default_population_pack_path(
     slug = re.sub(r"[^a-z0-9]+", "-", brief.lower()).strip("-") or "population-pack"
     return str(Path(output_root) / "population-packs" / f"{slug}-{generator_mode}.json")
 
-
-def project_recommender_population(pack: PopulationPack) -> tuple[AgentSeed, ...]:
-    """Compatibility shim for recommender population-pack projection."""
-    from .domains.recommender.inputs import project_recommender_population as _project
-
-    return _project(pack)
-
-
 def _parse_generated_persona(payload: dict[str, object]) -> GeneratedPersona:
     """Validate one raw generated persona entry."""
     persona_id = _require_non_empty_string(payload, "persona_id")

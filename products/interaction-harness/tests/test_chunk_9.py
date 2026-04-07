@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from interaction_harness.cli import main
+from interaction_harness.domains.recommender import project_recommender_scenarios
 from interaction_harness.generation_support import (
     build_responses_endpoint,
     load_dotenv_if_present,
@@ -16,7 +17,6 @@ from interaction_harness.scenario_generation import (
     build_scenario_pack,
     generate_scenario_pack,
     load_scenario_pack,
-    project_recommender_scenarios,
     write_scenario_pack,
 )
 

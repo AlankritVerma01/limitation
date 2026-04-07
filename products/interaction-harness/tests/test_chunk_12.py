@@ -10,21 +10,17 @@ from interaction_harness.audit import execute_recommender_audit, write_run_artif
 from interaction_harness.cli import main
 from interaction_harness.config import build_recommender_run_config, build_run_config
 from interaction_harness.domain_registry import get_domain_definition
+from interaction_harness.domains.recommender import (
+    ARTIFACT_FILENAME,
+    ensure_reference_artifacts,
+    resolve_built_in_recommender_scenarios,
+    run_reference_recommender_service,
+)
 from interaction_harness.regression import (
     _default_regression_output_dir,
     run_regression_audit,
 )
-from interaction_harness.scenarios.recommender import (
-    resolve_built_in_recommender_scenarios,
-)
 from interaction_harness.schema import RegressionTarget
-from interaction_harness.services.reference_artifacts import (
-    ARTIFACT_FILENAME,
-    ensure_reference_artifacts,
-)
-from interaction_harness.services.reference_recommender import (
-    run_reference_recommender_service,
-)
 
 
 def _build_modified_candidate_artifacts(baseline_dir: Path, candidate_dir: Path) -> None:
@@ -71,7 +67,9 @@ def test_light_public_surface_exports_new_helpers() -> None:
 
 def test_shared_build_run_config_does_not_resolve_recommender_inputs() -> None:
     scenarios = resolve_built_in_recommender_scenarios(("returning-user-home-feed",))
-    with patch("interaction_harness.config.resolve_recommender_inputs") as resolver:
+    with patch(
+        "interaction_harness.domains.recommender.inputs.resolve_recommender_inputs"
+    ) as resolver:
         run_config = build_run_config(
             seed=2,
             scenarios=scenarios,
