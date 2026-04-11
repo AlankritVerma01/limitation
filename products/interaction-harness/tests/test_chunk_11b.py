@@ -98,6 +98,7 @@ def test_provider_run_semantics_validate_exact_trace_ids(monkeypatch, tmp_path: 
         interpretation = interpret_run_semantics(run_result, mode="provider", model_name="gpt-5-mini")
     assert interpretation is not None
     assert interpretation.mode == "provider"
+    assert interpretation.model_profile == "custom"
     assert [explanation.trace_id for explanation in interpretation.trace_explanations] == expected_ids
 
 

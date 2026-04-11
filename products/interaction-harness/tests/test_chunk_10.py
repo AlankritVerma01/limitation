@@ -297,6 +297,7 @@ def test_cli_provider_population_generation_routes_through_generation_layer(tmp_
         )
     mock_generate.assert_called_once()
     assert mock_generate.call_args.kwargs["population_size"] is None
+    assert mock_generate.call_args.kwargs["model_profile"] == "fast"
     assert Path(str(result["population_pack_path"])).exists()
 
 

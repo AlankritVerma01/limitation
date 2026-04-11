@@ -8,10 +8,16 @@ from unittest.mock import patch
 from interaction_harness.cli import main
 from interaction_harness.domains.recommender import project_recommender_scenarios
 from interaction_harness.generation_support import (
+    DEFAULT_POPULATION_PROVIDER_MODEL,
+    DEFAULT_SCENARIO_PROVIDER_MODEL,
+    DEFAULT_SEMANTIC_PROVIDER_MODEL,
     build_responses_endpoint,
     load_dotenv_if_present,
     read_retry_count,
+    read_retry_count_with_fallback,
     read_timeout_seconds,
+    read_timeout_seconds_with_fallback,
+    resolve_provider_model,
 )
 from interaction_harness.scenario_generation import (
     build_scenario_pack,
@@ -45,6 +51,31 @@ def test_provider_helpers_normalize_endpoint_and_env_values(monkeypatch) -> None
     assert build_responses_endpoint("https://example.com/v1/responses") == "https://example.com/v1/responses"
     assert read_timeout_seconds("OPENAI_TIMEOUT_SECONDS") == 45.0
     assert read_retry_count("OPENAI_RETRY_COUNT") == 1
+    assert read_timeout_seconds_with_fallback("OPENAI_SCENARIO_TIMEOUT_SECONDS", "OPENAI_TIMEOUT_SECONDS") == 45.0
+    assert read_retry_count_with_fallback("OPENAI_SCENARIO_RETRY_COUNT", "OPENAI_RETRY_COUNT") == 1
+
+
+def test_provider_model_profiles_resolve_expected_defaults() -> None:
+    scenario_model, scenario_profile = resolve_provider_model(purpose="scenario_generation")
+    population_model, population_profile = resolve_provider_model(purpose="population_generation")
+    semantic_model, semantic_profile = resolve_provider_model(purpose="semantic_interpretation")
+
+    assert (scenario_model, scenario_profile) == (DEFAULT_SCENARIO_PROVIDER_MODEL, "fast")
+    assert (population_model, population_profile) == (DEFAULT_POPULATION_PROVIDER_MODEL, "fast")
+    assert (semantic_model, semantic_profile) == (DEFAULT_SEMANTIC_PROVIDER_MODEL, "fast")
+
+    balanced_model, balanced_profile = resolve_provider_model(
+        purpose="semantic_interpretation",
+        profile_name="balanced",
+    )
+    assert (balanced_model, balanced_profile) == ("gpt-5.4-mini", "balanced")
+
+    custom_model, custom_profile = resolve_provider_model(
+        purpose="population_generation",
+        explicit_model_name="gpt-5-mini",
+        profile_name="deep",
+    )
+    assert (custom_model, custom_profile) == ("gpt-5-mini", "custom")
 
 
 def test_provider_helpers_reject_invalid_env_values(monkeypatch) -> None:
@@ -63,6 +94,28 @@ def test_provider_helpers_reject_invalid_env_values(monkeypatch) -> None:
         assert "must be 0 or greater" in str(exc)
     else:
         raise AssertionError("Expected invalid retry count to fail.")
+
+
+def test_provider_helpers_use_purpose_specific_env_first(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_TIMEOUT_SECONDS", "45")
+    monkeypatch.setenv("OPENAI_POPULATION_TIMEOUT_SECONDS", "120")
+    monkeypatch.setenv("OPENAI_RETRY_COUNT", "1")
+    monkeypatch.setenv("OPENAI_POPULATION_RETRY_COUNT", "3")
+
+    assert (
+        read_timeout_seconds_with_fallback(
+            "OPENAI_POPULATION_TIMEOUT_SECONDS",
+            "OPENAI_TIMEOUT_SECONDS",
+        )
+        == 120.0
+    )
+    assert (
+        read_retry_count_with_fallback(
+            "OPENAI_POPULATION_RETRY_COUNT",
+            "OPENAI_RETRY_COUNT",
+        )
+        == 3
+    )
 
 
 def test_dotenv_loader_populates_missing_provider_key(tmp_path: Path, monkeypatch) -> None:
@@ -254,6 +307,7 @@ def test_cli_provider_generation_mode_routes_through_generation_layer(tmp_path: 
             ]
         )
     mock_generate.assert_called_once()
+    assert mock_generate.call_args.kwargs["model_profile"] == "fast"
     assert Path(str(result["scenario_pack_path"])).exists()
 
 
