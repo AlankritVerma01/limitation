@@ -51,6 +51,8 @@ def _normalize_regression_payload(payload: dict[str, Any]) -> dict[str, Any]:
         payload["metadata"]["population_pack_path"] = "<normalized>"
     if "run_manifest_path" in payload.get("metadata", {}):
         payload["metadata"]["run_manifest_path"] = "<normalized>"
+    if "run_plan_path" in payload.get("metadata", {}):
+        payload["metadata"]["run_plan_path"] = "<normalized>"
     if "semantic_interpretation" in payload and payload["semantic_interpretation"] is None:
         payload.pop("semantic_interpretation", None)
     semantic = payload.get("semantic_interpretation")
@@ -89,9 +91,26 @@ class RegressionMarkdownWriter:
         lines.extend(self._risk_change_lines(regression_diff))
         lines.extend(self._trace_change_lines(regression_diff))
         lines.extend(self._semantic_advisory_lines(regression_diff))
+        lines.extend(self._planning_lines(regression_diff))
 
         report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         return {"regression_report_path": str(report_path)}
+
+    def _planning_lines(self, regression_diff: RegressionDiff) -> list[str]:
+        """Render compact planning and reproducibility metadata."""
+        return [
+            "",
+            "## Planning And Metadata",
+            "",
+            f"- Run plan ID: `{regression_diff.metadata.get('run_plan_id', 'n/a') or 'n/a'}`",
+            f"- Run plan: `{regression_diff.metadata.get('run_plan_path', 'n/a') or 'n/a'}`",
+            f"- Planner mode: `{regression_diff.metadata.get('planner_mode', 'n/a') or 'n/a'}`",
+            f"- Planner model: `{regression_diff.metadata.get('planner_model_name', 'n/a') or 'n/a'}`",
+            f"- Planner profile: `{regression_diff.metadata.get('planner_model_profile', 'n/a') or 'n/a'}`",
+            f"- Scenario pack: `{regression_diff.metadata.get('scenario_pack_path', 'n/a') or 'n/a'}`",
+            f"- Swarm pack: `{regression_diff.metadata.get('population_pack_path', 'n/a') or 'n/a'}`",
+            f"- Run manifest: `{regression_diff.metadata.get('run_manifest_path', 'n/a') or 'n/a'}`",
+        ]
 
     def _decision_lines(self, regression_diff: RegressionDiff) -> list[str]:
         """Render the policy decision and the top triggered checks first."""

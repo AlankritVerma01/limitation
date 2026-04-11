@@ -9,6 +9,8 @@ Important framing:
 - the real customer path uses the same CLI flow against an external target URL
 - the repo now also includes a customer-style external service example for that path
 - `check-target` is the fast preflight step when a team brings an endpoint
+- `run_plan.json` captures the pre-run plan for `run-swarm` and `compare`
+- `run_manifest.json` captures the realized execution after the run finishes
 
 ## 30-Second Version
 
@@ -120,6 +122,7 @@ Recommended order:
 2. run `check-target --domain recommender --target-url ...`
 3. run `audit --domain recommender --target-url ...`
 4. run `compare --domain recommender --baseline-url ... --candidate-url ...`
+5. inspect `run_plan.json` and `run_manifest.json` beside the report bundle
 
 That path uses:
 

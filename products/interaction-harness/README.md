@@ -282,6 +282,12 @@ Compare the two external services:
 .venv/bin/python -m interaction_harness compare --domain recommender --baseline-url http://127.0.0.1:8051 --candidate-url http://127.0.0.1:8052 --baseline-label popularity --candidate-label item-item-cf --rerun-count 2 --output-dir products/interaction-harness/output/external-compare-demo
 ```
 
+Or let `compare` plan one shared brief-driven coverage bundle for both sides:
+
+```bash
+.venv/bin/python -m interaction_harness compare --domain recommender --baseline-url http://127.0.0.1:8051 --candidate-url http://127.0.0.1:8052 --brief "compare trust collapse and novelty balance across the two systems" --generation-mode fixture --rerun-count 2 --output-dir products/interaction-harness/output/external-compare-planned-demo
+```
+
 This external proof path is the main customer analog for v1.
 
 For third-party validation beyond the in-repo handcrafted recommender example,
@@ -430,9 +436,11 @@ variables:
 - `OPENAI_SEMANTIC_RETRY_COUNT`
 - `OPENAI_RETRY_COUNT`
 
-Every `audit`, `run-swarm`, and `compare` run now writes a durable
-`run_manifest.json` beside the standard artifacts so the run can be replayed
-and inspected later without depending on terminal output.
+Every `run-swarm` and `compare` run now writes a durable pre-run
+`run_plan.json`, and every `audit`, `run-swarm`, and `compare` run writes a
+post-run `run_manifest.json`, beside the standard artifacts so the intended
+plan and realized execution can both be replayed and inspected later without
+depending on terminal output.
 
 AI profile defaults:
 

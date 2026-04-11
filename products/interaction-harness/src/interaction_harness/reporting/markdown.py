@@ -167,6 +167,11 @@ class MarkdownReportWriter:
             f"- Population size source: `{run_result.metadata.get('population_size_source', 'built_in')}`",
             f"- Discovered slices: `{run_result.metadata.get('slice_count', len(run_result.slice_discovery.slice_summaries))}`",
             f"- Semantic mode: `{run_result.metadata.get('semantic_mode', 'off')}`",
+            f"- Run plan ID: `{run_result.metadata.get('run_plan_id', 'n/a') or 'n/a'}`",
+            f"- Run plan: `{run_result.metadata.get('run_plan_path', 'n/a') or 'n/a'}`",
+            f"- Planner mode: `{run_result.metadata.get('planner_mode', 'n/a') or 'n/a'}`",
+            f"- Planner model: `{run_result.metadata.get('planner_model_name', 'n/a') or 'n/a'}`",
+            f"- Planner profile: `{run_result.metadata.get('planner_model_profile', 'n/a') or 'n/a'}`",
             f"- Run manifest: `{run_result.metadata.get('run_manifest_path', 'n/a') or 'n/a'}`",
         ]
         hook = self._reporting_hook(run_result, "build_metadata_highlights_section")

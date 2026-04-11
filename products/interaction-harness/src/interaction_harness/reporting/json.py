@@ -67,6 +67,8 @@ class JsonReportWriter:
             payload["metadata"]["population_pack_path"] = "<normalized>"
         if "run_manifest_path" in payload["metadata"]:
             payload["metadata"]["run_manifest_path"] = "<normalized>"
+        if "run_plan_path" in payload["metadata"]:
+            payload["metadata"]["run_plan_path"] = "<normalized>"
         if "generated_at_utc" in payload["metadata"]:
             payload["metadata"]["generated_at_utc"] = "<normalized>"
         semantic = payload.get("semantic_interpretation")
@@ -128,6 +130,12 @@ class JsonReportWriter:
                 "archetype_label": strongest.archetype_label,
                 "mean_session_utility": strongest.mean_session_utility,
             }
+        run_plan_id = str(run_result.metadata.get("run_plan_id", ""))
+        if run_plan_id:
+            summary["run_plan_id"] = run_plan_id
+        planner_mode = str(run_result.metadata.get("planner_mode", ""))
+        if planner_mode:
+            summary["planner_mode"] = planner_mode
         summary.update(self._domain_summary_fields(run_result))
         return summary
 
