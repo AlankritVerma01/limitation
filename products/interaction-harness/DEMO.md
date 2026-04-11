@@ -7,6 +7,8 @@ Important framing:
 - this demo uses the product-owned reference target
 - that keeps the walkthrough stable, local, and reproducible
 - the real customer path uses the same CLI flow against an external target URL
+- the repo now also includes a customer-style external service example for that path
+- `check-target` is the fast preflight step when a team brings an endpoint
 
 ## 30-Second Version
 
@@ -92,7 +94,8 @@ teams reuse coverage instead of re-authoring tests every time.
 What to say:
 
 - “We can keep the deterministic core and expand coverage over time.”
-- “AI helps author scenarios and populations, but it does not decide what ships.”
+- “AI is part of the product here: it helps author richer scenarios, broader populations, and more realistic behavior plans.”
+- “The deterministic trace and regression layer still decides what ships.”
 - “In production, the same flow points at the customer recommender endpoint rather than our reference target.”
 
 ## Demo Takeaway
@@ -101,3 +104,27 @@ The buyer takeaway should be:
 
 “This helps us prevent bad recommender launches with evidence we can actually
 act on.”
+
+## External Proof Path
+
+When the conversation moves from “show me the product” to “show me how a team
+would really use it,” use the example external service:
+
+- [external target contract](./EXTERNAL_TARGET_CONTRACT.md)
+- [example external service](./examples/recommender_http_service/README.md)
+- [HF-backed external service](./examples/hf_recommender_service/README.md)
+
+Recommended order:
+
+1. start the example service
+2. run `check-target --domain recommender --target-url ...`
+3. run `audit --domain recommender --target-url ...`
+4. run `compare --domain recommender --baseline-url ... --candidate-url ...`
+
+That path uses:
+
+- `run-swarm --target-url ... --brief ...`
+- `audit --target-url ...`
+- `compare --baseline-url ... --candidate-url ...`
+
+which is the real customer-style workflow in v1.

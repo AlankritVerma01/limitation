@@ -78,6 +78,8 @@ The repository already includes stable demo artifacts you can open directly:
 - single-run audit: [output/demo-single/report.md](./output/demo-single/report.md)
 - compare flow: [output/demo-regression-stable/regression_report.md](./output/demo-regression-stable/regression_report.md)
 - demo script: [DEMO.md](./DEMO.md)
+- external target contract: [EXTERNAL_TARGET_CONTRACT.md](./EXTERNAL_TARGET_CONTRACT.md)
+- example external service: [examples/recommender_http_service/README.md](./examples/recommender_http_service/README.md)
 
 ## Architecture
 
@@ -109,6 +111,7 @@ The package is organized around:
 - rerun-based regression comparisons with deterministic `pass` / `warn` /
   `fail` decisions
 - structured AI-authored scenario packs with saved portable contracts
+- AI profiles for faster, cheaper, or deeper provider-backed generation and semantics
 - clearer external-target metadata and operator-facing target identity capture
 - markdown, JSON, trace, and chart artifacts
 
@@ -131,8 +134,24 @@ For real usage, the main path is an external target.
 In v1, a customer typically gives the harness:
 
 - a reachable recommender base URL
-- any required auth or gateway details
 - a service that can answer the harness request/response contract
+- stable item metadata in the returned slate payload
+
+The request/response contract is documented in
+[EXTERNAL_TARGET_CONTRACT.md](./EXTERNAL_TARGET_CONTRACT.md).
+
+In most cases, the customer does **not** need to give the harness:
+
+- a dataset dump
+- raw model checkpoints
+- direct model-loading access inside the harness
+
+If a team already has a served recommender endpoint, the harness integrates at
+that service boundary.
+
+The repository also includes a customer-style example service under
+[examples/recommender_http_service/](./examples/recommender_http_service/README.md)
+so the external path can be proven end to end through normal HTTP.
 
 The reference target is different.
 
@@ -147,6 +166,26 @@ So the mental model is:
 
 - external target = the real customer path
 - reference target = the product-owned demo and local baseline path
+
+## Customer Onboarding Paths
+
+If you already have a recommender service:
+
+- point the harness at your base URL
+- run `check-target` to validate the contract quickly
+- run `audit` and `compare` through the public CLI
+
+If you have model code or artifacts but no service yet:
+
+- wrap that logic behind the same HTTP contract
+- start from the example service and
+  [wrapper template](./examples/recommender_http_service/wrapper_template.py)
+- keep the harness contract stable and let your service own model loading
+
+If you want a local proof path first:
+
+- use the built-in reference target for a stable demo/onboarding run
+- or start the example external service locally and exercise the real customer-style flow
 
 ## Canonical Demo Flow
 
@@ -186,14 +225,79 @@ This demo uses the reference target on purpose. It proves the product workflow
 without requiring a customer-owned endpoint. In real usage, the same audit flow
 is pointed at an external recommender URL.
 
+## External Target Quickstart
+
+The real customer path is an external HTTP recommender service.
+
+To prove that path locally, start the example service in popularity mode:
+
+```bash
+.venv/bin/python products/interaction-harness/examples/recommender_http_service/run.py \
+  --model-kind popularity \
+  --port 8051
+```
+
+Start a second copy in item-item CF mode:
+
+```bash
+.venv/bin/python products/interaction-harness/examples/recommender_http_service/run.py \
+  --model-kind item-item-cf \
+  --port 8052
+```
+
+Or start the genre-history blend variant when you want a third behavior that
+reacts more strongly to user taste continuity:
+
+```bash
+.venv/bin/python products/interaction-harness/examples/recommender_http_service/run.py \
+  --model-kind genre-history-blend \
+  --port 8053
+```
+
+The first startup builds example artifacts locally. If the repo copy of
+MovieLens 100K is not present, the example service downloads it automatically.
+
+Validate an endpoint before a full run:
+
+```bash
+.venv/bin/python -m interaction_harness check-target --domain recommender \
+  --target-url http://127.0.0.1:8051
+```
+
+Run the main brief-driven swarm workflow against the first external target:
+
+```bash
+.venv/bin/python -m interaction_harness run-swarm --domain recommender --target-url http://127.0.0.1:8051 --brief "test trust collapse and weak first-slate behavior for impatient and exploratory users" --generation-mode fixture --output-dir products/interaction-harness/output/external-run-swarm-demo
+```
+
+Run the lower-level direct audit path against the first external target:
+
+```bash
+.venv/bin/python -m interaction_harness audit --domain recommender --target-url http://127.0.0.1:8051 --scenario returning-user-home-feed --seed 7 --output-dir products/interaction-harness/output/external-audit-demo
+```
+
+Compare the two external services:
+
+```bash
+.venv/bin/python -m interaction_harness compare --domain recommender --baseline-url http://127.0.0.1:8051 --candidate-url http://127.0.0.1:8052 --baseline-label popularity --candidate-label item-item-cf --rerun-count 2 --output-dir products/interaction-harness/output/external-compare-demo
+```
+
+This external proof path is the main customer analog for v1.
+
+For third-party validation beyond the in-repo handcrafted recommender example,
+there is also a Hugging Face-backed wrapper example:
+
+- [HF external recommender service](./examples/hf_recommender_service/README.md)
+
 ## AI Boundary
 
-The harness uses AI in additive layers, not in the critical runtime loop.
+AI is a first-class coverage layer in the product.
 
 AI is used for:
 
-- scenario-pack generation
-- population-pack generation
+- scenario-pack generation for richer test intent and session shape coverage
+- population-pack generation for broader synthetic-user swarms and persona diversity
+- structured recommender behavior plans that project into valid runtime inputs
 - advisory semantic interpretation
 
 The deterministic core owns:
@@ -206,8 +310,18 @@ The deterministic core owns:
 
 Recommended user stance:
 
-- use provider-backed generation and semantic interpretation when you want a
-  richer authoring and explanation workflow
+- use `run-swarm` when you want to start from one natural-language testing goal
+  and let the product generate the saved scenario and swarm coverage for that run
+- use provider-backed generation when you want richer launch-grade coverage
+  and more realistic user-behavior shaping
+- use generated packs against both reference and external targets so the same
+  AI-authored coverage can be reused across runs
+- use the default `fast` AI profile when you want the best cost/latency balance
+  for day-to-day scenario generation, swarm generation, and semantic summaries
+- switch to `balanced` or `deep` when you want stronger authoring quality and
+  can afford slower, more expensive provider runs
+- use semantic interpretation when you want additional narrative help on top of
+  the report
 - use fixture-backed generation and interpretation for tests, CI, offline
   demos, and no-key environments
 - rely on the deterministic runtime and regression outputs as the source of truth
@@ -222,7 +336,7 @@ code.
 ## Package Layout
 
 - `src/interaction_harness/cli.py`
-  - CLI entrypoint for task-shaped commands: `audit`, `compare`,
+  - CLI entrypoint for task-shaped commands: `run-swarm`, `audit`, `compare`,
     `generate-scenarios`, `generate-population`, and `serve-reference`
 - `src/interaction_harness/audit.py`
   - single-run orchestration
@@ -262,13 +376,19 @@ code.
 From the repository root:
 
 ```bash
-.venv/bin/python -m pip install -e products/interaction-harness
+.venv/bin/python -m pip install -e products/interaction-harness[dev]
 .venv/bin/python -m interaction_harness --help
 ```
 
 Every runtime and generation command requires an explicit `--domain`.
 Progress is shown live while commands run so users are not left staring at a
 silent wait.
+
+Run the main brief-driven path against an external target:
+
+```bash
+.venv/bin/python -m interaction_harness run-swarm --domain recommender --target-url http://localhost:8010 --brief "test trust collapse and novelty balance for impatient exploratory users" --generation-mode fixture --output-dir products/interaction-harness/output/run-swarm-demo
+```
 
 Run one scenario only:
 
@@ -293,7 +413,7 @@ Generate a saved scenario pack through the provider-backed path recommended for
 real authored workflows:
 
 ```bash
-.venv/bin/python -m interaction_harness generate-scenarios --domain recommender --mode provider --brief "test trust and exploration balance for returning users" --scenario-pack-path products/interaction-harness/output/generated-scenarios/provider-pack.json
+.venv/bin/python -m interaction_harness generate-scenarios --domain recommender --mode provider --ai-profile fast --brief "test trust and exploration balance for returning users" --scenario-pack-path products/interaction-harness/output/generated-scenarios/provider-pack.json
 ```
 
 Provider mode will auto-read a root `.env` when present. Useful environment
@@ -301,8 +421,27 @@ variables:
 
 - `OPENAI_API_KEY`
 - `OPENAI_BASE_URL`
+- `OPENAI_SCENARIO_TIMEOUT_SECONDS`
+- `OPENAI_POPULATION_TIMEOUT_SECONDS`
+- `OPENAI_SEMANTIC_TIMEOUT_SECONDS`
 - `OPENAI_TIMEOUT_SECONDS`
+- `OPENAI_SCENARIO_RETRY_COUNT`
+- `OPENAI_POPULATION_RETRY_COUNT`
+- `OPENAI_SEMANTIC_RETRY_COUNT`
 - `OPENAI_RETRY_COUNT`
+
+Every `audit`, `run-swarm`, and `compare` run now writes a durable
+`run_manifest.json` beside the standard artifacts so the run can be replayed
+and inspected later without depending on terminal output.
+
+AI profile defaults:
+
+- `fast`: `gpt-5-mini`
+- `balanced`: `gpt-5.4-mini`
+- `deep`: `gpt-5.4`
+
+Use `--model` or `--semantic-model` only when you want an explicit custom
+override.
 
 Reuse a saved scenario pack in a normal audit run against the supported local
 reference service:
@@ -311,18 +450,18 @@ reference service:
 .venv/bin/python -m interaction_harness audit --domain recommender --scenario-pack-path products/interaction-harness/output/generated-scenarios/provider-pack.json --reference-artifact-dir products/interaction-harness/output/reference-artifacts --output-dir products/interaction-harness/output/generated-pack-run
 ```
 
-Generate a saved recommender population pack with the deterministic fixture path
-for CI, tests, or offline demos:
+Generate a saved recommender swarm pack with the deterministic fixture path for
+CI, tests, or offline demos:
 
 ```bash
 .venv/bin/python -m interaction_harness generate-population --domain recommender --mode fixture --brief "test a broad swarm of novelty-seeking and low-patience viewers" --population-size 12 --output-dir products/interaction-harness/output/generated-populations
 ```
 
-Generate a saved recommender population pack through the provider-backed path
+Generate a saved recommender swarm pack through the provider-backed path
 recommended for real authored workflows:
 
 ```bash
-.venv/bin/python -m interaction_harness generate-population --domain recommender --mode provider --brief "test a broad swarm of risk-sensitive and exploration-seeking viewers" --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json
+.venv/bin/python -m interaction_harness generate-population --domain recommender --mode provider --ai-profile fast --brief "test a broad swarm of risk-sensitive and exploration-seeking viewers" --population-pack-path products/interaction-harness/output/generated-populations/provider-population.json
 ```
 
 If `--population-size` is omitted, provider mode may suggest the final explicit
@@ -346,7 +485,7 @@ Run a single audit with provider-backed semantic interpretation for a richer
 user-facing explanation workflow:
 
 ```bash
-.venv/bin/python -m interaction_harness audit --domain recommender --semantic-mode provider --semantic-model gpt-5-mini --reference-artifact-dir products/interaction-harness/output/reference-artifacts
+.venv/bin/python -m interaction_harness audit --domain recommender --semantic-mode provider --semantic-profile fast --reference-artifact-dir products/interaction-harness/output/reference-artifacts
 ```
 
 Use the mock fixture explicitly only for narrow testing/debugging:
