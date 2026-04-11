@@ -35,6 +35,21 @@ def write_run_manifest(
             run_result.metadata.get("display_name", run_result.run_config.run_name)
         ),
         "run_name": run_result.run_config.run_name,
+        "run_plan": {
+            "run_plan_id": str(run_result.metadata.get("run_plan_id", "")),
+            "run_plan_path": str(run_result.metadata.get("run_plan_path", "")),
+            "planner_mode": str(run_result.metadata.get("planner_mode", "")),
+            "planner_provider_name": str(
+                run_result.metadata.get("planner_provider_name", "")
+            ),
+            "planner_model_name": str(
+                run_result.metadata.get("planner_model_name", "")
+            ),
+            "planner_model_profile": str(
+                run_result.metadata.get("planner_model_profile", "")
+            ),
+            "planner_summary": str(run_result.metadata.get("planner_summary", "")),
+        },
         "seed": run_result.run_config.rollout.seed,
         "semantic_mode": str(run_result.metadata.get("semantic_mode", "off")),
         "service": {
@@ -116,6 +131,21 @@ def write_regression_manifest(
         "regression_id": str(regression_diff.metadata.get("regression_id", "")),
         "generated_at_utc": str(regression_diff.metadata.get("generated_at_utc", "")),
         "display_name": str(regression_diff.metadata.get("display_name", "")),
+        "run_plan": {
+            "run_plan_id": str(regression_diff.metadata.get("run_plan_id", "")),
+            "run_plan_path": str(regression_diff.metadata.get("run_plan_path", "")),
+            "planner_mode": str(regression_diff.metadata.get("planner_mode", "")),
+            "planner_provider_name": str(
+                regression_diff.metadata.get("planner_provider_name", "")
+            ),
+            "planner_model_name": str(
+                regression_diff.metadata.get("planner_model_name", "")
+            ),
+            "planner_model_profile": str(
+                regression_diff.metadata.get("planner_model_profile", "")
+            ),
+            "planner_summary": str(regression_diff.metadata.get("planner_summary", "")),
+        },
         "base_seed": int(regression_diff.metadata.get("base_seed", 0)),
         "rerun_count": int(regression_diff.metadata.get("rerun_count", 0)),
         "policy_name": str(regression_diff.metadata.get("policy_name", "")),

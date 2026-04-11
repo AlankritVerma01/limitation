@@ -22,6 +22,7 @@ ProviderPurpose = Literal[
     "scenario_generation",
     "population_generation",
     "semantic_interpretation",
+    "run_planning",
 ]
 
 PROVIDER_MODEL_PROFILES: dict[str, dict[ProviderPurpose, str]] = {
@@ -29,16 +30,19 @@ PROVIDER_MODEL_PROFILES: dict[str, dict[ProviderPurpose, str]] = {
         "scenario_generation": "gpt-5-mini",
         "population_generation": "gpt-5-mini",
         "semantic_interpretation": "gpt-5-mini",
+        "run_planning": "gpt-5-mini",
     },
     "balanced": {
         "scenario_generation": "gpt-5.4-mini",
         "population_generation": "gpt-5.4-mini",
         "semantic_interpretation": "gpt-5.4-mini",
+        "run_planning": "gpt-5.4-mini",
     },
     "deep": {
         "scenario_generation": "gpt-5.4",
         "population_generation": "gpt-5.4",
         "semantic_interpretation": "gpt-5.4",
+        "run_planning": "gpt-5.4",
     },
 }
 
@@ -50,6 +54,9 @@ DEFAULT_POPULATION_PROVIDER_MODEL = PROVIDER_MODEL_PROFILES[DEFAULT_PROVIDER_PRO
 ]
 DEFAULT_SEMANTIC_PROVIDER_MODEL = PROVIDER_MODEL_PROFILES[DEFAULT_PROVIDER_PROFILE][
     "semantic_interpretation"
+]
+DEFAULT_PLANNER_PROVIDER_MODEL = PROVIDER_MODEL_PROFILES[DEFAULT_PROVIDER_PROFILE][
+    "run_planning"
 ]
 
 # Backward-compatible alias for existing imports. Scenario generation was the

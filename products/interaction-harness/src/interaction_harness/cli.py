@@ -27,6 +27,7 @@ from .population_generation import (
 )
 from .regression import run_domain_regression_audit
 from .run_manifest import write_run_manifest
+from .run_plan import build_compare_plan, build_run_swarm_plan
 from .scenario_generation import (
     build_default_scenario_pack_path,
     generate_scenario_pack,
@@ -165,6 +166,11 @@ def _build_compare_parser(
     parser.set_defaults(handler=_handle_compare_command)
     _add_shared_run_arguments(parser)
     parser.add_argument(
+        "--brief",
+        default=None,
+        help="Optional shared brief used to plan shared coverage for both baseline and candidate.",
+    )
+    parser.add_argument(
         "--baseline-artifact-dir",
         default=None,
         help="Artifact directory for the baseline reference target.",
@@ -205,6 +211,36 @@ def _build_compare_parser(
         default="default",
         choices=("default", "report_only"),
         help="Regression policy mode.",
+    )
+    parser.add_argument(
+        "--generation-mode",
+        default="fixture",
+        choices=("fixture", "provider"),
+        help="Coverage-generation mode used when compare plans shared generated coverage.",
+    )
+    parser.add_argument(
+        "--ai-profile",
+        default=DEFAULT_PROVIDER_PROFILE,
+        choices=list_provider_profiles(),
+        help="Named AI profile used when compare plans provider-backed shared coverage.",
+    )
+    parser.add_argument(
+        "--scenario-count",
+        type=int,
+        default=3,
+        help="Number of generated scenarios when compare plans shared scenario coverage.",
+    )
+    parser.add_argument(
+        "--population-size",
+        type=int,
+        default=None,
+        help="Optional explicit final swarm size when compare plans shared swarm coverage.",
+    )
+    parser.add_argument(
+        "--population-candidate-count",
+        type=int,
+        default=None,
+        help="Optional candidate count before deterministic swarm selection in compare planning.",
     )
     return parser
 
@@ -513,6 +549,7 @@ def main(argv: list[str] | None = None) -> dict[str, str | int]:
     raw_argv = list(argv) if argv is not None else sys.argv[1:]
     parser = _build_parser()
     args = parser.parse_args(raw_argv)
+    args.provided_options = {token for token in raw_argv if token.startswith("--")}
     handler = getattr(args, "handler", None)
     if handler is None:
         parser.print_help()
@@ -591,10 +628,43 @@ def _handle_run_swarm_command(
         domain_name=domain_name,
     )
     output_root = args.output_dir or str(DEFAULT_OUTPUT_DIR)
+    default_scenario_pack_path = build_default_scenario_pack_path(
+        output_root,
+        brief=args.brief,
+        generator_mode=args.generation_mode,
+    )
+    default_population_pack_path = build_default_population_pack_path(
+        output_root,
+        brief=args.brief,
+        generator_mode=args.generation_mode,
+    )
+    plan = build_run_swarm_plan(
+        domain_name=domain_name,
+        brief=args.brief,
+        generation_mode=args.generation_mode,
+        output_root=output_root,
+        target_config=_build_target_plan_config(
+            service_mode=service_mode,
+            service_artifact_dir=service_artifact_dir,
+            adapter_base_url=adapter_base_url,
+        ),
+        explicit_inputs=_collect_explicit_run_swarm_inputs(args),
+        scenario_pack_path=args.scenario_pack_path,
+        population_pack_path=args.population_pack_path,
+        scenario_count=args.scenario_count,
+        population_size=args.population_size,
+        population_candidate_count=args.population_candidate_count,
+        ai_profile=args.ai_profile,
+        semantic_mode=args.semantic_mode,
+        semantic_model=args.semantic_model,
+        semantic_profile=args.semantic_profile,
+        default_scenario_pack_path=default_scenario_pack_path,
+        default_population_pack_path=default_population_pack_path,
+    )
     emit_progress(
         progress_callback,
         phase="resolve_generation_mode",
-        message=f"Using generation mode: {args.generation_mode}",
+        message=f"Using generation mode: {plan.generation_mode}",
         stage="finish",
     )
     (
@@ -607,7 +677,15 @@ def _handle_run_swarm_command(
         args,
         domain_name=domain_name,
         output_root=output_root,
-        generation_mode=args.generation_mode,
+        generation_mode=plan.generation_mode,
+        scenario_action=plan.scenario_action,
+        population_action=plan.population_action,
+        ai_profile=plan.ai_profile,
+        scenario_count=plan.scenario_count,
+        population_size=plan.population_size,
+        population_candidate_count=plan.population_candidate_count,
+        planned_scenario_pack_path=plan.scenario_pack_path,
+        planned_population_pack_path=plan.population_pack_path,
         progress_callback=progress_callback,
     )
     run_result = execute_domain_audit(
@@ -620,11 +698,18 @@ def _handle_run_swarm_command(
         service_artifact_dir=service_artifact_dir,
         adapter_base_url=adapter_base_url,
         run_name=args.run_name,
-        semantic_mode=args.semantic_mode,
-        semantic_model=args.semantic_model,
-        semantic_profile=args.semantic_profile,
+        semantic_mode=plan.semantic_mode,
+        semantic_model=plan.semantic_model,
+        semantic_profile=plan.semantic_profile,
         progress_callback=progress_callback,
     )
+    run_result.metadata["run_plan_path"] = plan.plan_path
+    run_result.metadata["run_plan_id"] = plan.plan_id
+    run_result.metadata["planner_mode"] = plan.planner_mode
+    run_result.metadata["planner_provider_name"] = plan.planner_provider_name
+    run_result.metadata["planner_model_name"] = plan.planner_model_name
+    run_result.metadata["planner_model_profile"] = plan.planner_model_profile
+    run_result.metadata["planner_summary"] = plan.planner_summary
     run_result.metadata["run_manifest_path"] = str(
         Path(run_result.run_config.rollout.output_dir) / "run_manifest.json"
     )
@@ -640,7 +725,9 @@ def _handle_run_swarm_command(
             "brief": args.brief,
             "scenario_pack_path": scenario_pack_path,
             "population_pack_path": population_pack_path,
-            "ai_profile": args.ai_profile if coverage_source != "reused" else "",
+            "ai_profile": plan.ai_profile if coverage_source != "reused" else "",
+            "run_plan_path": plan.plan_path,
+            "run_plan_id": plan.plan_id,
         },
     )
     _print_summary(
@@ -649,7 +736,16 @@ def _handle_run_swarm_command(
             ("Coverage source", coverage_source),
             ("Scenario generation", scenario_generation_mode),
             ("Swarm generation", swarm_generation_mode),
-            ("AI profile", args.ai_profile if coverage_source != "reused" else "n/a"),
+            ("AI profile", plan.ai_profile if coverage_source != "reused" else "n/a"),
+            ("Planner mode", plan.planner_mode),
+            (
+                "Planner model",
+                _planner_model_summary(
+                    plan.planner_provider_name,
+                    plan.planner_model_name,
+                    plan.planner_model_profile,
+                ),
+            ),
             ("Launch status", _audit_launch_status(run_result)),
             ("High-risk cohorts", str(_count_high_risk_cohorts(run_result))),
             ("Service kind", str(run_result.metadata.get("service_kind", ""))),
@@ -658,6 +754,7 @@ def _handle_run_swarm_command(
             ("Model ID", str(run_result.metadata.get("model_id", ""))),
             ("Saved scenario pack", scenario_pack_path),
             ("Saved swarm pack", population_pack_path),
+            ("Run plan", plan.plan_path),
             ("Open report", str(result["report_path"])),
             ("Machine-readable results", str(result["results_path"])),
             ("Full traces", str(result["traces_path"])),
@@ -671,6 +768,7 @@ def _handle_run_swarm_command(
         "coverage_source": coverage_source,
         "scenario_generation_mode": scenario_generation_mode,
         "swarm_generation_mode": swarm_generation_mode,
+        "run_plan_path": plan.plan_path,
         "run_manifest_path": manifest_path,
     }
 
@@ -730,20 +828,115 @@ def _handle_compare_command(
         url=args.candidate_url,
         side_name="candidate",
     )
+    output_root = args.output_dir or str(DEFAULT_OUTPUT_DIR)
+    default_scenario_pack_path = (
+        build_default_scenario_pack_path(
+            output_root,
+            brief=args.brief,
+            generator_mode=args.generation_mode,
+        )
+        if args.brief
+        else None
+    )
+    default_population_pack_path = (
+        build_default_population_pack_path(
+            output_root,
+            brief=args.brief,
+            generator_mode=args.generation_mode,
+        )
+        if args.brief
+        else None
+    )
+    compare_plan = build_compare_plan(
+        domain_name=domain_name,
+        brief=args.brief,
+        generation_mode=args.generation_mode,
+        output_root=output_root,
+        baseline_target=_build_compare_plan_target_config(baseline_target),
+        candidate_target=_build_compare_plan_target_config(candidate_target),
+        explicit_inputs=_collect_explicit_compare_inputs(args),
+        scenario_pack_path=args.scenario_pack_path,
+        population_pack_path=args.population_pack_path,
+        scenario_count=args.scenario_count,
+        population_size=args.population_size,
+        population_candidate_count=args.population_candidate_count,
+        ai_profile=args.ai_profile,
+        semantic_mode=args.semantic_mode,
+        semantic_model=args.semantic_model,
+        semantic_profile=args.semantic_profile,
+        rerun_count=args.rerun_count,
+        default_scenario_pack_path=default_scenario_pack_path,
+        default_population_pack_path=default_population_pack_path,
+        scenario_name=args.scenario,
+    )
+    scenario_pack_path = compare_plan.scenario_pack_path
+    population_pack_path = compare_plan.population_pack_path
+    if args.brief:
+        if scenario_pack_path is None or population_pack_path is None:
+            raise SystemExit("compare planning requires planned shared coverage paths when a brief is provided.")
+        if compare_plan.scenario_generation_mode not in {"reused", "planner-reused"}:
+            scenario_pack_path = _generate_compare_scenario_pack(
+                brief=args.brief,
+                output_root=output_root,
+                domain_name=domain_name,
+                generation_mode=compare_plan.generation_mode,
+                ai_profile=compare_plan.ai_profile,
+                scenario_count=compare_plan.scenario_count or args.scenario_count,
+                planned_path=scenario_pack_path,
+                progress_callback=progress_callback,
+            )
+        else:
+            emit_progress(
+                progress_callback,
+                phase="reuse_scenario_pack",
+                message="Reusing shared compare scenario pack",
+                stage="finish",
+            )
+        if compare_plan.swarm_generation_mode not in {"reused", "planner-reused"}:
+            population_pack_path = _generate_compare_population_pack(
+                brief=args.brief,
+                output_root=output_root,
+                domain_name=domain_name,
+                generation_mode=compare_plan.generation_mode,
+                ai_profile=compare_plan.ai_profile,
+                population_size=compare_plan.population_size,
+                population_candidate_count=compare_plan.population_candidate_count,
+                planned_path=population_pack_path,
+                progress_callback=progress_callback,
+            )
+        else:
+            emit_progress(
+                progress_callback,
+                phase="reuse_population_pack",
+                message="Reusing shared compare swarm pack",
+                stage="finish",
+            )
     result = run_domain_regression_audit(
         domain_name=domain_name,
         baseline_target=baseline_target,
         candidate_target=candidate_target,
         base_seed=args.seed,
-        rerun_count=args.rerun_count,
+        rerun_count=compare_plan.rerun_count or args.rerun_count,
         output_dir=args.output_dir,
         scenario_names=scenario_names,
-        scenario_pack_path=args.scenario_pack_path,
-        population_pack_path=args.population_pack_path,
-        semantic_mode=args.semantic_mode,
-        semantic_model=args.semantic_model,
-        semantic_profile=args.semantic_profile,
+        scenario_pack_path=scenario_pack_path,
+        population_pack_path=population_pack_path,
+        semantic_mode=compare_plan.semantic_mode,
+        semantic_model=compare_plan.semantic_model,
+        semantic_profile=compare_plan.semantic_profile,
         policy_mode=args.policy_mode,
+        planning_metadata={
+            "run_plan_path": compare_plan.plan_path,
+            "run_plan_id": compare_plan.plan_id,
+            "planner_mode": compare_plan.planner_mode,
+            "planner_provider_name": compare_plan.planner_provider_name,
+            "planner_model_name": compare_plan.planner_model_name,
+            "planner_model_profile": compare_plan.planner_model_profile,
+            "planner_summary": compare_plan.planner_summary,
+            "scenario_generation_mode": compare_plan.scenario_generation_mode,
+            "swarm_generation_mode": compare_plan.swarm_generation_mode,
+            "coverage_source": compare_plan.coverage_source,
+        },
         progress_callback=progress_callback,
     )
     regression_summary = _load_json_summary(str(result["regression_summary_path"]))
@@ -754,14 +947,27 @@ def _handle_compare_command(
             ("Decision", str(result["decision_status"]).upper()),
             ("Overall direction", str(summary_block.get("overall_direction", ""))),
             ("Risk flags added", str(summary_block.get("added_risk_flag_count", ""))),
+            ("Coverage source", compare_plan.coverage_source),
+            ("Scenario generation", compare_plan.scenario_generation_mode),
+            ("Swarm generation", compare_plan.swarm_generation_mode),
+            ("Planner mode", compare_plan.planner_mode),
+            (
+                "Planner model",
+                _planner_model_summary(
+                    compare_plan.planner_provider_name,
+                    compare_plan.planner_model_name,
+                    compare_plan.planner_model_profile,
+                ),
+            ),
             ("Exit code", str(result["exit_code"])),
+            ("Run plan", compare_plan.plan_path),
             ("Open regression report", str(result["regression_report_path"])),
             ("Machine-readable summary", str(result["regression_summary_path"])),
             ("Regression traces", str(result["regression_traces_path"])),
             ("Run manifest", str(result["run_manifest_path"])),
         ),
     )
-    return result
+    return {**result, "run_plan_path": compare_plan.plan_path}
 
 
 def _handle_generate_scenarios_command(
@@ -963,26 +1169,49 @@ def _resolve_run_swarm_packs(
     domain_name: str,
     output_root: str,
     generation_mode: str,
+    scenario_action: str,
+    population_action: str,
+    ai_profile: str,
+    scenario_count: int | None,
+    population_size: int | None,
+    population_candidate_count: int | None,
+    planned_scenario_pack_path: str | None,
+    planned_population_pack_path: str | None,
     progress_callback: ProgressCallback | None = None,
 ) -> tuple[str, str, str, str, str]:
     scenario_pack_path = args.scenario_pack_path
     population_pack_path = args.population_pack_path
     generated_any = False
     reused_any = False
-    scenario_generation_mode = "reused" if scenario_pack_path is not None else generation_mode
-    swarm_generation_mode = "reused" if population_pack_path is not None else generation_mode
+    scenario_generation_mode = "reused" if scenario_pack_path is not None else (
+        "planner-reused" if scenario_action == "planner_reuse_existing" else generation_mode
+    )
+    swarm_generation_mode = "reused" if population_pack_path is not None else (
+        "planner-reused" if population_action == "planner_reuse_existing" else generation_mode
+    )
 
     if scenario_pack_path is None:
-        scenario_pack_path = _generate_run_swarm_scenario_pack(
-            brief=args.brief,
-            output_root=output_root,
-            domain_name=domain_name,
-            generation_mode=generation_mode,
-            ai_profile=args.ai_profile,
-            scenario_count=args.scenario_count,
-            progress_callback=progress_callback,
-        )
-        generated_any = True
+        if scenario_action == "planner_reuse_existing" and planned_scenario_pack_path is not None:
+            scenario_pack_path = planned_scenario_pack_path
+            emit_progress(
+                progress_callback,
+                phase="reuse_scenario_pack",
+                message="Reusing planner-selected scenario pack",
+                stage="finish",
+            )
+            reused_any = True
+        else:
+            scenario_pack_path = _generate_run_swarm_scenario_pack(
+                brief=args.brief,
+                output_root=output_root,
+                domain_name=domain_name,
+                generation_mode=generation_mode,
+                ai_profile=ai_profile,
+                scenario_count=scenario_count or args.scenario_count,
+                planned_path=planned_scenario_pack_path,
+                progress_callback=progress_callback,
+            )
+            generated_any = True
     else:
         emit_progress(
             progress_callback,
@@ -993,17 +1222,28 @@ def _resolve_run_swarm_packs(
         reused_any = True
 
     if population_pack_path is None:
-        population_pack_path = _generate_run_swarm_population_pack(
-            brief=args.brief,
-            output_root=output_root,
-            domain_name=domain_name,
-            generation_mode=generation_mode,
-            ai_profile=args.ai_profile,
-            population_size=args.population_size,
-            population_candidate_count=args.population_candidate_count,
-            progress_callback=progress_callback,
-        )
-        generated_any = True
+        if population_action == "planner_reuse_existing" and planned_population_pack_path is not None:
+            population_pack_path = planned_population_pack_path
+            emit_progress(
+                progress_callback,
+                phase="reuse_population_pack",
+                message="Reusing planner-selected swarm pack",
+                stage="finish",
+            )
+            reused_any = True
+        else:
+            population_pack_path = _generate_run_swarm_population_pack(
+                brief=args.brief,
+                output_root=output_root,
+                domain_name=domain_name,
+                generation_mode=generation_mode,
+                ai_profile=ai_profile,
+                population_size=population_size,
+                population_candidate_count=population_candidate_count,
+                planned_path=planned_population_pack_path,
+                progress_callback=progress_callback,
+            )
+            generated_any = True
     else:
         emit_progress(
             progress_callback,
@@ -1036,6 +1276,7 @@ def _generate_run_swarm_scenario_pack(
     generation_mode: str,
     ai_profile: str,
     scenario_count: int,
+    planned_path: str | None,
     progress_callback: ProgressCallback | None = None,
 ) -> str:
     pack = generate_scenario_pack(
@@ -1046,7 +1287,7 @@ def _generate_run_swarm_scenario_pack(
         model_profile=ai_profile,
         progress_callback=progress_callback,
     )
-    scenario_pack_path = build_default_scenario_pack_path(
+    scenario_pack_path = planned_path or build_default_scenario_pack_path(
         output_root,
         brief=brief,
         generator_mode=generation_mode,
@@ -1076,6 +1317,7 @@ def _generate_run_swarm_population_pack(
     ai_profile: str,
     population_size: int | None,
     population_candidate_count: int | None,
+    planned_path: str | None,
     progress_callback: ProgressCallback | None = None,
 ) -> str:
     pack = generate_population_pack(
@@ -1087,7 +1329,7 @@ def _generate_run_swarm_population_pack(
         model_profile=ai_profile,
         progress_callback=progress_callback,
     )
-    population_pack_path = build_default_population_pack_path(
+    population_pack_path = planned_path or build_default_population_pack_path(
         output_root,
         brief=brief,
         generator_mode=generation_mode,
@@ -1133,6 +1375,139 @@ def _build_compare_target(
         mode="external_url",
         adapter_base_url=url,
     )
+
+
+def _generate_compare_scenario_pack(
+    *,
+    brief: str,
+    output_root: str,
+    domain_name: str,
+    generation_mode: str,
+    ai_profile: str,
+    scenario_count: int,
+    planned_path: str,
+    progress_callback: ProgressCallback | None = None,
+) -> str:
+    return _generate_run_swarm_scenario_pack(
+        brief=brief,
+        output_root=output_root,
+        domain_name=domain_name,
+        generation_mode=generation_mode,
+        ai_profile=ai_profile,
+        scenario_count=scenario_count,
+        planned_path=planned_path,
+        progress_callback=progress_callback,
+    )
+
+
+def _generate_compare_population_pack(
+    *,
+    brief: str,
+    output_root: str,
+    domain_name: str,
+    generation_mode: str,
+    ai_profile: str,
+    population_size: int | None,
+    population_candidate_count: int | None,
+    planned_path: str,
+    progress_callback: ProgressCallback | None = None,
+) -> str:
+    return _generate_run_swarm_population_pack(
+        brief=brief,
+        output_root=output_root,
+        domain_name=domain_name,
+        generation_mode=generation_mode,
+        ai_profile=ai_profile,
+        population_size=population_size,
+        population_candidate_count=population_candidate_count,
+        planned_path=planned_path,
+        progress_callback=progress_callback,
+    )
+
+
+def _build_target_plan_config(
+    *,
+    service_mode: str,
+    service_artifact_dir: str | None,
+    adapter_base_url: str | None,
+) -> dict[str, str]:
+    return {
+        "service_mode": service_mode,
+        "service_artifact_dir": service_artifact_dir or "",
+        "adapter_base_url": adapter_base_url or "",
+    }
+
+
+def _build_compare_plan_target_config(target: RegressionTarget) -> dict[str, str]:
+    return {
+        "label": target.label,
+        "mode": target.mode,
+        "service_artifact_dir": target.service_artifact_dir or "",
+        "adapter_base_url": target.adapter_base_url or "",
+    }
+
+
+def _collect_explicit_run_swarm_inputs(args: argparse.Namespace) -> dict[str, object]:
+    inputs: dict[str, object] = {"brief": args.brief}
+    for flag, key in (
+        ("--scenario-pack-path", "scenario_pack_path"),
+        ("--population-pack-path", "population_pack_path"),
+        ("--generation-mode", "generation_mode"),
+        ("--ai-profile", "ai_profile"),
+        ("--scenario-count", "scenario_count"),
+        ("--population-size", "population_size"),
+        ("--population-candidate-count", "population_candidate_count"),
+        ("--semantic-mode", "semantic_mode"),
+        ("--semantic-model", "semantic_model"),
+        ("--semantic-profile", "semantic_profile"),
+        ("--target-url", "target_url"),
+        ("--reference-artifact-dir", "reference_artifact_dir"),
+        ("--use-mock", "use_mock"),
+    ):
+        if flag in args.provided_options:
+            inputs[key] = getattr(args, key, True if key == "use_mock" else None)
+    return inputs
+
+
+def _collect_explicit_compare_inputs(args: argparse.Namespace) -> dict[str, object]:
+    inputs: dict[str, object] = {}
+    for flag, key in (
+        ("--brief", "brief"),
+        ("--scenario-pack-path", "scenario_pack_path"),
+        ("--population-pack-path", "population_pack_path"),
+        ("--generation-mode", "generation_mode"),
+        ("--ai-profile", "ai_profile"),
+        ("--scenario-count", "scenario_count"),
+        ("--population-size", "population_size"),
+        ("--population-candidate-count", "population_candidate_count"),
+        ("--semantic-mode", "semantic_mode"),
+        ("--semantic-model", "semantic_model"),
+        ("--semantic-profile", "semantic_profile"),
+        ("--rerun-count", "rerun_count"),
+        ("--baseline-artifact-dir", "baseline_artifact_dir"),
+        ("--baseline-url", "baseline_url"),
+        ("--candidate-artifact-dir", "candidate_artifact_dir"),
+        ("--candidate-url", "candidate_url"),
+        ("--baseline-label", "baseline_label"),
+        ("--candidate-label", "candidate_label"),
+        ("--scenario", "scenario"),
+    ):
+        if flag in args.provided_options:
+            inputs[key] = getattr(args, key)
+    return inputs
+
+
+def _planner_model_summary(
+    provider_name: str,
+    model_name: str,
+    model_profile: str,
+) -> str:
+    if not model_name:
+        return "n/a"
+    profile = model_profile or "custom"
+    if provider_name:
+        return f"{provider_name}/{model_name} ({profile})"
+    return f"{model_name} ({profile})"
 
 
 def _wait_for_interrupt() -> None:

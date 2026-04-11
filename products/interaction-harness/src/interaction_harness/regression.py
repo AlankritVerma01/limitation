@@ -66,6 +66,7 @@ def run_regression_audit(
     policy: RegressionPolicy | None = None,
     metric_overrides: tuple[RegressionPolicyOverride, ...] = (),
     cohort_overrides: tuple[RegressionPolicyOverride, ...] = (),
+    planning_metadata: dict[str, str | int | float] | None = None,
     progress_callback: ProgressCallback | None = None,
 ) -> dict[str, str | int]:
     """Run rerun summaries and baseline-vs-candidate diff artifacts."""
@@ -86,6 +87,7 @@ def run_regression_audit(
         policy=policy,
         metric_overrides=metric_overrides,
         cohort_overrides=cohort_overrides,
+        planning_metadata=planning_metadata,
         progress_callback=progress_callback,
     )
 
@@ -108,6 +110,7 @@ def run_domain_regression_audit(
     policy: RegressionPolicy | None = None,
     metric_overrides: tuple[RegressionPolicyOverride, ...] = (),
     cohort_overrides: tuple[RegressionPolicyOverride, ...] = (),
+    planning_metadata: dict[str, str | int | float] | None = None,
     progress_callback: ProgressCallback | None = None,
 ) -> dict[str, str | int]:
     """Run one regression comparison through the registered domain plug-in."""
@@ -182,6 +185,7 @@ def run_domain_regression_audit(
             policy_name=resolved_policy.name,
             policy_mode=policy_mode,
             domain_definition=domain_definition,
+            planning_metadata=planning_metadata,
         ),
     )
     emit_progress(
@@ -327,9 +331,10 @@ def _build_regression_metadata(
     policy_name: str,
     policy_mode: str,
     domain_definition: DomainDefinition,
+    planning_metadata: dict[str, str | int | float] | None = None,
 ) -> dict[str, str | int]:
     """Build stable metadata for a regression comparison bundle."""
-    return {
+    metadata = {
         "regression_id": _build_regression_id(
             baseline_target,
             candidate_target,
@@ -364,6 +369,9 @@ def _build_regression_metadata(
         "policy_mode": policy_mode,
         "artifact_contract_version": "v1",
     }
+    if planning_metadata:
+        metadata.update(planning_metadata)
+    return metadata
 
 
 def _run_target_reruns(
