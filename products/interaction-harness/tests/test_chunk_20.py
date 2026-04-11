@@ -17,6 +17,7 @@ from interaction_harness.population_generation import (
     generate_population_pack,
     write_population_pack,
 )
+from interaction_harness.run_plan import PlannedWorkflow
 from interaction_harness.scenario_generation import (
     generate_scenario_pack,
     write_scenario_pack,
@@ -85,6 +86,47 @@ def _wait_for_health(base_url: str) -> None:
             last_error = exc
         time.sleep(0.1)
     raise RuntimeError(f"Example service did not become ready: {last_error}")
+
+
+def _planned_workflow(
+    *,
+    tmp_path: Path,
+    brief: str,
+    generation_mode: str,
+    scenario_pack_path: str | None,
+    population_pack_path: str | None,
+    scenario_generation_mode: str,
+    swarm_generation_mode: str,
+    coverage_source: str,
+) -> PlannedWorkflow:
+    plan_path = tmp_path / "run_plan.json"
+    plan_path.parent.mkdir(parents=True, exist_ok=True)
+    plan_path.write_text("{}", encoding="utf-8")
+    return PlannedWorkflow(
+        payload={},
+        plan_path=str(plan_path),
+        plan_id="test-plan",
+        planner_mode="deterministic",
+        planner_provider_name="",
+        planner_model_name="",
+        planner_model_profile="",
+        planner_summary=f"planned {brief}",
+        scenario_pack_path=scenario_pack_path,
+        population_pack_path=population_pack_path,
+        scenario_action="explicit_reuse" if scenario_generation_mode == "reused" else "generate_new",
+        population_action="explicit_reuse" if swarm_generation_mode == "reused" else "generate_new",
+        scenario_generation_mode=scenario_generation_mode,
+        swarm_generation_mode=swarm_generation_mode,
+        coverage_source=coverage_source,
+        generation_mode=generation_mode,
+        ai_profile="fast",
+        scenario_count=3,
+        population_size=8,
+        population_candidate_count=16,
+        semantic_mode="off",
+        semantic_model=None,
+        semantic_profile="fast",
+    )
 
 
 def test_run_swarm_help_surfaces_the_brief_driven_path(capsys) -> None:
@@ -165,6 +207,19 @@ def test_run_swarm_provider_mode_routes_both_generators_through_provider(
     )
     with (
         patch(
+            "interaction_harness.cli.build_run_swarm_plan",
+            return_value=_planned_workflow(
+                tmp_path=tmp_path / "run-swarm",
+                brief="test provider mode",
+                generation_mode="provider",
+                scenario_pack_path=str((tmp_path / "run-swarm") / "scenario-pack.json"),
+                population_pack_path=str((tmp_path / "run-swarm") / "population-pack.json"),
+                scenario_generation_mode="provider",
+                swarm_generation_mode="provider",
+                coverage_source="generated",
+            ),
+        ),
+        patch(
             "interaction_harness.cli.generate_scenario_pack",
             return_value=fake_scenario_pack,
         ) as mock_generate_scenarios,
@@ -197,9 +252,24 @@ def test_run_swarm_provider_mode_routes_both_generators_through_provider(
 def test_run_swarm_provider_mode_still_fails_when_provider_generation_fails(
     tmp_path: Path,
 ) -> None:
-    with patch(
-        "interaction_harness.cli.generate_scenario_pack",
-        side_effect=RuntimeError("Provider-backed scenario generation failed after retrying."),
+    with (
+        patch(
+            "interaction_harness.cli.build_run_swarm_plan",
+            return_value=_planned_workflow(
+                tmp_path=tmp_path / "run-swarm",
+                brief="test provider hard failure",
+                generation_mode="provider",
+                scenario_pack_path=str((tmp_path / "run-swarm") / "scenario-pack.json"),
+                population_pack_path=str((tmp_path / "run-swarm") / "population-pack.json"),
+                scenario_generation_mode="provider",
+                swarm_generation_mode="provider",
+                coverage_source="generated",
+            ),
+        ),
+        patch(
+            "interaction_harness.cli.generate_scenario_pack",
+            side_effect=RuntimeError("Provider-backed scenario generation failed after retrying."),
+        ),
     ):
         with pytest.raises(RuntimeError):
             main(
@@ -232,9 +302,24 @@ def test_run_swarm_mixed_reuse_summary_shows_separate_generation_fields(
         candidate_count=16,
     )
 
-    with patch(
-        "interaction_harness.cli.generate_population_pack",
-        return_value=fake_population_pack,
+    with (
+        patch(
+            "interaction_harness.cli.build_run_swarm_plan",
+            return_value=_planned_workflow(
+                tmp_path=tmp_path / "run-swarm",
+                brief="mix saved scenarios with generated swarm",
+                generation_mode="provider",
+                scenario_pack_path=str(scenario_pack_path),
+                population_pack_path=str((tmp_path / "run-swarm") / "population-pack.json"),
+                scenario_generation_mode="reused",
+                swarm_generation_mode="provider",
+                coverage_source="mixed",
+            ),
+        ),
+        patch(
+            "interaction_harness.cli.generate_population_pack",
+            return_value=fake_population_pack,
+        ),
     ):
         result = main(
             [
@@ -442,6 +527,9 @@ def test_run_swarm_saved_packs_can_be_replayed_through_audit_deterministically(
 
     first_payload = json.loads(Path(str(first_result["results_path"])).read_text(encoding="utf-8"))
     replay_payload = json.loads(Path(str(replay_result["results_path"])).read_text(encoding="utf-8"))
+    for summary_payload in (first_payload["summary"], replay_payload["summary"]):
+        summary_payload.pop("run_plan_id", None)
+        summary_payload.pop("planner_mode", None)
     assert first_payload["summary"] == replay_payload["summary"]
     assert first_payload["risk_flags"] == replay_payload["risk_flags"]
     assert first_payload["metadata"]["scenario_pack_id"] == replay_payload["metadata"]["scenario_pack_id"]
