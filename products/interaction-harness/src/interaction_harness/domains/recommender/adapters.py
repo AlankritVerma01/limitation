@@ -58,6 +58,36 @@ class HttpRecommenderAdapter:
         )
 
     def get_service_metadata(self) -> dict[str, str | int | float]:
+        return self._get_service_metadata(strict=False)
+
+    def get_service_metadata_strict(self) -> dict[str, str | int | float]:
+        """Fetch and validate the metadata endpoint strictly for target checks."""
+        return self._get_service_metadata(strict=True)
+
+    def check_health(self) -> dict[str, str | int | float]:
+        """Validate the health endpoint for target onboarding and preflight checks."""
+        req = request.Request(
+            f"{self.base_url}/health",
+            headers={"Content-Type": "application/json"},
+            method="GET",
+        )
+        body = self._request_json(req, purpose="health check")
+        if not isinstance(body, dict):
+            raise RuntimeError(
+                f"Recommender target returned an invalid health payload: {self.base_url}."
+            )
+        status = body.get("status")
+        if not isinstance(status, str) or status.lower() != "ok":
+            raise RuntimeError(
+                f"Recommender target health check failed: expected `status=ok` from {self.base_url}."
+            )
+        return {
+            key: value
+            for key, value in body.items()
+            if isinstance(value, (str, int, float))
+        }
+
+    def _get_service_metadata(self, *, strict: bool) -> dict[str, str | int | float]:
         req = request.Request(
             f"{self.base_url}/metadata",
             headers={"Content-Type": "application/json"},
@@ -66,27 +96,44 @@ class HttpRecommenderAdapter:
         try:
             body = self._request_json(req, purpose="metadata request")
         except RuntimeError:
+            if strict:
+                raise
             return {}
+        if not isinstance(body, dict):
+            raise RuntimeError(
+                f"Recommender target returned an invalid metadata payload: {self.base_url}."
+            )
         return {
             key: value
             for key, value in body.items()
-            if isinstance(value, str | int | float)
+            if isinstance(value, (str, int, float))
         }
 
     def _normalize_response(self, payload: dict) -> AdapterResponse:
-        items = tuple(
-            SlateItem(
-                item_id=item["item_id"],
-                title=item["title"],
-                genre=item["genre"],
-                score=float(item["score"]),
-                rank=int(item["rank"]),
-                popularity=float(item["popularity"]),
-                novelty=float(item["novelty"]),
+        try:
+            request_id = payload["request_id"]
+            raw_items = payload["items"]
+            items = tuple(
+                SlateItem(
+                    item_id=item["item_id"],
+                    title=item["title"],
+                    genre=item["genre"],
+                    score=float(item["score"]),
+                    rank=int(item["rank"]),
+                    popularity=float(item["popularity"]),
+                    novelty=float(item["novelty"]),
+                )
+                for item in raw_items
             )
-            for item in payload["items"]
-        )
-        return AdapterResponse(request_id=payload["request_id"], items=items)
+        except KeyError as exc:
+            raise RuntimeError(
+                f"Recommender target returned an invalid response payload: missing `{exc.args[0]}`."
+            ) from exc
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError(
+                "Recommender target returned an invalid response payload: item fields could not be normalized."
+            ) from exc
+        return AdapterResponse(request_id=request_id, items=items)
 
     def _request_json(self, req: request.Request, *, purpose: str) -> dict:
         try:

@@ -156,11 +156,18 @@ class MarkdownReportWriter:
             f"- Artifact ID: `{run_result.metadata.get('artifact_id', 'unknown')}`",
             f"- Scenario source: `{run_result.metadata.get('scenario_source', 'built_in')}`",
             f"- Scenario pack ID: `{run_result.metadata.get('scenario_pack_id', 'n/a')}`",
+            f"- Scenario pack mode: `{run_result.metadata.get('scenario_pack_mode', 'n/a')}`",
+            f"- Scenario pack model: `{run_result.metadata.get('scenario_pack_model_name', 'n/a') or 'n/a'}`",
+            f"- Scenario pack profile: `{run_result.metadata.get('scenario_pack_model_profile', 'n/a') or 'n/a'}`",
             f"- Population source: `{run_result.metadata.get('population_source', 'built_in_seeds')}`",
             f"- Population pack ID: `{run_result.metadata.get('population_pack_id', 'n/a')}`",
+            f"- Swarm pack mode: `{run_result.metadata.get('population_pack_mode', 'n/a')}`",
+            f"- Swarm pack model: `{run_result.metadata.get('population_pack_model_name', 'n/a') or 'n/a'}`",
+            f"- Swarm pack profile: `{run_result.metadata.get('population_pack_model_profile', 'n/a') or 'n/a'}`",
             f"- Population size source: `{run_result.metadata.get('population_size_source', 'built_in')}`",
             f"- Discovered slices: `{run_result.metadata.get('slice_count', len(run_result.slice_discovery.slice_summaries))}`",
             f"- Semantic mode: `{run_result.metadata.get('semantic_mode', 'off')}`",
+            f"- Run manifest: `{run_result.metadata.get('run_manifest_path', 'n/a') or 'n/a'}`",
         ]
         hook = self._reporting_hook(run_result, "build_metadata_highlights_section")
         if hook is not None:

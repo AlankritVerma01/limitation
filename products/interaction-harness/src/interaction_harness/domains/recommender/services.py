@@ -6,11 +6,14 @@ from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from urllib.parse import urlparse
 
-from ...config import slugify_name
+from ...config import build_run_config, slugify_name
 from ...schema import RegressionTarget, RunConfig
+from .adapters import HttpRecommenderAdapter
 from .mock_recommender import run_mock_recommender_service
+from .policy import build_seeded_archetypes, initial_state_from_seed
 from .reference_artifacts import ensure_reference_artifacts
 from .reference_recommender import run_reference_recommender_service
+from .scenarios import build_scenarios, resolve_built_in_recommender_scenarios
 
 
 def open_recommender_service_context(run_config: RunConfig):
@@ -65,6 +68,48 @@ def build_recommender_target_audit_kwargs(target: RegressionTarget) -> dict[str,
             raise ValueError("external_url targets require adapter_base_url.")
         return {"adapter_base_url": target.adapter_base_url}
     raise NotImplementedError(f"Unsupported regression target mode: {target.mode}")
+
+
+def check_recommender_target(
+    base_url: str,
+    timeout_seconds: float,
+) -> dict[str, str | int | float]:
+    """Probe a recommender endpoint through the public contract before a real run."""
+    adapter = HttpRecommenderAdapter(base_url, timeout_seconds=timeout_seconds)
+    health = adapter.check_health()
+    metadata = adapter.get_service_metadata_strict()
+    scenario_config = resolve_built_in_recommender_scenarios(
+        ("returning-user-home-feed",)
+    )[0]
+    run_config = build_run_config(
+        seed=7,
+        scenarios=(scenario_config,),
+        agent_seeds=(build_seeded_archetypes()[0],),
+        service_mode="external",
+        adapter_base_url=base_url,
+        run_name="interaction-harness-target-check",
+    )
+    scenario = build_scenarios((scenario_config,))[0]
+    agent_seed = run_config.agent_seeds[0]
+    observation = scenario.initialize(agent_seed, run_config)
+    state = initial_state_from_seed(agent_seed, observation.scenario_context)
+    slate = adapter.get_slate(state, observation, scenario_config)
+    if not slate.items:
+        raise RuntimeError(
+            f"Recommender target returned an empty slate during contract validation: {base_url}."
+        )
+    top_item = slate.items[0]
+    return {
+        "target_url": base_url.rstrip("/"),
+        "health_status": str(health.get("status", "ok")),
+        "probe_status": "ok",
+        "probe_scenario": scenario_config.name,
+        "probe_agent": agent_seed.agent_id,
+        "slate_item_count": len(slate.items),
+        "top_item_id": top_item.item_id,
+        "top_item_title": top_item.title,
+        **metadata,
+    }
 
 
 @contextmanager

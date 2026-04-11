@@ -1,4 +1,4 @@
-"""Shared helpers for provider-backed and fixture-backed generation flows."""
+"""Shared helpers for provider-backed and fixture-backed AI workflows."""
 
 from __future__ import annotations
 
@@ -8,14 +8,53 @@ import re
 import socket
 import time
 from pathlib import Path
+from typing import Literal
 from urllib import request
 from urllib.error import HTTPError, URLError
 
 DEFAULT_PROVIDER_NAME = "openai"
-DEFAULT_PROVIDER_MODEL = "gpt-5"
 DEFAULT_PROVIDER_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_PROVIDER_TIMEOUT_SECONDS = 45.0
 DEFAULT_PROVIDER_RETRY_COUNT = 1
+DEFAULT_PROVIDER_PROFILE = "fast"
+
+ProviderPurpose = Literal[
+    "scenario_generation",
+    "population_generation",
+    "semantic_interpretation",
+]
+
+PROVIDER_MODEL_PROFILES: dict[str, dict[ProviderPurpose, str]] = {
+    "fast": {
+        "scenario_generation": "gpt-5-mini",
+        "population_generation": "gpt-5-mini",
+        "semantic_interpretation": "gpt-5-mini",
+    },
+    "balanced": {
+        "scenario_generation": "gpt-5.4-mini",
+        "population_generation": "gpt-5.4-mini",
+        "semantic_interpretation": "gpt-5.4-mini",
+    },
+    "deep": {
+        "scenario_generation": "gpt-5.4",
+        "population_generation": "gpt-5.4",
+        "semantic_interpretation": "gpt-5.4",
+    },
+}
+
+DEFAULT_SCENARIO_PROVIDER_MODEL = PROVIDER_MODEL_PROFILES[DEFAULT_PROVIDER_PROFILE][
+    "scenario_generation"
+]
+DEFAULT_POPULATION_PROVIDER_MODEL = PROVIDER_MODEL_PROFILES[DEFAULT_PROVIDER_PROFILE][
+    "population_generation"
+]
+DEFAULT_SEMANTIC_PROVIDER_MODEL = PROVIDER_MODEL_PROFILES[DEFAULT_PROVIDER_PROFILE][
+    "semantic_interpretation"
+]
+
+# Backward-compatible alias for existing imports. Scenario generation was the
+# original shared default, so keep this pointing at the scenario default.
+DEFAULT_PROVIDER_MODEL = DEFAULT_SCENARIO_PROVIDER_MODEL
 
 
 def extract_focus_tokens(brief: str) -> list[str]:
@@ -42,6 +81,41 @@ def extract_focus_tokens(brief: str) -> list[str]:
     tokens = [token for token in re.findall(r"[a-z0-9]+", brief.lower()) if len(token) >= 4]
     filtered = [token for token in tokens if token not in common]
     return filtered[:4] or ["quality"]
+
+
+def list_provider_profiles() -> tuple[str, ...]:
+    """Return the supported provider model profiles in stable display order."""
+    return tuple(PROVIDER_MODEL_PROFILES.keys())
+
+
+def resolve_provider_model(
+    *,
+    purpose: ProviderPurpose,
+    explicit_model_name: str | None = None,
+    profile_name: str | None = None,
+) -> tuple[str, str]:
+    """Resolve the provider model for one workflow.
+
+    Explicit model overrides always win. Otherwise the named profile selects the
+    model for the given purpose. The returned profile is `custom` when an
+    explicit model override is used.
+    """
+    if explicit_model_name is not None and explicit_model_name.strip():
+        return explicit_model_name.strip(), "custom"
+    resolved_profile = (profile_name or DEFAULT_PROVIDER_PROFILE).strip() or DEFAULT_PROVIDER_PROFILE
+    if resolved_profile not in PROVIDER_MODEL_PROFILES:
+        supported = ", ".join(list_provider_profiles())
+        raise ValueError(
+            f"Unsupported AI profile `{resolved_profile}`. Expected one of: {supported}."
+        )
+    return PROVIDER_MODEL_PROFILES[resolved_profile][purpose], resolved_profile
+
+
+def provider_credentials_available(api_key_env: str = "OPENAI_API_KEY") -> bool:
+    """Return whether provider-backed generation can run in the current env."""
+    load_dotenv_if_present()
+    api_key = os.getenv(api_key_env, "").strip()
+    return bool(api_key)
 
 
 def load_dotenv_if_present() -> None:
@@ -85,6 +159,16 @@ def read_timeout_seconds(env_name: str) -> float:
     return value
 
 
+def read_timeout_seconds_with_fallback(*env_names: str) -> float:
+    """Read the first configured timeout from a list of env names."""
+    for env_name in env_names:
+        raw = os.getenv(env_name)
+        if raw is None or not raw.strip():
+            continue
+        return read_timeout_seconds(env_name)
+    return DEFAULT_PROVIDER_TIMEOUT_SECONDS
+
+
 def read_retry_count(env_name: str) -> int:
     """Read provider retry count from env with a safe default."""
     raw = os.getenv(env_name)
@@ -97,6 +181,16 @@ def read_retry_count(env_name: str) -> int:
     if value < 0:
         raise ValueError(f"{env_name} must be 0 or greater.")
     return value
+
+
+def read_retry_count_with_fallback(*env_names: str) -> int:
+    """Read the first configured retry count from a list of env names."""
+    for env_name in env_names:
+        raw = os.getenv(env_name)
+        if raw is None or not raw.strip():
+            continue
+        return read_retry_count(env_name)
+    return DEFAULT_PROVIDER_RETRY_COUNT
 
 
 def request_provider_payload(
@@ -139,7 +233,10 @@ def request_provider_payload(
     raise RuntimeError(
         f"Provider-backed {purpose} failed after retrying. "
         f"Model `{model_name}` at `{endpoint}` timed out or could not be reached: {reason}. "
-        "Try fixture mode, a faster generation model, or increasing OPENAI_TIMEOUT_SECONDS."
+        "Try fixture mode, a faster generation model, or increasing the purpose-specific "
+        "timeout env vars such as OPENAI_SCENARIO_TIMEOUT_SECONDS, "
+        "OPENAI_POPULATION_TIMEOUT_SECONDS, OPENAI_SEMANTIC_TIMEOUT_SECONDS, "
+        "or the shared OPENAI_TIMEOUT_SECONDS."
     )
 
 

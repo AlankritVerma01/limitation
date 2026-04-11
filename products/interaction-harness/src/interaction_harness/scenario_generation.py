@@ -13,14 +13,15 @@ from typing import Protocol
 from .cli_progress import ProgressCallback, emit_progress
 from .domain_registry import get_domain_definition
 from .generation_support import (
-    DEFAULT_PROVIDER_MODEL,
     DEFAULT_PROVIDER_NAME,
+    DEFAULT_PROVIDER_PROFILE,
     build_responses_endpoint,
     extract_response_text,
     load_dotenv_if_present,
-    read_retry_count,
-    read_timeout_seconds,
+    read_retry_count_with_fallback,
+    read_timeout_seconds_with_fallback,
     request_provider_payload,
+    resolve_provider_model,
 )
 from .schema import (
     GeneratedScenario,
@@ -67,14 +68,19 @@ class ProviderScenarioGenerator:
         self,
         *,
         provider_name: str = DEFAULT_PROVIDER_NAME,
-        model_name: str = DEFAULT_PROVIDER_MODEL,
+        model_name: str | None = None,
+        profile_name: str = DEFAULT_PROVIDER_PROFILE,
         api_key_env: str = "OPENAI_API_KEY",
         base_url_env: str = "OPENAI_BASE_URL",
-        timeout_seconds_env: str = "OPENAI_TIMEOUT_SECONDS",
-        retry_count_env: str = "OPENAI_RETRY_COUNT",
+        timeout_seconds_env: str = "OPENAI_SCENARIO_TIMEOUT_SECONDS",
+        retry_count_env: str = "OPENAI_SCENARIO_RETRY_COUNT",
     ) -> None:
         self.provider_name = provider_name
-        self.model_name = model_name
+        self.model_name, self.model_profile = resolve_provider_model(
+            purpose="scenario_generation",
+            explicit_model_name=model_name,
+            profile_name=profile_name,
+        )
         self.api_key_env = api_key_env
         self.base_url_env = base_url_env
         self.timeout_seconds_env = timeout_seconds_env
@@ -96,8 +102,14 @@ class ProviderScenarioGenerator:
                 f"{self.api_key_env} is required for provider-backed scenario generation."
             )
         endpoint = build_responses_endpoint(os.getenv(self.base_url_env))
-        timeout_seconds = read_timeout_seconds(self.timeout_seconds_env)
-        retry_count = read_retry_count(self.retry_count_env)
+        timeout_seconds = read_timeout_seconds_with_fallback(
+            self.timeout_seconds_env,
+            "OPENAI_TIMEOUT_SECONDS",
+        )
+        retry_count = read_retry_count_with_fallback(
+            self.retry_count_env,
+            "OPENAI_RETRY_COUNT",
+        )
         prompt = self._build_prompt(
             brief=brief,
             scenario_count=scenario_count,
@@ -130,7 +142,11 @@ class ProviderScenarioGenerator:
         hooks = _require_generation_hooks(domain_label)
         if hooks.build_scenario_prompt is None:
             raise ValueError(f"Domain `{domain_label}` does not support provider scenario generation.")
-        return hooks.build_scenario_prompt(brief, scenario_count, domain_label)
+        return hooks.build_scenario_prompt(
+            brief=brief,
+            scenario_count=scenario_count,
+            domain_label=domain_label,
+        )
 
 
 def generate_scenario_pack(
@@ -139,7 +155,8 @@ def generate_scenario_pack(
     generator_mode: ScenarioGeneratorMode,
     scenario_count: int = DEFAULT_SCENARIO_COUNT,
     domain_label: str = "recommender",
-    model_name: str = DEFAULT_PROVIDER_MODEL,
+    model_name: str | None = None,
+    model_profile: str = DEFAULT_PROVIDER_PROFILE,
     progress_callback: ProgressCallback | None = None,
 ) -> ScenarioPack:
     """Generate, validate, and return a structured scenario pack."""
@@ -177,8 +194,9 @@ def generate_scenario_pack(
         )
         provider_name = ""
         resolved_model_name = ""
+        resolved_model_profile = ""
     else:
-        generator = ProviderScenarioGenerator(model_name=model_name)
+        generator = ProviderScenarioGenerator(model_name=model_name, profile_name=model_profile)
         raw_scenarios = generator.generate(
             brief,
             scenario_count=scenario_count,
@@ -186,6 +204,7 @@ def generate_scenario_pack(
         )
         provider_name = generator.provider_name
         resolved_model_name = generator.model_name
+        resolved_model_profile = generator.model_profile
     emit_progress(
         progress_callback,
         phase="generate_candidates",
@@ -207,6 +226,7 @@ def generate_scenario_pack(
         domain_label=domain_label,
         provider_name=provider_name,
         model_name=resolved_model_name,
+        model_profile=resolved_model_profile,
     )
     emit_progress(
         progress_callback,
@@ -226,6 +246,7 @@ def build_scenario_pack(
     domain_label: str,
     provider_name: str = "",
     model_name: str = "",
+    model_profile: str = "",
 ) -> ScenarioPack:
     """Validate raw scenario payloads and build the durable pack contract."""
     scenarios = tuple(_parse_generated_scenario(raw_scenario) for raw_scenario in raw_scenarios)
@@ -251,6 +272,7 @@ def build_scenario_pack(
         domain_label=domain_label,
         provider_name=provider_name,
         model_name=model_name,
+        model_profile=model_profile,
     )
     return ScenarioPack(metadata=metadata, scenarios=scenarios)
 
@@ -281,6 +303,7 @@ def load_scenario_pack(path: str | Path) -> ScenarioPack:
         domain_label=str(metadata.get("domain_label", "recommender")),
         provider_name=str(metadata.get("provider_name", "")),
         model_name=str(metadata.get("model_name", "")),
+        model_profile=str(metadata.get("model_profile", "")),
     )
 
 
@@ -310,6 +333,7 @@ def _require_generation_hooks(domain_label: str):
     if hooks is None:
         raise ValueError(f"Domain `{domain_label}` does not define generation hooks.")
     return hooks
+
 
 def _parse_generated_scenario(payload: dict[str, object]) -> GeneratedScenario:
     """Validate one raw generated scenario entry."""

@@ -253,6 +253,7 @@ class ScenarioPackMetadata:
     domain_label: str
     provider_name: str = ""
     model_name: str = ""
+    model_profile: str = ""
 
 
 @dataclass(frozen=True)
@@ -286,6 +287,7 @@ class PopulationPackMetadata:
     population_size_source: str = "explicit"
     provider_name: str = ""
     model_name: str = ""
+    model_profile: str = ""
 
 
 @dataclass(frozen=True)
@@ -461,6 +463,7 @@ class SemanticRunInterpretation:
     generated_at_utc: str
     provider_name: str = ""
     model_name: str = ""
+    model_profile: str = ""
 
 
 @dataclass(frozen=True)
@@ -473,6 +476,7 @@ class SemanticRegressionInterpretation:
     generated_at_utc: str
     provider_name: str = ""
     model_name: str = ""
+    model_profile: str = ""
 
 
 @dataclass(frozen=True)

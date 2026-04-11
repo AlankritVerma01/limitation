@@ -310,14 +310,23 @@ def build_recommender_trace_score_section(run_result: RunResult) -> ReportTableS
 
 def build_recommender_metadata_highlights_section(run_result: RunResult) -> ReportBulletSection:
     """Build recommender-specific metadata highlights for the shared metadata section."""
+    bullets = [
+        f"Target identity: `{run_result.metadata.get('target_identity', 'unknown')}`",
+        f"Target endpoint host: `{run_result.metadata.get('target_endpoint_host', 'n/a')}`",
+        f"Service metadata status: `{run_result.metadata.get('service_metadata_status', 'unknown')}`",
+        f"Contract version: `{run_result.metadata.get('artifact_contract_version', 'v1')}`",
+    ]
+    if run_result.metadata.get("dataset"):
+        bullets.append(f"Dataset: `{run_result.metadata.get('dataset', '')}`")
+    if run_result.metadata.get("data_source"):
+        bullets.append(f"Data source: `{run_result.metadata.get('data_source', '')}`")
+    if run_result.metadata.get("model_kind"):
+        bullets.append(f"Model kind: `{run_result.metadata.get('model_kind', '')}`")
+    if run_result.metadata.get("model_id"):
+        bullets.append(f"Model ID: `{run_result.metadata.get('model_id', '')}`")
     return ReportBulletSection(
         title="Metadata Highlights",
-        bullets=(
-            f"Target identity: `{run_result.metadata.get('target_identity', 'unknown')}`",
-            f"Target endpoint host: `{run_result.metadata.get('target_endpoint_host', 'n/a')}`",
-            f"Service metadata status: `{run_result.metadata.get('service_metadata_status', 'unknown')}`",
-            f"Contract version: `{run_result.metadata.get('artifact_contract_version', 'v1')}`",
-        ),
+        bullets=tuple(bullets),
     )
 
 

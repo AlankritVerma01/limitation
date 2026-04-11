@@ -6,6 +6,10 @@ from pathlib import Path
 
 from .cli_progress import ProgressCallback, emit_progress
 from .domain_registry import get_domain_definition
+from .generation_support import (
+    DEFAULT_PROVIDER_PROFILE,
+    DEFAULT_SEMANTIC_PROVIDER_MODEL,
+)
 from .reporting.chart import CohortChartWriter
 from .reporting.json import JsonReportWriter
 from .reporting.markdown import MarkdownReportWriter
@@ -25,7 +29,8 @@ def execute_domain_audit(
     adapter_base_url: str | None = None,
     run_name: str | None = None,
     semantic_mode: str = "off",
-    semantic_model: str = "gpt-5",
+    semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
+    semantic_profile: str = DEFAULT_PROVIDER_PROFILE,
     progress_callback: ProgressCallback | None = None,
 ) -> RunResult:
     """Run one audit through the registered in-repo domain plug-in."""
@@ -44,6 +49,7 @@ def execute_domain_audit(
         run_name=run_name,
         semantic_mode=semantic_mode,
         semantic_model=semantic_model,
+        semantic_profile=semantic_profile,
         progress_callback=progress_callback,
     )
 
@@ -60,7 +66,8 @@ def execute_recommender_audit(
     adapter_base_url: str | None = None,
     run_name: str | None = None,
     semantic_mode: str = "off",
-    semantic_model: str = "gpt-5",
+    semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
+    semantic_profile: str = DEFAULT_PROVIDER_PROFILE,
     progress_callback: ProgressCallback | None = None,
 ) -> RunResult:
     """Run one recommender audit and return the in-memory result."""
@@ -77,6 +84,7 @@ def execute_recommender_audit(
         run_name=run_name,
         semantic_mode=semantic_mode,
         semantic_model=semantic_model,
+        semantic_profile=semantic_profile,
         progress_callback=progress_callback,
     )
 
@@ -124,7 +132,8 @@ def run_recommender_audit(
     run_name: str | None = None,
     include_slice_membership: bool = False,
     semantic_mode: str = "off",
-    semantic_model: str = "gpt-5",
+    semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
+    semantic_profile: str = DEFAULT_PROVIDER_PROFILE,
     progress_callback: ProgressCallback | None = None,
 ) -> dict[str, str]:
     """Run the recommender audit and write report artifacts."""
@@ -140,6 +149,7 @@ def run_recommender_audit(
         run_name=run_name,
         semantic_mode=semantic_mode,
         semantic_model=semantic_model,
+        semantic_profile=semantic_profile,
         progress_callback=progress_callback,
     )
     run_result.metadata["include_slice_membership"] = include_slice_membership

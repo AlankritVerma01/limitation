@@ -13,8 +13,13 @@ from .cli_progress import ProgressCallback, emit_progress
 from .config import DEFAULT_OUTPUT_DIR, slugify_name
 from .domain_registry import get_domain_definition
 from .domains.base import DomainDefinition
+from .generation_support import (
+    DEFAULT_PROVIDER_PROFILE,
+    DEFAULT_SEMANTIC_PROVIDER_MODEL,
+)
 from .regression_policy import evaluate_regression_policy
 from .reporting.regression import RegressionJsonWriter, RegressionMarkdownWriter
+from .run_manifest import write_regression_manifest
 from .schema import (
     CohortDelta,
     FailureMode,
@@ -55,7 +60,8 @@ def run_regression_audit(
     scenario_pack_path: str | None = None,
     population_pack_path: str | None = None,
     semantic_mode: str = "off",
-    semantic_model: str = "gpt-5",
+    semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
+    semantic_profile: str = DEFAULT_PROVIDER_PROFILE,
     policy_mode: str = "default",
     policy: RegressionPolicy | None = None,
     metric_overrides: tuple[RegressionPolicyOverride, ...] = (),
@@ -75,6 +81,7 @@ def run_regression_audit(
         population_pack_path=population_pack_path,
         semantic_mode=semantic_mode,
         semantic_model=semantic_model,
+        semantic_profile=semantic_profile,
         policy_mode=policy_mode,
         policy=policy,
         metric_overrides=metric_overrides,
@@ -95,7 +102,8 @@ def run_domain_regression_audit(
     scenario_pack_path: str | None = None,
     population_pack_path: str | None = None,
     semantic_mode: str = "off",
-    semantic_model: str = "gpt-5",
+    semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
+    semantic_profile: str = DEFAULT_PROVIDER_PROFILE,
     policy_mode: str = "default",
     policy: RegressionPolicy | None = None,
     metric_overrides: tuple[RegressionPolicyOverride, ...] = (),
@@ -230,13 +238,18 @@ def run_domain_regression_audit(
             regression_diff,
             mode=semantic_mode,
             model_name=semantic_model,
+            model_profile=semantic_profile,
         ),
         decision=regression_diff.decision,
         metadata={
             **regression_diff.metadata,
             "semantic_mode": semantic_mode,
             "semantic_model": semantic_model if semantic_mode != "off" else "",
+            "semantic_model_profile": semantic_profile if semantic_mode != "off" else "",
         },
+    )
+    regression_diff.metadata["run_manifest_path"] = str(
+        resolved_output_dir / "run_manifest.json"
     )
     emit_progress(
         progress_callback,
@@ -263,11 +276,19 @@ def run_domain_regression_audit(
         stage="finish",
     )
     decision = regression_diff.decision
-    return {
+    output_artifact_paths = {
         **markdown_paths,
         **json_paths,
+    }
+    manifest_path = write_regression_manifest(
+        regression_diff,
+        artifact_paths=output_artifact_paths,
+    )
+    return {
+        **output_artifact_paths,
         "decision_status": decision.status if decision is not None else "pass",
         "exit_code": decision.exit_code if decision is not None else 0,
+        "run_manifest_path": manifest_path,
     }
 
 

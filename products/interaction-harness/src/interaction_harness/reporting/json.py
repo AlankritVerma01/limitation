@@ -65,6 +65,8 @@ class JsonReportWriter:
             payload["metadata"]["scenario_pack_path"] = "<normalized>"
         if "population_pack_path" in payload["metadata"]:
             payload["metadata"]["population_pack_path"] = "<normalized>"
+        if "run_manifest_path" in payload["metadata"]:
+            payload["metadata"]["run_manifest_path"] = "<normalized>"
         if "generated_at_utc" in payload["metadata"]:
             payload["metadata"]["generated_at_utc"] = "<normalized>"
         semantic = payload.get("semantic_interpretation")

@@ -7,14 +7,15 @@ from datetime import datetime, timezone
 from typing import Protocol
 
 from .generation_support import (
-    DEFAULT_PROVIDER_MODEL,
     DEFAULT_PROVIDER_NAME,
+    DEFAULT_PROVIDER_PROFILE,
     build_responses_endpoint,
     extract_response_text,
     load_dotenv_if_present,
-    read_retry_count,
-    read_timeout_seconds,
+    read_retry_count_with_fallback,
+    read_timeout_seconds_with_fallback,
     request_provider_payload,
+    resolve_provider_model,
 )
 from .schema import (
     RegressionDiff,
@@ -72,14 +73,19 @@ class ProviderSemanticInterpreter:
         self,
         *,
         provider_name: str = DEFAULT_PROVIDER_NAME,
-        model_name: str = DEFAULT_PROVIDER_MODEL,
+        model_name: str | None = None,
+        profile_name: str = DEFAULT_PROVIDER_PROFILE,
         api_key_env: str = "OPENAI_API_KEY",
         base_url_env: str = "OPENAI_BASE_URL",
-        timeout_seconds_env: str = "OPENAI_TIMEOUT_SECONDS",
-        retry_count_env: str = "OPENAI_RETRY_COUNT",
+        timeout_seconds_env: str = "OPENAI_SEMANTIC_TIMEOUT_SECONDS",
+        retry_count_env: str = "OPENAI_SEMANTIC_RETRY_COUNT",
     ) -> None:
         self.provider_name = provider_name
-        self.model_name = model_name
+        self.model_name, self.model_profile = resolve_provider_model(
+            purpose="semantic_interpretation",
+            explicit_model_name=model_name,
+            profile_name=profile_name,
+        )
         self.api_key_env = api_key_env
         self.base_url_env = base_url_env
         self.timeout_seconds_env = timeout_seconds_env
@@ -94,6 +100,7 @@ class ProviderSemanticInterpreter:
             expected_trace_ids=tuple(context["trace_id"] for context in contexts),
             provider_name=self.provider_name,
             model_name=self.model_name,
+            model_profile=self.model_profile,
         )
 
     def interpret_regression(
@@ -108,6 +115,7 @@ class ProviderSemanticInterpreter:
             expected_trace_ids=tuple(context["trace_id"] for context in contexts),
             provider_name=self.provider_name,
             model_name=self.model_name,
+            model_profile=self.model_profile,
         )
 
     def _request_json(self, prompt: str, *, purpose: str) -> dict[str, object]:
@@ -125,8 +133,14 @@ class ProviderSemanticInterpreter:
             api_key=api_key,
             model_name=self.model_name,
             prompt=prompt,
-            timeout_seconds=read_timeout_seconds(self.timeout_seconds_env),
-            retry_count=read_retry_count(self.retry_count_env),
+            timeout_seconds=read_timeout_seconds_with_fallback(
+                self.timeout_seconds_env,
+                "OPENAI_TIMEOUT_SECONDS",
+            ),
+            retry_count=read_retry_count_with_fallback(
+                self.retry_count_env,
+                "OPENAI_RETRY_COUNT",
+            ),
             purpose=purpose,
         )
         raw_text = extract_response_text(payload)
@@ -230,7 +244,8 @@ def interpret_run_semantics(
     run_result: RunResult,
     *,
     mode: str,
-    model_name: str = DEFAULT_PROVIDER_MODEL,
+    model_name: str | None = None,
+    model_profile: str = DEFAULT_PROVIDER_PROFILE,
 ) -> SemanticRunInterpretation | None:
     """Interpret one run when semantic mode is explicitly enabled."""
     if mode == "off":
@@ -239,7 +254,10 @@ def interpret_run_semantics(
     if mode == "fixture":
         interpreter = FixtureSemanticInterpreter()
     elif mode == "provider":
-        interpreter = ProviderSemanticInterpreter(model_name=model_name)
+        interpreter = ProviderSemanticInterpreter(
+            model_name=model_name,
+            profile_name=model_profile,
+        )
     else:
         raise ValueError(f"Unsupported semantic mode `{mode}`.")
     return interpreter.interpret_run(run_result)
@@ -249,7 +267,8 @@ def interpret_regression_semantics(
     regression_diff: RegressionDiff,
     *,
     mode: str,
-    model_name: str = DEFAULT_PROVIDER_MODEL,
+    model_name: str | None = None,
+    model_profile: str = DEFAULT_PROVIDER_PROFILE,
 ) -> SemanticRegressionInterpretation | None:
     """Interpret one regression diff when semantic mode is explicitly enabled."""
     if mode == "off":
@@ -258,7 +277,10 @@ def interpret_regression_semantics(
     if mode == "fixture":
         interpreter = FixtureSemanticInterpreter()
     elif mode == "provider":
-        interpreter = ProviderSemanticInterpreter(model_name=model_name)
+        interpreter = ProviderSemanticInterpreter(
+            model_name=model_name,
+            profile_name=model_profile,
+        )
     else:
         raise ValueError(f"Unsupported semantic mode `{mode}`.")
     return interpreter.interpret_regression(regression_diff)
@@ -344,6 +366,7 @@ def _build_run_interpretation_from_provider(
     expected_trace_ids: tuple[str, ...],
     provider_name: str,
     model_name: str,
+    model_profile: str,
 ) -> SemanticRunInterpretation:
     advisory_summary = _require_string(parsed, "advisory_summary")
     explanations = _parse_trace_explanations(parsed, expected_trace_ids)
@@ -354,6 +377,7 @@ def _build_run_interpretation_from_provider(
         generated_at_utc=_now_utc(),
         provider_name=provider_name,
         model_name=model_name,
+        model_profile=model_profile,
     )
 
 
@@ -363,6 +387,7 @@ def _build_regression_interpretation_from_provider(
     expected_trace_ids: tuple[str, ...],
     provider_name: str,
     model_name: str,
+    model_profile: str,
 ) -> SemanticRegressionInterpretation:
     advisory_summary = _require_string(parsed, "advisory_summary")
     explanations = _parse_trace_explanations(parsed, expected_trace_ids)
@@ -373,6 +398,7 @@ def _build_regression_interpretation_from_provider(
         generated_at_utc=_now_utc(),
         provider_name=provider_name,
         model_name=model_name,
+        model_profile=model_profile,
     )
 
 

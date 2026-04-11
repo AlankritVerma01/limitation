@@ -24,6 +24,10 @@ from ..adapters.base import SystemAdapter
 from ..agents.base import AgentPolicy
 from ..analysis.base import Analyzer
 from ..cli_progress import ProgressCallback, emit_progress
+from ..generation_support import (
+    DEFAULT_PROVIDER_PROFILE,
+    DEFAULT_SEMANTIC_PROVIDER_MODEL,
+)
 from ..judges.base import Judge
 from ..reporting.base import DomainReportingHooks
 from ..rollout.engine import run_rollouts
@@ -79,7 +83,8 @@ class DomainRunner(Protocol):
         adapter_base_url: str | None = None,
         run_name: str | None = None,
         semantic_mode: str = "off",
-        semantic_model: str = "gpt-5",
+        semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
+        semantic_profile: str = DEFAULT_PROVIDER_PROFILE,
         progress_callback: ProgressCallback | None = None,
     ) -> RunResult:
         """Run one audit and return the in-memory result."""
@@ -151,6 +156,7 @@ class DomainDefinition:
         [tuple[RegressionPolicyOverride, ...], tuple[RegressionPolicyOverride, ...]],
         RegressionPolicy,
     ]
+    check_target: Callable[[str, float], dict[str, str | int | float]] | None = None
     public: bool = True
     generation_hooks: DomainGenerationHooks | None = None
     run_reference_service: Callable[
@@ -192,7 +198,8 @@ class StandardDomainRunner:
         adapter_base_url: str | None = None,
         run_name: str | None = None,
         semantic_mode: str = "off",
-        semantic_model: str = "gpt-5",
+        semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
+        semantic_profile: str = DEFAULT_PROVIDER_PROFILE,
         progress_callback: ProgressCallback | None = None,
     ) -> RunResult:
         """Run one audit using only the domain-owned plug-in hooks."""
@@ -243,6 +250,7 @@ class StandardDomainRunner:
                 resolved_input_metadata=resolved_inputs.metadata,
                 semantic_mode=semantic_mode,
                 semantic_model=semantic_model,
+                semantic_profile=semantic_profile,
                 progress_callback=progress_callback,
             )
 
@@ -282,7 +290,8 @@ class StandardDomainRunner:
         context_metadata: dict[str, str | int | float] | None = None,
         resolved_input_metadata: dict[str, str | int] | None = None,
         semantic_mode: str = "off",
-        semantic_model: str = "gpt-5",
+        semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
+        semantic_profile: str = DEFAULT_PROVIDER_PROFILE,
         progress_callback: ProgressCallback | None = None,
     ) -> RunResult:
         """Execute one audit against an already running domain adapter."""
@@ -396,6 +405,7 @@ class StandardDomainRunner:
                 "slice_count": len(analysis_result.slice_discovery.slice_summaries),
                 "semantic_mode": semantic_mode,
                 "semantic_model": semantic_model if semantic_mode != "off" else "",
+                "semantic_model_profile": semantic_profile if semantic_mode != "off" else "",
                 "artifact_contract_version": "v1",
                 **combined_service_metadata,
                 **(resolved_input_metadata or {}),
@@ -411,6 +421,7 @@ class StandardDomainRunner:
             base_run_result,
             mode=semantic_mode,
             model_name=semantic_model,
+            model_profile=semantic_profile,
         )
         emit_progress(
             progress_callback,
@@ -434,6 +445,9 @@ class StandardDomainRunner:
                 **base_run_result.metadata,
                 "semantic_provider_name": (
                     semantic_interpretation.provider_name if semantic_interpretation else ""
+                ),
+                "semantic_model_profile": (
+                    semantic_interpretation.model_profile if semantic_interpretation else ""
                 ),
             },
         )

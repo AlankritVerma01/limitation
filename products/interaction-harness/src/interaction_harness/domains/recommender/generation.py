@@ -75,6 +75,7 @@ def build_fixture_recommender_scenarios(
             "history_depth": 4,
             "max_steps": 5,
             "risk_focus_tags": ["staleness", "over-specialization"],
+            "simulation_focus": ["relevance-from-history", "trust-preserving-familiarity"],
             "description": (
                 f"Returning-user session for `{focus_label}` with meaningful prior history."
             ),
@@ -88,6 +89,7 @@ def build_fixture_recommender_scenarios(
             "history_depth": 1,
             "max_steps": 5,
             "risk_focus_tags": ["cold-start", "popularity-bias"],
+            "simulation_focus": ["low-context-inference", "fallback-quality"],
             "description": (
                 f"Thin-context session for `{focus_label}` where the system has very little prior evidence."
             ),
@@ -101,6 +103,7 @@ def build_fixture_recommender_scenarios(
             "history_depth": 0,
             "max_steps": 4,
             "risk_focus_tags": ["cold-start", "weak-first-impression", "novelty-mismatch"],
+            "simulation_focus": ["early-taste-inference", "first-hit-importance"],
             "description": (
                 f"Onboarding-style session for `{focus_label}` where the system needs to infer taste with almost no prior evidence."
             ),
@@ -114,6 +117,7 @@ def build_fixture_recommender_scenarios(
             "history_depth": 2,
             "max_steps": 6,
             "risk_focus_tags": ["novelty-mismatch", "trust-drop"],
+            "simulation_focus": ["controlled-exploration", "trust-before-novelty"],
             "description": (
                 f"Mixed-history session for `{focus_label}` with stronger pressure to balance novelty against familiarity."
             ),
@@ -127,6 +131,7 @@ def build_fixture_recommender_scenarios(
             "history_depth": 1,
             "max_steps": 4,
             "risk_focus_tags": ["early-abandonment", "weak-first-impression"],
+            "simulation_focus": ["first-two-slates-matter", "bounce-risk"],
             "description": (
                 f"Short low-patience session for `{focus_label}` where the first few slates matter heavily."
             ),
@@ -140,6 +145,7 @@ def build_fixture_recommender_scenarios(
             "history_depth": 2,
             "max_steps": 5,
             "risk_focus_tags": ["staleness", "trust-drop", "weak-first-impression"],
+            "simulation_focus": ["trust-rebuild", "stale-memory-recovery"],
             "description": (
                 f"Drifted-user return session for `{focus_label}` where stale or off-target recommendations can quickly collapse trust."
             ),
@@ -164,6 +170,7 @@ def build_fixture_recommender_scenarios(
                         "runtime_profile": template["runtime_profile"],
                         "history_depth": template["history_depth"],
                         "context_hint": focus_label,
+                        "simulation_focus": template["simulation_focus"],
                     }
                 },
             }
@@ -197,7 +204,8 @@ def build_recommender_scenario_generation_prompt(
         '        "recommender": {\n'
         '          "runtime_profile": "returning-user-home-feed, sparse-history-home-feed, taste-elicitation-home-feed, or re-engagement-home-feed",\n'
         '          "history_depth": 1,\n'
-        '          "context_hint": "string"\n'
+        '          "context_hint": "string",\n'
+        '          "simulation_focus": ["string"]\n'
         "        }\n"
         "      }\n"
         "    }\n"
@@ -272,7 +280,8 @@ def build_recommender_population_generation_prompt(
         '          "frustration_recovery": 0.2,\n'
         '          "history_reliance": 0.5,\n'
         '          "skip_tolerance": 2,\n'
-        '          "abandonment_threshold": 0.6\n'
+        '          "abandonment_threshold": 0.6,\n'
+        '          "behavior_plan": ["first-hit-or-leave", "trust-before-explore"]\n'
         "        }\n"
         "      }\n"
         "    }\n"
@@ -289,6 +298,7 @@ def build_recommender_population_generation_prompt(
 def project_recommender_persona_to_agent_seed(persona: GeneratedPersona) -> AgentSeed:
     """Project one generated recommender persona into the deterministic runtime seed."""
     profile = normalize_recommender_persona_profile(persona)
+    behavior_plan = recommender_behavior_plan(persona)
     return AgentSeed(
         agent_id=persona.persona_id,
         archetype_label=persona.display_label,
@@ -308,8 +318,8 @@ def project_recommender_persona_to_agent_seed(persona: GeneratedPersona) -> Agen
         skip_tolerance=profile.skip_tolerance,
         abandonment_threshold=profile.abandonment_threshold,
         persona_summary=persona.persona_summary,
-        behavior_goal=persona.behavior_goal,
-        diversity_tags=persona.diversity_tags,
+        behavior_goal=_augment_behavior_goal(persona.behavior_goal, behavior_plan),
+        diversity_tags=_merged_behavior_tags(persona.diversity_tags, behavior_plan),
     )
 
 
@@ -340,7 +350,7 @@ def normalize_recommender_persona_profile(
 ) -> RecommenderPersonaProfile:
     """Normalize and validate recommender hints before projection or selection."""
     hints = _require_recommender_hints(persona)
-    return RecommenderPersonaProfile(
+    profile = RecommenderPersonaProfile(
         preferred_genres=tuple(
             _require_hint_string_list(hints, persona.persona_id, "preferred_genres")
         ),
@@ -385,6 +395,7 @@ def normalize_recommender_persona_profile(
             hints, persona.persona_id, "abandonment_threshold"
         ),
     )
+    return _apply_behavior_plan_adjustments(profile, recommender_behavior_plan(persona))
 
 
 def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...]:
@@ -411,6 +422,7 @@ def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...
             history_reliance=0.82,
             skip_tolerance=2,
             abandonment_threshold=0.68,
+            behavior_plan=("trust-before-explore", "needs-confidence-from-history"),
         ),
         _template(
             slug="explorer",
@@ -433,6 +445,7 @@ def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...
             history_reliance=0.36,
             skip_tolerance=3,
             abandonment_threshold=0.76,
+            behavior_plan=("novelty-rewarded-after-quality", "quickly-bored-by-repetition"),
         ),
         _template(
             slug="niche",
@@ -455,6 +468,7 @@ def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...
             history_reliance=0.74,
             skip_tolerance=2,
             abandonment_threshold=0.71,
+            behavior_plan=("genre-loyal", "trust-before-explore"),
         ),
         _template(
             slug="low-patience",
@@ -477,6 +491,7 @@ def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...
             history_reliance=0.58,
             skip_tolerance=1,
             abandonment_threshold=0.52,
+            behavior_plan=("first-hit-or-leave",),
         ),
         _template(
             slug="quality-first",
@@ -499,6 +514,7 @@ def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...
             history_reliance=0.66,
             skip_tolerance=2,
             abandonment_threshold=0.61,
+            behavior_plan=("trust-before-explore", "forgives-one-miss"),
         ),
         _template(
             slug="headline-chaser",
@@ -521,6 +537,7 @@ def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...
             history_reliance=0.48,
             skip_tolerance=3,
             abandonment_threshold=0.73,
+            behavior_plan=("needs-confidence-from-history",),
         ),
         _template(
             slug="cold-start-fragile",
@@ -543,6 +560,7 @@ def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...
             history_reliance=0.22,
             skip_tolerance=1,
             abandonment_threshold=0.49,
+            behavior_plan=("first-hit-or-leave", "needs-confidence-from-history"),
         ),
         _template(
             slug="slow-burn-curious",
@@ -565,6 +583,7 @@ def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...
             history_reliance=0.59,
             skip_tolerance=4,
             abandonment_threshold=0.82,
+            behavior_plan=("forgives-one-miss", "novelty-rewarded-after-quality"),
         ),
         _template(
             slug="comfort-loop",
@@ -587,6 +606,7 @@ def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...
             history_reliance=0.88,
             skip_tolerance=4,
             abandonment_threshold=0.85,
+            behavior_plan=("needs-confidence-from-history",),
         ),
         _template(
             slug="novelty-fragile",
@@ -609,6 +629,7 @@ def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...
             history_reliance=0.31,
             skip_tolerance=2,
             abandonment_threshold=0.58,
+            behavior_plan=("novelty-rewarded-after-quality", "first-hit-or-leave"),
         ),
         _template(
             slug="head-to-tail-bridge",
@@ -631,6 +652,7 @@ def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...
             history_reliance=0.53,
             skip_tolerance=3,
             abandonment_threshold=0.69,
+            behavior_plan=("trust-before-explore", "novelty-rewarded-after-quality"),
         ),
         _template(
             slug="precision-seeker",
@@ -653,6 +675,7 @@ def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...
             history_reliance=0.79,
             skip_tolerance=2,
             abandonment_threshold=0.64,
+            behavior_plan=("genre-loyal", "needs-confidence-from-history"),
         ),
         _template(
             slug="casual-wanderer",
@@ -675,6 +698,7 @@ def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...
             history_reliance=0.35,
             skip_tolerance=3,
             abandonment_threshold=0.74,
+            behavior_plan=("forgives-one-miss",),
         ),
         _template(
             slug="strict-filter",
@@ -697,6 +721,7 @@ def _fixture_persona_templates(focus_label: str) -> tuple[dict[str, object], ...
             history_reliance=0.71,
             skip_tolerance=1,
             abandonment_threshold=0.47,
+            behavior_plan=("first-hit-or-leave", "genre-loyal"),
         ),
     )
 
@@ -723,6 +748,7 @@ def _template(
     history_reliance: float,
     skip_tolerance: int,
     abandonment_threshold: float,
+    behavior_plan: tuple[str, ...] = (),
 ) -> dict[str, object]:
     """Build one fixture persona template."""
     return {
@@ -747,6 +773,7 @@ def _template(
             "history_reliance": history_reliance,
             "skip_tolerance": skip_tolerance,
             "abandonment_threshold": abandonment_threshold,
+            "behavior_plan": list(behavior_plan),
         },
     }
 
@@ -781,7 +808,132 @@ def _persona_signature(persona: GeneratedPersona) -> set[str]:
         }
     )
     signature.update(f"tag:{tag}" for tag in persona.diversity_tags)
+    signature.update(f"plan:{tag}" for tag in recommender_behavior_plan(persona))
     return signature
+
+
+def recommender_behavior_plan(persona: GeneratedPersona) -> tuple[str, ...]:
+    """Return the normalized structured behavior plan for one generated persona."""
+    hints = _require_recommender_hints(persona)
+    raw = hints.get("behavior_plan")
+    if raw is None:
+        return ()
+    if not isinstance(raw, list) or not all(isinstance(item, str) for item in raw):
+        raise ValueError(
+            f"Persona `{persona.persona_id}` has invalid recommender hint `behavior_plan`."
+        )
+    return tuple(dict.fromkeys(item.strip().lower() for item in raw if item.strip()))
+
+
+def _augment_behavior_goal(behavior_goal: str, behavior_plan: tuple[str, ...]) -> str:
+    if not behavior_plan:
+        return behavior_goal
+    return f"{behavior_goal} Behavior plan: {', '.join(behavior_plan)}."
+
+
+def _merged_behavior_tags(
+    diversity_tags: tuple[str, ...],
+    behavior_plan: tuple[str, ...],
+) -> tuple[str, ...]:
+    return tuple(dict.fromkeys((*diversity_tags, *behavior_plan)))
+
+
+def _apply_behavior_plan_adjustments(
+    profile: RecommenderPersonaProfile,
+    behavior_plan: tuple[str, ...],
+) -> RecommenderPersonaProfile:
+    adjusted = profile
+    for tag in behavior_plan:
+        if tag == "first-hit-or-leave":
+            adjusted = _replace_profile(
+                adjusted,
+                patience=max(1, min(adjusted.patience, 2)),
+                abandonment_sensitivity=min(1.0, adjusted.abandonment_sensitivity + 0.08),
+                abandonment_threshold=max(0.1, adjusted.abandonment_threshold - 0.06),
+            )
+        elif tag == "trust-before-explore":
+            adjusted = _replace_profile(
+                adjusted,
+                quality_sensitivity=min(1.0, adjusted.quality_sensitivity + 0.08),
+                novelty_preference=max(0.0, adjusted.novelty_preference - 0.06),
+                history_reliance=min(1.0, adjusted.history_reliance + 0.06),
+            )
+        elif tag == "novelty-rewarded-after-quality":
+            adjusted = _replace_profile(
+                adjusted,
+                novelty_preference=min(1.0, adjusted.novelty_preference + 0.08),
+                quality_sensitivity=min(1.0, adjusted.quality_sensitivity + 0.04),
+                repetition_tolerance=max(0.0, adjusted.repetition_tolerance - 0.05),
+            )
+        elif tag == "genre-loyal":
+            adjusted = _replace_profile(
+                adjusted,
+                history_reliance=min(1.0, adjusted.history_reliance + 0.08),
+                sparse_history_confidence=max(0.0, adjusted.sparse_history_confidence - 0.04),
+                quality_sensitivity=min(1.0, adjusted.quality_sensitivity + 0.04),
+            )
+        elif tag == "quickly-bored-by-repetition":
+            adjusted = _replace_profile(
+                adjusted,
+                repetition_tolerance=max(0.0, adjusted.repetition_tolerance - 0.08),
+                repeat_exposure_penalty=min(1.0, adjusted.repeat_exposure_penalty + 0.08),
+                novelty_preference=min(1.0, adjusted.novelty_preference + 0.04),
+            )
+        elif tag == "forgives-one-miss":
+            adjusted = _replace_profile(
+                adjusted,
+                frustration_recovery=min(1.0, adjusted.frustration_recovery + 0.08),
+                abandonment_sensitivity=max(0.0, adjusted.abandonment_sensitivity - 0.06),
+                patience=max(1, adjusted.patience + 1),
+            )
+        elif tag == "needs-confidence-from-history":
+            adjusted = _replace_profile(
+                adjusted,
+                history_reliance=min(1.0, adjusted.history_reliance + 0.1),
+                sparse_history_confidence=max(0.0, adjusted.sparse_history_confidence - 0.08),
+            )
+    return adjusted
+
+
+def _replace_profile(
+    profile: RecommenderPersonaProfile,
+    **updates: float | int | tuple[str, ...],
+) -> RecommenderPersonaProfile:
+    return RecommenderPersonaProfile(
+        preferred_genres=updates.get("preferred_genres", profile.preferred_genres),  # type: ignore[arg-type]
+        popularity_preference=float(
+            updates.get("popularity_preference", profile.popularity_preference)
+        ),
+        novelty_preference=float(updates.get("novelty_preference", profile.novelty_preference)),
+        repetition_tolerance=float(
+            updates.get("repetition_tolerance", profile.repetition_tolerance)
+        ),
+        sparse_history_confidence=float(
+            updates.get("sparse_history_confidence", profile.sparse_history_confidence)
+        ),
+        abandonment_sensitivity=float(
+            updates.get("abandonment_sensitivity", profile.abandonment_sensitivity)
+        ),
+        patience=int(updates.get("patience", profile.patience)),
+        engagement_baseline=float(
+            updates.get("engagement_baseline", profile.engagement_baseline)
+        ),
+        quality_sensitivity=float(
+            updates.get("quality_sensitivity", profile.quality_sensitivity)
+        ),
+        repeat_exposure_penalty=float(
+            updates.get("repeat_exposure_penalty", profile.repeat_exposure_penalty)
+        ),
+        novelty_fatigue=float(updates.get("novelty_fatigue", profile.novelty_fatigue)),
+        frustration_recovery=float(
+            updates.get("frustration_recovery", profile.frustration_recovery)
+        ),
+        history_reliance=float(updates.get("history_reliance", profile.history_reliance)),
+        skip_tolerance=int(updates.get("skip_tolerance", profile.skip_tolerance)),
+        abandonment_threshold=float(
+            updates.get("abandonment_threshold", profile.abandonment_threshold)
+        ),
+    )
 
 
 def _bucket(value: float) -> str:

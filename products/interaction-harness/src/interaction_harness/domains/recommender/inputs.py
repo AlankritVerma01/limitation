@@ -51,6 +51,7 @@ def project_recommender_scenarios(pack: ScenarioPack) -> tuple[ScenarioConfig, .
             )
         runtime_profile = hints.get("runtime_profile")
         history_depth = hints.get("history_depth")
+        simulation_focus = hints.get("simulation_focus")
         if not isinstance(runtime_profile, str) or runtime_profile not in _SUPPORTED_RUNTIME_PROFILES:
             raise ValueError(
                 f"Scenario `{scenario.scenario_id}` has unsupported recommender runtime profile."
@@ -58,6 +59,13 @@ def project_recommender_scenarios(pack: ScenarioPack) -> tuple[ScenarioConfig, .
         if not isinstance(history_depth, int) or history_depth < 0:
             raise ValueError(
                 f"Scenario `{scenario.scenario_id}` has invalid recommender history depth."
+            )
+        if simulation_focus is not None and (
+            not isinstance(simulation_focus, list)
+            or not all(isinstance(item, str) for item in simulation_focus)
+        ):
+            raise ValueError(
+                f"Scenario `{scenario.scenario_id}` has invalid recommender simulation focus."
             )
         allowed_actions = tuple(str(action) for action in scenario.allowed_actions)
         unsupported_actions = sorted(
@@ -79,7 +87,10 @@ def project_recommender_scenarios(pack: ScenarioPack) -> tuple[ScenarioConfig, .
                 test_goal=scenario.test_goal,
                 risk_focus_tags=scenario.risk_focus_tags,
                 runtime_profile=runtime_profile,
-                context_hint=str(hints.get("context_hint", "")),
+                context_hint=_merge_context_hint(
+                    str(hints.get("context_hint", "")),
+                    tuple(item.strip() for item in simulation_focus or [] if item.strip()),
+                ),
             )
         )
     return tuple(scenario_configs)
@@ -111,6 +122,9 @@ def _resolve_scenarios(
                 "scenario_pack_id": pack.metadata.pack_id,
                 "scenario_pack_mode": pack.metadata.generator_mode,
                 "scenario_pack_domain": pack.metadata.domain_label,
+                "scenario_pack_provider_name": pack.metadata.provider_name,
+                "scenario_pack_model_name": pack.metadata.model_name,
+                "scenario_pack_model_profile": pack.metadata.model_profile,
                 "scenario_count": len(pack.scenarios),
                 "scenario_pack_path": scenario_pack_path,
             },
@@ -145,6 +159,9 @@ def _resolve_population(
             "population_pack_id": pack.metadata.pack_id,
             "population_pack_mode": pack.metadata.generator_mode,
             "population_pack_domain": pack.metadata.domain_label,
+            "population_pack_provider_name": pack.metadata.provider_name,
+            "population_pack_model_name": pack.metadata.model_name,
+            "population_pack_model_profile": pack.metadata.model_profile,
             "population_pack_size": pack.metadata.selected_count,
             "population_target_size": pack.metadata.target_population_size,
             "population_pack_candidate_count": pack.metadata.candidate_count,
@@ -152,3 +169,12 @@ def _resolve_population(
             "population_pack_path": population_pack_path,
         },
     )
+
+
+def _merge_context_hint(context_hint: str, simulation_focus: tuple[str, ...]) -> str:
+    if not simulation_focus:
+        return context_hint
+    focus_text = ", ".join(simulation_focus)
+    if not context_hint:
+        return f"Simulation focus: {focus_text}"
+    return f"{context_hint}. Simulation focus: {focus_text}"

@@ -13,14 +13,21 @@ from .audit import execute_domain_audit, write_run_artifacts
 from .cli_progress import ProgressCallback, TerminalProgressRenderer, emit_progress
 from .config import DEFAULT_OUTPUT_DIR
 from .domain_registry import get_domain_definition, list_public_domain_definitions
+from .generation_support import (
+    DEFAULT_POPULATION_PROVIDER_MODEL,
+    DEFAULT_PROVIDER_PROFILE,
+    DEFAULT_SCENARIO_PROVIDER_MODEL,
+    DEFAULT_SEMANTIC_PROVIDER_MODEL,
+    list_provider_profiles,
+)
 from .population_generation import (
     build_default_population_pack_path,
     generate_population_pack,
     write_population_pack,
 )
 from .regression import run_domain_regression_audit
+from .run_manifest import write_run_manifest
 from .scenario_generation import (
-    DEFAULT_PROVIDER_MODEL,
     build_default_scenario_pack_path,
     generate_scenario_pack,
     write_scenario_pack,
@@ -35,16 +42,20 @@ def _build_parser() -> argparse.ArgumentParser:
         description=(
             "Run interaction-harness workflows through the shared CLI.\n\n"
             "Recommended v1 paths:\n"
+            "- `run-swarm --domain recommender --target-url ... --brief ...`: one-command intent-driven swarm run\n"
             "- `audit --domain recommender`: local reference target or an external URL\n"
+            "- `check-target --domain recommender --target-url ...`: validate a customer endpoint before a full run\n"
             "- `compare --domain recommender`: artifact-backed baselines/candidates or external URLs\n"
             "- `generate-scenarios --domain recommender` / `generate-population --domain recommender`\n"
             "- `serve-reference --domain recommender`: explicit local reference-service workflow\n\n"
-            "The runtime and regression core stay deterministic."
+            "AI-backed generation expands coverage. The runtime and regression core stay deterministic."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", metavar="command")
 
     _build_audit_parser(subparsers)
+    _build_run_swarm_parser(subparsers)
+    _build_check_target_parser(subparsers)
     _build_compare_parser(subparsers)
     _build_generate_scenarios_parser(subparsers)
     _build_generate_population_parser(subparsers)
@@ -95,6 +106,48 @@ def _build_audit_parser(
         "--include-slice-membership",
         action="store_true",
         help="Include full discovered-slice membership in results.json.",
+    )
+    return parser
+
+
+def _build_run_swarm_parser(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> argparse.ArgumentParser:
+    parser = subparsers.add_parser(
+        "run-swarm",
+        help="Generate coverage from one brief, run the swarm, and write one audit bundle.",
+        description=(
+            "Generate scenarios and a saved swarm from one brief, then run a domain audit "
+            "against a supported local reference target or an external URL."
+        ),
+    )
+    parser.set_defaults(handler=_handle_run_swarm_command)
+    _add_run_swarm_arguments(parser)
+    parser.add_argument(
+        "--target-url",
+        default=None,
+        help=(
+            "Existing system endpoint to audit for the selected domain. "
+            "If omitted, the supported local reference target is used."
+        ),
+    )
+    parser.add_argument(
+        "--reference-artifact-dir",
+        default=None,
+        help=(
+            "Optional artifact directory for the selected domain's local reference "
+            "target. This is an advanced override for the supported local path."
+        ),
+    )
+    parser.add_argument(
+        "--use-mock",
+        action="store_true",
+        help="Use a domain-specific mock target only for narrow test/debug runs.",
+    )
+    parser.add_argument(
+        "--run-name",
+        default=None,
+        help="Optional display name override for the audit.",
     )
     return parser
 
@@ -156,6 +209,32 @@ def _build_compare_parser(
     return parser
 
 
+def _build_check_target_parser(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> argparse.ArgumentParser:
+    parser = subparsers.add_parser(
+        "check-target",
+        help="Validate one external target before running a full audit.",
+        description=(
+            "Run a lightweight contract check against an external target for the selected domain."
+        ),
+    )
+    parser.set_defaults(handler=_handle_check_target_command)
+    _add_domain_argument(parser)
+    parser.add_argument(
+        "--target-url",
+        required=True,
+        help="External system endpoint to validate.",
+    )
+    parser.add_argument(
+        "--timeout-seconds",
+        type=float,
+        default=2.0,
+        help="Per-request timeout used during the target check.",
+    )
+    return parser
+
+
 def _build_generate_scenarios_parser(
     subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
 ) -> argparse.ArgumentParser:
@@ -164,7 +243,8 @@ def _build_generate_scenarios_parser(
         help="Generate and save a structured scenario pack for one domain.",
         description=(
             "Generate a structured scenario pack for one domain. Use `provider` for "
-            "richer authored workflows and `fixture` for deterministic CI/demo runs."
+            "the recommended AI-authored coverage workflow and `fixture` for deterministic CI/demo runs. "
+            "The default `fast` AI profile favors lower cost and latency."
         ),
     )
     parser.set_defaults(handler=_handle_generate_scenarios_command)
@@ -188,12 +268,23 @@ def _build_generate_scenarios_parser(
         "--mode",
         default="fixture",
         choices=("fixture", "provider"),
-        help="Generation mode.",
+        help="Generation mode. `provider` is recommended for richer launch-grade coverage.",
+    )
+    parser.add_argument(
+        "--ai-profile",
+        default=DEFAULT_PROVIDER_PROFILE,
+        choices=list_provider_profiles(),
+        help=(
+            "Named AI profile used when `--mode provider` and no explicit `--model` override is set."
+        ),
     )
     parser.add_argument(
         "--model",
-        default=DEFAULT_PROVIDER_MODEL,
-        help="Provider model name used when mode is `provider`.",
+        default=None,
+        help=(
+            "Optional explicit provider model override for scenario generation. "
+            f"Defaults to `{DEFAULT_SCENARIO_PROVIDER_MODEL}` through the selected AI profile."
+        ),
     )
     parser.add_argument(
         "--scenario-count",
@@ -212,7 +303,8 @@ def _build_generate_population_parser(
         help="Generate and save a structured population pack for one domain.",
         description=(
             "Generate a structured population pack for one domain. Use `provider` for "
-            "richer authored workflows and `fixture` for deterministic CI/demo runs."
+            "the recommended AI-authored swarm workflow and `fixture` for deterministic CI/demo runs. "
+            "The default `fast` AI profile favors lower cost and latency."
         ),
     )
     parser.set_defaults(handler=_handle_generate_population_command)
@@ -236,12 +328,23 @@ def _build_generate_population_parser(
         "--mode",
         default="fixture",
         choices=("fixture", "provider"),
-        help="Generation mode.",
+        help="Generation mode. `provider` is recommended for richer launch-grade coverage.",
+    )
+    parser.add_argument(
+        "--ai-profile",
+        default=DEFAULT_PROVIDER_PROFILE,
+        choices=list_provider_profiles(),
+        help=(
+            "Named AI profile used when `--mode provider` and no explicit `--model` override is set."
+        ),
     )
     parser.add_argument(
         "--model",
-        default=DEFAULT_PROVIDER_MODEL,
-        help="Provider model name used when mode is `provider`.",
+        default=None,
+        help=(
+            "Optional explicit provider model override for population generation. "
+            f"Defaults to `{DEFAULT_POPULATION_PROVIDER_MODEL}` through the selected AI profile."
+        ),
     )
     parser.add_argument(
         "--population-size",
@@ -290,13 +393,7 @@ def _build_serve_reference_parser(
 
 
 def _add_shared_run_arguments(parser: argparse.ArgumentParser) -> None:
-    _add_domain_argument(parser)
-    parser.add_argument("--seed", type=int, default=0, help="Seed for deterministic rollouts.")
-    parser.add_argument(
-        "--output-dir",
-        default=None,
-        help="Optional output directory override for the generated artifact bundle.",
-    )
+    _add_shared_execution_arguments(parser)
     parser.add_argument(
         "--scenario",
         default="all",
@@ -312,6 +409,16 @@ def _add_shared_run_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="Saved population-pack path used for the run.",
     )
+
+
+def _add_shared_execution_arguments(parser: argparse.ArgumentParser) -> None:
+    _add_domain_argument(parser)
+    parser.add_argument("--seed", type=int, default=0, help="Seed for deterministic rollouts.")
+    parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="Optional output directory override for the generated artifact bundle.",
+    )
     parser.add_argument(
         "--semantic-mode",
         default="off",
@@ -322,9 +429,73 @@ def _add_shared_run_arguments(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--semantic-profile",
+        default=DEFAULT_PROVIDER_PROFILE,
+        choices=list_provider_profiles(),
+        help=(
+            "Named AI profile used when `--semantic-mode provider` and no explicit "
+            "`--semantic-model` override is set."
+        ),
+    )
+    parser.add_argument(
         "--semantic-model",
-        default=DEFAULT_PROVIDER_MODEL,
-        help="Provider model name used when semantic mode is `provider`.",
+        default=None,
+        help=(
+            "Optional explicit provider model override for semantic interpretation. "
+            f"Defaults to `{DEFAULT_SEMANTIC_PROVIDER_MODEL}` through the selected semantic profile."
+        ),
+    )
+
+
+def _add_run_swarm_arguments(parser: argparse.ArgumentParser) -> None:
+    _add_shared_execution_arguments(parser)
+    parser.add_argument(
+        "--brief",
+        required=True,
+        help="Short brief used to generate scenarios and the saved swarm for this run.",
+    )
+    parser.add_argument(
+        "--scenario-pack-path",
+        default=None,
+        help="Optional explicit saved scenario-pack path to reuse for this run.",
+    )
+    parser.add_argument(
+        "--population-pack-path",
+        default=None,
+        help="Optional explicit saved population-pack path to reuse for this run.",
+    )
+    parser.add_argument(
+        "--generation-mode",
+        default="fixture",
+        choices=("fixture", "provider"),
+        help="Coverage-generation mode for both scenario and swarm generation.",
+    )
+    parser.add_argument(
+        "--ai-profile",
+        default=DEFAULT_PROVIDER_PROFILE,
+        choices=list_provider_profiles(),
+        help=(
+            "Named AI profile used for both scenario and swarm generation when provider "
+            "generation is selected and no explicit model override is set."
+        ),
+    )
+    parser.add_argument(
+        "--scenario-count",
+        type=int,
+        default=3,
+        help="Number of generated scenarios when a saved scenario pack is not provided.",
+    )
+    parser.add_argument(
+        "--population-size",
+        type=int,
+        default=None,
+        help="Optional explicit final swarm size when a saved population pack is not provided.",
+    )
+    parser.add_argument(
+        "--population-candidate-count",
+        type=int,
+        default=None,
+        help="Optional candidate count before deterministic swarm selection.",
     )
 
 
@@ -377,20 +548,165 @@ def _handle_audit_command(
         run_name=args.run_name,
         semantic_mode=args.semantic_mode,
         semantic_model=args.semantic_model,
+        semantic_profile=args.semantic_profile,
         progress_callback=progress_callback,
     )
     run_result.metadata["include_slice_membership"] = args.include_slice_membership
+    run_result.metadata["run_manifest_path"] = str(
+        Path(run_result.run_config.rollout.output_dir) / "run_manifest.json"
+    )
     result = write_run_artifacts(run_result, progress_callback=progress_callback)
+    manifest_path = write_run_manifest(
+        run_result,
+        artifact_paths=result,
+        workflow_type="audit",
+    )
     _print_summary(
         "Audit complete",
         (
             ("Launch status", _audit_launch_status(run_result)),
             ("High-risk cohorts", str(_count_high_risk_cohorts(run_result))),
             ("Risk flags", str(len(run_result.risk_flags))),
+            ("Service kind", str(run_result.metadata.get("service_kind", ""))),
+            ("Dataset", str(run_result.metadata.get("dataset", ""))),
+            ("Model kind", str(run_result.metadata.get("model_kind", ""))),
+            ("Model ID", str(run_result.metadata.get("model_id", ""))),
             ("Open report", str(result["report_path"])),
             ("Machine-readable results", str(result["results_path"])),
             ("Full traces", str(result["traces_path"])),
             ("Chart", str(result["chart_path"])),
+            ("Run manifest", manifest_path),
+        ),
+    )
+    return {**result, "run_manifest_path": manifest_path}
+
+
+def _handle_run_swarm_command(
+    args: argparse.Namespace,
+    progress_callback: ProgressCallback,
+) -> dict[str, str | int]:
+    domain_name = args.domain
+    service_mode, service_artifact_dir, adapter_base_url = _resolve_audit_target(
+        args,
+        domain_name=domain_name,
+    )
+    output_root = args.output_dir or str(DEFAULT_OUTPUT_DIR)
+    emit_progress(
+        progress_callback,
+        phase="resolve_generation_mode",
+        message=f"Using generation mode: {args.generation_mode}",
+        stage="finish",
+    )
+    (
+        scenario_pack_path,
+        population_pack_path,
+        coverage_source,
+        scenario_generation_mode,
+        swarm_generation_mode,
+    ) = _resolve_run_swarm_packs(
+        args,
+        domain_name=domain_name,
+        output_root=output_root,
+        generation_mode=args.generation_mode,
+        progress_callback=progress_callback,
+    )
+    run_result = execute_domain_audit(
+        domain_name=domain_name,
+        seed=args.seed,
+        output_dir=args.output_dir,
+        scenario_pack_path=scenario_pack_path,
+        population_pack_path=population_pack_path,
+        service_mode=service_mode,
+        service_artifact_dir=service_artifact_dir,
+        adapter_base_url=adapter_base_url,
+        run_name=args.run_name,
+        semantic_mode=args.semantic_mode,
+        semantic_model=args.semantic_model,
+        semantic_profile=args.semantic_profile,
+        progress_callback=progress_callback,
+    )
+    run_result.metadata["run_manifest_path"] = str(
+        Path(run_result.run_config.rollout.output_dir) / "run_manifest.json"
+    )
+    result = write_run_artifacts(run_result, progress_callback=progress_callback)
+    manifest_path = write_run_manifest(
+        run_result,
+        artifact_paths=result,
+        workflow_type="run-swarm",
+        workflow_metadata={
+            "coverage_source": coverage_source,
+            "scenario_generation_mode": scenario_generation_mode,
+            "swarm_generation_mode": swarm_generation_mode,
+            "brief": args.brief,
+            "scenario_pack_path": scenario_pack_path,
+            "population_pack_path": population_pack_path,
+            "ai_profile": args.ai_profile if coverage_source != "reused" else "",
+        },
+    )
+    _print_summary(
+        "Swarm run complete",
+        (
+            ("Coverage source", coverage_source),
+            ("Scenario generation", scenario_generation_mode),
+            ("Swarm generation", swarm_generation_mode),
+            ("AI profile", args.ai_profile if coverage_source != "reused" else "n/a"),
+            ("Launch status", _audit_launch_status(run_result)),
+            ("High-risk cohorts", str(_count_high_risk_cohorts(run_result))),
+            ("Service kind", str(run_result.metadata.get("service_kind", ""))),
+            ("Dataset", str(run_result.metadata.get("dataset", ""))),
+            ("Model kind", str(run_result.metadata.get("model_kind", ""))),
+            ("Model ID", str(run_result.metadata.get("model_id", ""))),
+            ("Saved scenario pack", scenario_pack_path),
+            ("Saved swarm pack", population_pack_path),
+            ("Open report", str(result["report_path"])),
+            ("Machine-readable results", str(result["results_path"])),
+            ("Full traces", str(result["traces_path"])),
+            ("Run manifest", manifest_path),
+        ),
+    )
+    return {
+        **result,
+        "scenario_pack_path": scenario_pack_path,
+        "population_pack_path": population_pack_path,
+        "coverage_source": coverage_source,
+        "scenario_generation_mode": scenario_generation_mode,
+        "swarm_generation_mode": swarm_generation_mode,
+        "run_manifest_path": manifest_path,
+    }
+
+
+def _handle_check_target_command(
+    args: argparse.Namespace,
+    progress_callback: ProgressCallback,
+) -> dict[str, str | int | float]:
+    definition = get_domain_definition(args.domain)
+    if definition.check_target is None:
+        raise SystemExit(f"`check-target` is not supported for domain `{args.domain}`.")
+    emit_progress(
+        progress_callback,
+        phase="check_target",
+        message="Checking external target",
+        stage="start",
+    )
+    result = definition.check_target(args.target_url, args.timeout_seconds)
+    emit_progress(
+        progress_callback,
+        phase="check_target",
+        message="Checked external target",
+        stage="finish",
+    )
+    _print_summary(
+        "Target check complete",
+        (
+            ("Status", str(result.get("probe_status", ""))),
+            ("Target URL", str(result.get("target_url", ""))),
+            ("Service kind", str(result.get("service_kind", ""))),
+            ("Backend", str(result.get("backend_name", ""))),
+            ("Dataset", str(result.get("dataset", ""))),
+            ("Model kind", str(result.get("model_kind", ""))),
+            ("Model ID", str(result.get("model_id", ""))),
+            ("Probe scenario", str(result.get("probe_scenario", ""))),
+            ("Top item", str(result.get("top_item_title", ""))),
         ),
     )
     return result
@@ -426,6 +742,7 @@ def _handle_compare_command(
         population_pack_path=args.population_pack_path,
         semantic_mode=args.semantic_mode,
         semantic_model=args.semantic_model,
+        semantic_profile=args.semantic_profile,
         policy_mode=args.policy_mode,
         progress_callback=progress_callback,
     )
@@ -441,6 +758,7 @@ def _handle_compare_command(
             ("Open regression report", str(result["regression_report_path"])),
             ("Machine-readable summary", str(result["regression_summary_path"])),
             ("Regression traces", str(result["regression_traces_path"])),
+            ("Run manifest", str(result["run_manifest_path"])),
         ),
     )
     return result
@@ -463,6 +781,7 @@ def _handle_generate_scenarios_command(
         scenario_count=args.scenario_count,
         domain_label=domain_name,
         model_name=args.model,
+        model_profile=args.ai_profile,
         progress_callback=progress_callback,
     )
     emit_progress(
@@ -482,6 +801,9 @@ def _handle_generate_scenarios_command(
         "Scenario generation complete",
         (
             ("Pack ID", pack.metadata.pack_id),
+            ("Generation mode", pack.metadata.generator_mode),
+            ("AI profile", pack.metadata.model_profile or "n/a"),
+            ("Provider model", pack.metadata.model_name),
             ("Saved scenario pack", saved_path),
             ("Scenario count", str(len(pack.scenarios))),
         ),
@@ -511,6 +833,7 @@ def _handle_generate_population_command(
         candidate_count=args.population_candidate_count,
         domain_label=domain_name,
         model_name=args.model,
+        model_profile=args.ai_profile,
         progress_callback=progress_callback,
     )
     emit_progress(
@@ -530,8 +853,11 @@ def _handle_generate_population_command(
         "Population generation complete",
         (
             ("Pack ID", pack.metadata.pack_id),
+            ("Generation mode", pack.metadata.generator_mode),
+            ("AI profile", pack.metadata.model_profile or "n/a"),
+            ("Provider model", pack.metadata.model_name),
             ("Saved population pack", saved_path),
-            ("Selected personas", str(pack.metadata.selected_count)),
+            ("Selected swarm members", str(pack.metadata.selected_count)),
             ("Population size source", pack.metadata.population_size_source),
         ),
     )
@@ -629,6 +955,157 @@ def _resolve_audit_target(
     if args.target_url is not None:
         return "reference", None, args.target_url
     return "reference", args.reference_artifact_dir, None
+
+
+def _resolve_run_swarm_packs(
+    args: argparse.Namespace,
+    *,
+    domain_name: str,
+    output_root: str,
+    generation_mode: str,
+    progress_callback: ProgressCallback | None = None,
+) -> tuple[str, str, str, str, str]:
+    scenario_pack_path = args.scenario_pack_path
+    population_pack_path = args.population_pack_path
+    generated_any = False
+    reused_any = False
+    scenario_generation_mode = "reused" if scenario_pack_path is not None else generation_mode
+    swarm_generation_mode = "reused" if population_pack_path is not None else generation_mode
+
+    if scenario_pack_path is None:
+        scenario_pack_path = _generate_run_swarm_scenario_pack(
+            brief=args.brief,
+            output_root=output_root,
+            domain_name=domain_name,
+            generation_mode=generation_mode,
+            ai_profile=args.ai_profile,
+            scenario_count=args.scenario_count,
+            progress_callback=progress_callback,
+        )
+        generated_any = True
+    else:
+        emit_progress(
+            progress_callback,
+            phase="reuse_scenario_pack",
+            message="Reusing scenario pack",
+            stage="finish",
+        )
+        reused_any = True
+
+    if population_pack_path is None:
+        population_pack_path = _generate_run_swarm_population_pack(
+            brief=args.brief,
+            output_root=output_root,
+            domain_name=domain_name,
+            generation_mode=generation_mode,
+            ai_profile=args.ai_profile,
+            population_size=args.population_size,
+            population_candidate_count=args.population_candidate_count,
+            progress_callback=progress_callback,
+        )
+        generated_any = True
+    else:
+        emit_progress(
+            progress_callback,
+            phase="reuse_population_pack",
+            message="Reusing swarm pack",
+            stage="finish",
+        )
+        reused_any = True
+
+    if generated_any and reused_any:
+        coverage_source = "mixed"
+    elif generated_any:
+        coverage_source = "generated"
+    else:
+        coverage_source = "reused"
+    return (
+        scenario_pack_path,
+        population_pack_path,
+        coverage_source,
+        scenario_generation_mode,
+        swarm_generation_mode,
+    )
+
+
+def _generate_run_swarm_scenario_pack(
+    *,
+    brief: str,
+    output_root: str,
+    domain_name: str,
+    generation_mode: str,
+    ai_profile: str,
+    scenario_count: int,
+    progress_callback: ProgressCallback | None = None,
+) -> str:
+    pack = generate_scenario_pack(
+        brief,
+        generator_mode=generation_mode,
+        scenario_count=scenario_count,
+        domain_label=domain_name,
+        model_profile=ai_profile,
+        progress_callback=progress_callback,
+    )
+    scenario_pack_path = build_default_scenario_pack_path(
+        output_root,
+        brief=brief,
+        generator_mode=generation_mode,
+    )
+    emit_progress(
+        progress_callback,
+        phase="write_pack",
+        message="Writing scenario pack",
+        stage="start",
+    )
+    saved_path = write_scenario_pack(pack, scenario_pack_path)
+    emit_progress(
+        progress_callback,
+        phase="write_pack",
+        message="Wrote scenario pack",
+        stage="finish",
+    )
+    return saved_path
+
+
+def _generate_run_swarm_population_pack(
+    *,
+    brief: str,
+    output_root: str,
+    domain_name: str,
+    generation_mode: str,
+    ai_profile: str,
+    population_size: int | None,
+    population_candidate_count: int | None,
+    progress_callback: ProgressCallback | None = None,
+) -> str:
+    pack = generate_population_pack(
+        brief,
+        generator_mode=generation_mode,
+        population_size=population_size,
+        candidate_count=population_candidate_count,
+        domain_label=domain_name,
+        model_profile=ai_profile,
+        progress_callback=progress_callback,
+    )
+    population_pack_path = build_default_population_pack_path(
+        output_root,
+        brief=brief,
+        generator_mode=generation_mode,
+    )
+    emit_progress(
+        progress_callback,
+        phase="write_pack",
+        message="Writing population pack",
+        stage="start",
+    )
+    saved_path = write_population_pack(pack, population_pack_path)
+    emit_progress(
+        progress_callback,
+        phase="write_pack",
+        message="Wrote population pack",
+        stage="finish",
+    )
+    return saved_path
 
 
 def _build_compare_target(

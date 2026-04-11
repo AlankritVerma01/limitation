@@ -49,6 +49,8 @@ def _normalize_regression_payload(payload: dict[str, Any]) -> dict[str, Any]:
         payload["metadata"]["scenario_pack_path"] = "<normalized>"
     if "population_pack_path" in payload.get("metadata", {}):
         payload["metadata"]["population_pack_path"] = "<normalized>"
+    if "run_manifest_path" in payload.get("metadata", {}):
+        payload["metadata"]["run_manifest_path"] = "<normalized>"
     if "semantic_interpretation" in payload and payload["semantic_interpretation"] is None:
         payload.pop("semantic_interpretation", None)
     semantic = payload.get("semantic_interpretation")

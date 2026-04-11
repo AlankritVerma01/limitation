@@ -37,6 +37,7 @@ from .reporting import (
 from .services import (
     build_recommender_target_audit_kwargs,
     build_recommender_target_identity,
+    check_recommender_target,
     open_recommender_service_context,
 )
 
@@ -67,6 +68,7 @@ def build_recommender_domain_definition() -> DomainDefinition:
         build_run_config=build_recommender_run_config,
         build_target_identity=build_recommender_target_identity,
         build_target_audit_kwargs=build_recommender_target_audit_kwargs,
+        check_target=check_recommender_target,
         build_runtime_scenarios=build_recommender_runtime_scenarios,
         open_service_context=open_recommender_service_context,
         build_adapter=build_recommender_adapter,

@@ -13,14 +13,15 @@ from typing import Protocol
 from .cli_progress import ProgressCallback, emit_progress
 from .domain_registry import get_domain_definition
 from .generation_support import (
-    DEFAULT_PROVIDER_MODEL,
     DEFAULT_PROVIDER_NAME,
+    DEFAULT_PROVIDER_PROFILE,
     build_responses_endpoint,
     extract_response_text,
     load_dotenv_if_present,
-    read_retry_count,
-    read_timeout_seconds,
+    read_retry_count_with_fallback,
+    read_timeout_seconds_with_fallback,
     request_provider_payload,
+    resolve_provider_model,
 )
 from .schema import (
     GeneratedPersona,
@@ -83,14 +84,19 @@ class ProviderPopulationGenerator:
         self,
         *,
         provider_name: str = DEFAULT_PROVIDER_NAME,
-        model_name: str = DEFAULT_PROVIDER_MODEL,
+        model_name: str | None = None,
+        profile_name: str = DEFAULT_PROVIDER_PROFILE,
         api_key_env: str = "OPENAI_API_KEY",
         base_url_env: str = "OPENAI_BASE_URL",
-        timeout_seconds_env: str = "OPENAI_TIMEOUT_SECONDS",
-        retry_count_env: str = "OPENAI_RETRY_COUNT",
+        timeout_seconds_env: str = "OPENAI_POPULATION_TIMEOUT_SECONDS",
+        retry_count_env: str = "OPENAI_POPULATION_RETRY_COUNT",
     ) -> None:
         self.provider_name = provider_name
-        self.model_name = model_name
+        self.model_name, self.model_profile = resolve_provider_model(
+            purpose="population_generation",
+            explicit_model_name=model_name,
+            profile_name=profile_name,
+        )
         self.api_key_env = api_key_env
         self.base_url_env = base_url_env
         self.timeout_seconds_env = timeout_seconds_env
@@ -114,8 +120,14 @@ class ProviderPopulationGenerator:
                 candidate_count=candidate_count,
                 domain_label=domain_label,
             ),
-            timeout_seconds=read_timeout_seconds(self.timeout_seconds_env),
-            retry_count=read_retry_count(self.retry_count_env),
+            timeout_seconds=read_timeout_seconds_with_fallback(
+                self.timeout_seconds_env,
+                "OPENAI_TIMEOUT_SECONDS",
+            ),
+            retry_count=read_retry_count_with_fallback(
+                self.retry_count_env,
+                "OPENAI_RETRY_COUNT",
+            ),
             purpose="population generation",
         )
         raw_text = extract_response_text(payload)
@@ -160,7 +172,11 @@ class ProviderPopulationGenerator:
             raise ValueError(
                 f"Domain `{domain_label}` does not support provider population generation."
             )
-        return hooks.build_population_prompt(brief, candidate_count, domain_label)
+        return hooks.build_population_prompt(
+            brief=brief,
+            candidate_count=candidate_count,
+            domain_label=domain_label,
+        )
 
 
 
@@ -171,7 +187,8 @@ def generate_population_pack(
     population_size: int | None = None,
     candidate_count: int | None = None,
     domain_label: str = "recommender",
-    model_name: str = DEFAULT_PROVIDER_MODEL,
+    model_name: str | None = None,
+    model_profile: str = DEFAULT_PROVIDER_PROFILE,
     progress_callback: ProgressCallback | None = None,
 ) -> PopulationPack:
     """Generate, select, and return a structured population pack."""
@@ -210,8 +227,9 @@ def generate_population_pack(
         )
         provider_name = ""
         resolved_model_name = ""
+        resolved_model_profile = ""
     else:
-        generator = ProviderPopulationGenerator(model_name=model_name)
+        generator = ProviderPopulationGenerator(model_name=model_name, profile_name=model_profile)
         generated = generator.generate(
             brief,
             candidate_count=resolved_candidate_count,
@@ -219,6 +237,7 @@ def generate_population_pack(
         )
         provider_name = generator.provider_name
         resolved_model_name = generator.model_name
+        resolved_model_profile = generator.model_profile
     emit_progress(
         progress_callback,
         phase="generate_candidates",
@@ -254,6 +273,7 @@ def generate_population_pack(
         population_size_source=size_source,
         provider_name=provider_name,
         model_name=resolved_model_name,
+        model_profile=resolved_model_profile,
     )
     emit_progress(
         progress_callback,
@@ -282,6 +302,7 @@ def build_population_pack(
     population_size_source: str = "explicit",
     provider_name: str = "",
     model_name: str = "",
+    model_profile: str = "",
 ) -> PopulationPack:
     """Validate raw persona payloads, select a final swarm, and build the pack."""
     personas = tuple(_parse_generated_persona(raw_persona) for raw_persona in raw_personas)
@@ -321,6 +342,7 @@ def build_population_pack(
         population_size_source=population_size_source,
         provider_name=provider_name,
         model_name=model_name,
+        model_profile=model_profile,
     )
     return PopulationPack(metadata=metadata, personas=selected_personas)
 
@@ -354,6 +376,7 @@ def load_population_pack(path: str | Path) -> PopulationPack:
         population_size_source=str(metadata.get("population_size_source", "explicit")),
         provider_name=str(metadata.get("provider_name", "")),
         model_name=str(metadata.get("model_name", "")),
+        model_profile=str(metadata.get("model_profile", "")),
     )
 
 
