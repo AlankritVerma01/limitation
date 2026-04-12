@@ -1,0 +1,57 @@
+name: evidpath-ci
+
+on:
+  push:
+    paths:
+      - ".github/workflows/evidpath-ci.yml"
+      - ".github/workflows/evidpath-publish.yml"
+      - "products/evidpath/**"
+  pull_request:
+    paths:
+      - ".github/workflows/evidpath-ci.yml"
+      - ".github/workflows/evidpath-publish.yml"
+      - "products/evidpath/**"
+  workflow_dispatch:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install package and release tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ./products/evidpath[dev]
+
+      - name: Lint evidpath
+        run: |
+          ruff check products/evidpath
+
+      - name: Run evidpath tests
+        run: |
+          pytest products/evidpath/tests -q
+
+      - name: Build wheel and sdist
+        working-directory: products/evidpath
+        run: |
+          python -m build
+
+      - name: Check distribution metadata
+        working-directory: products/evidpath
+        run: |
+          twine check dist/*
+
+      - name: Upload built distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidpath-dist
+          path: products/evidpath/dist/*
+          if-no-files-found: error
