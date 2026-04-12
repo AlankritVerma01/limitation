@@ -275,8 +275,8 @@ def test_help_marks_reference_service_as_supported_local_path(
         main(["audit", "--help"])
     captured = capsys.readouterr()
     audit_help = " ".join(captured.out.split())
-    assert "supported local reference target" in audit_help
-    assert "test/debug runs" in audit_help
+    assert "product-owned local reference target" in audit_help
+    assert "internal-only mock target" in audit_help
 
 
 def test_help_recommends_provider_for_richer_ai_workflows(

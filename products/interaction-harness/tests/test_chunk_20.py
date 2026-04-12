@@ -12,13 +12,13 @@ from unittest.mock import patch
 from urllib import request
 
 import pytest
+from interaction_harness.artifacts.run_plan import PlannedWorkflow
 from interaction_harness.cli import main
 from interaction_harness.orchestration.types import RunSwarmPlanContext
 from interaction_harness.population_generation import (
     generate_population_pack,
     write_population_pack,
 )
-from interaction_harness.run_plan import PlannedWorkflow
 from interaction_harness.scenario_generation import (
     generate_scenario_pack,
     write_scenario_pack,
@@ -214,7 +214,7 @@ def test_run_swarm_provider_mode_routes_both_generators_through_provider(
     )
     with (
         patch(
-            "interaction_harness.cli.plan_run_swarm",
+            "interaction_harness.cli_app.handlers.plan_run_swarm",
             return_value=_planned_workflow(
                 tmp_path=tmp_path / "run-swarm",
                 brief="test provider mode",
@@ -261,7 +261,7 @@ def test_run_swarm_provider_mode_still_fails_when_provider_generation_fails(
 ) -> None:
     with (
         patch(
-            "interaction_harness.cli.plan_run_swarm",
+            "interaction_harness.cli_app.handlers.plan_run_swarm",
             return_value=_planned_workflow(
                 tmp_path=tmp_path / "run-swarm",
                 brief="test provider hard failure",
@@ -311,7 +311,7 @@ def test_run_swarm_mixed_reuse_summary_shows_separate_generation_fields(
 
     with (
         patch(
-            "interaction_harness.cli.plan_run_swarm",
+            "interaction_harness.cli_app.handlers.plan_run_swarm",
             return_value=_planned_workflow(
                 tmp_path=tmp_path / "run-swarm",
                 brief="mix saved scenarios with generated swarm",

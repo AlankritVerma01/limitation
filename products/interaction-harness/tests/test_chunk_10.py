@@ -279,7 +279,10 @@ def test_cli_provider_population_generation_routes_through_generation_layer(tmp_
         population_size=12,
         candidate_count=18,
     )
-    with patch("interaction_harness.cli.generate_population_pack", return_value=fake_pack) as mock_generate:
+    with patch(
+        "interaction_harness.cli_app.handlers.generate_population_pack",
+        return_value=fake_pack,
+    ) as mock_generate:
         result = main(
             [
                 "generate-population",

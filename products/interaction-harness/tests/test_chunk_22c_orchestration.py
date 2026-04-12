@@ -18,13 +18,29 @@ from interaction_harness.population_generation import build_default_population_p
 from interaction_harness.scenario_generation import build_default_scenario_pack_path
 
 
-def _run_swarm_request(tmp_path: Path, *, explicit_inputs: dict[str, object]) -> RunSwarmPlanRequest:
+def _disable_provider_credentials(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "interaction_harness.orchestration._planner_decisions.provider_credentials_available",
+        lambda: False,
+    )
+    monkeypatch.setattr(
+        "interaction_harness.orchestration._planner_defaults.provider_credentials_available",
+        lambda: False,
+    )
+
+
+def _run_swarm_request(
+    tmp_path: Path,
+    *,
+    explicit_inputs: dict[str, object],
+    generation_mode: str = "provider",
+) -> RunSwarmPlanRequest:
     output_root = str(tmp_path / "orchestration")
     brief = "test planner-owned ai profile defaults"
     return RunSwarmPlanRequest(
         domain_name="recommender",
         brief=brief,
-        generation_mode="provider",
+        generation_mode=generation_mode,
         output_root=output_root,
         target_config={
             "service_mode": "mock",
@@ -44,12 +60,12 @@ def _run_swarm_request(tmp_path: Path, *, explicit_inputs: dict[str, object]) ->
         default_scenario_pack_path=build_default_scenario_pack_path(
             output_root,
             brief=brief,
-            generator_mode="provider",
+            generator_mode=generation_mode,
         ),
         default_population_pack_path=build_default_population_pack_path(
             output_root,
             brief=brief,
-            generator_mode="provider",
+            generator_mode=generation_mode,
         ),
     )
 
@@ -58,10 +74,7 @@ def test_orchestration_planner_defaults_provider_runs_to_balanced_profile(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr(
-        "interaction_harness.orchestration.planner.provider_credentials_available",
-        lambda: False,
-    )
+    _disable_provider_credentials(monkeypatch)
     context = plan_run_swarm(_run_swarm_request(tmp_path, explicit_inputs={"brief": "test planner-owned ai profile defaults"}))
 
     assert context.plan.ai_profile == "balanced"
@@ -71,10 +84,7 @@ def test_orchestration_planner_defaults_provider_runs_to_balanced_profile(
 
 
 def test_orchestration_planner_preserves_explicit_ai_profile(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setattr(
-        "interaction_harness.orchestration.planner.provider_credentials_available",
-        lambda: False,
-    )
+    _disable_provider_credentials(monkeypatch)
     context = plan_run_swarm(
         _run_swarm_request(
             tmp_path,
@@ -90,8 +100,18 @@ def test_orchestration_planner_preserves_explicit_ai_profile(tmp_path: Path, mon
     assert context.plan.payload["planner_selected_defaults"]["ai_profile"] == ""
 
 
-def test_orchestration_executor_runs_run_swarm_plan_without_cli(tmp_path: Path) -> None:
-    context = plan_run_swarm(_run_swarm_request(tmp_path, explicit_inputs={"brief": "execute through orchestration kernel"}))
+def test_orchestration_executor_runs_run_swarm_plan_without_cli(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _disable_provider_credentials(monkeypatch)
+    context = plan_run_swarm(
+        _run_swarm_request(
+            tmp_path,
+            explicit_inputs={"brief": "execute through orchestration kernel"},
+            generation_mode="fixture",
+        )
+    )
 
     outcome = execute_run_swarm_plan(
         context.plan,

@@ -4,13 +4,13 @@ import json
 from pathlib import Path
 
 import pytest
+from interaction_harness.artifacts.run_plan import RUN_PLAN_CONTRACT_VERSION
 from interaction_harness.cli import main
 from interaction_harness.domains.recommender import ensure_reference_artifacts
 from interaction_harness.population_generation import (
     generate_population_pack,
     write_population_pack,
 )
-from interaction_harness.run_plan import RUN_PLAN_CONTRACT_VERSION
 from interaction_harness.scenario_generation import (
     generate_scenario_pack,
     write_scenario_pack,
@@ -377,7 +377,7 @@ def test_execute_plan_runs_saved_audit_plan_without_replanning(
     def _should_not_replan(*args, **kwargs):  # type: ignore[no-untyped-def]
         raise AssertionError("execute-plan should not invoke plan_audit")
 
-    monkeypatch.setattr("interaction_harness.cli.plan_audit", _should_not_replan)
+    monkeypatch.setattr("interaction_harness.cli_app.handlers.plan_audit", _should_not_replan)
 
     result = main(["execute-plan", "--run-plan-path", plan_path])
 
@@ -460,7 +460,10 @@ def test_execute_plan_runs_saved_run_swarm_plan_without_replanning(
     def _should_not_replan(*args, **kwargs):  # type: ignore[no-untyped-def]
         raise AssertionError("execute-plan should not invoke plan_run_swarm")
 
-    monkeypatch.setattr("interaction_harness.cli.plan_run_swarm", _should_not_replan)
+    monkeypatch.setattr(
+        "interaction_harness.cli_app.handlers.plan_run_swarm",
+        _should_not_replan,
+    )
 
     result = main(
         [

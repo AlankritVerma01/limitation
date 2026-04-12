@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from interaction_harness.cli import _build_parser, main
+from interaction_harness.cli import main
+from interaction_harness.cli_app.parser import build_parser
 from interaction_harness.domains.recommender import ensure_reference_artifacts
 from interaction_harness.regression import run_regression_audit
 from interaction_harness.schema import RegressionTarget
@@ -63,7 +64,7 @@ def test_regression_outputs_include_summary_and_most_important_changes(tmp_path:
 
 
 def test_cli_help_mentions_compare_and_run_name() -> None:
-    help_text = _build_parser().format_help()
+    help_text = build_parser().format_help()
     assert "audit" in help_text
     assert "compare" in help_text
     assert "generate-scenarios" in help_text

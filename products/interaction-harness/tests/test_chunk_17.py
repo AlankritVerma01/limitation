@@ -111,7 +111,7 @@ def test_serve_reference_reports_ready_url(tmp_path: Path, capsys) -> None:
         probe.bind(("127.0.0.1", 0))
         explicit_port = probe.getsockname()[1]
 
-    with patch("interaction_harness.cli._wait_for_interrupt", return_value=None):
+    with patch("interaction_harness.cli_app.handlers.wait_for_interrupt", return_value=None):
         result = main(
             [
                 "serve-reference",
@@ -141,7 +141,7 @@ def test_public_cli_domain_choices_hide_stub(capsys) -> None:
     else:
         raise AssertionError("Expected non-public stub domain to be rejected by the CLI.")
 
-    with patch("interaction_harness.cli._wait_for_interrupt", return_value=None):
+    with patch("interaction_harness.cli_app.handlers.wait_for_interrupt", return_value=None):
         try:
             main(["--help"])
         except SystemExit:
@@ -156,7 +156,8 @@ def test_audit_help_uses_domain_neutral_target_wording(capsys) -> None:
 
     captured = capsys.readouterr()
     assert exc_info.value.code == 0
-    assert "Existing system endpoint to audit" in captured.out
-    assert "selected domain" in captured.out
-    assert "Optional artifact directory" in captured.out
-    assert "local reference" in captured.out
+    assert "Customer-owned external endpoint" in captured.out
+    assert "real customer integration path" in captured.out
+    assert "Supported domain for this command" in captured.out
+    assert "product-owned local reference target" in captured.out
+    assert "internal-only mock target" in captured.out

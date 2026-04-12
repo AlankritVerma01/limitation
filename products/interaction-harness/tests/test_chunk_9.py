@@ -290,7 +290,10 @@ def test_write_scenario_pack_avoids_overwriting_different_pack(tmp_path: Path) -
 
 def test_cli_provider_generation_mode_routes_through_generation_layer(tmp_path: Path) -> None:
     fake_pack = generate_scenario_pack("provider brief", generator_mode="fixture")
-    with patch("interaction_harness.cli.generate_scenario_pack", return_value=fake_pack) as mock_generate:
+    with patch(
+        "interaction_harness.cli_app.handlers.generate_scenario_pack",
+        return_value=fake_pack,
+    ) as mock_generate:
         result = main(
             [
                 "generate-scenarios",

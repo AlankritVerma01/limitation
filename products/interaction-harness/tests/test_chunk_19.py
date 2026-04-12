@@ -583,7 +583,11 @@ def test_provider_generated_packs_can_be_reused_against_external_targets(tmp_pat
     assert first_payload["metadata"]["scenario_pack_mode"] == "provider"
     assert first_payload["metadata"]["population_pack_mode"] == "provider"
     assert first_payload["traces"] == second_payload["traces"]
-    assert first_payload["summary"] == second_payload["summary"]
+    first_summary = dict(first_payload["summary"])
+    second_summary = dict(second_payload["summary"])
+    first_summary.pop("run_plan_id", None)
+    second_summary.pop("run_plan_id", None)
+    assert first_summary == second_summary
 
 
 def test_ai_behavior_plan_projects_into_structured_runtime_seed() -> None:
