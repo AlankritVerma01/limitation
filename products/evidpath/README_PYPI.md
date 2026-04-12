@@ -1,5 +1,10 @@
 # Evidpath
 
+[Source](https://github.com/AlankritVerma01/limitation) |
+[Releases](https://github.com/AlankritVerma01/limitation/releases) |
+[Issues](https://github.com/AlankritVerma01/limitation/issues) |
+[TestPyPI](https://test.pypi.org/project/evidpath/)
+
 Evidpath is a deterministic interaction-testing CLI for auditing recommender
 systems through seeded users, trace-based judging, and reproducible regression
 workflows.
@@ -80,6 +85,7 @@ Common variables:
 ## Links
 
 - Source: https://github.com/AlankritVerma01/limitation
+- Releases: https://github.com/AlankritVerma01/limitation/releases
 - Product docs: https://github.com/AlankritVerma01/limitation/tree/main/products/evidpath
 - External target contract: https://github.com/AlankritVerma01/limitation/blob/main/products/evidpath/EXTERNAL_TARGET_CONTRACT.md
 - Issues: https://github.com/AlankritVerma01/limitation/issues

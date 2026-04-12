@@ -1,11 +1,24 @@
 # Evidpath
 
+[![PyPI version](https://img.shields.io/pypi/v/evidpath.svg)](https://pypi.org/project/evidpath/)
+[![Python versions](https://img.shields.io/pypi/pyversions/evidpath.svg)](https://pypi.org/project/evidpath/)
+[![CI](https://github.com/AlankritVerma01/limitation/actions/workflows/evidpath-ci.yml/badge.svg)](https://github.com/AlankritVerma01/limitation/actions/workflows/evidpath-ci.yml)
+[![License](https://img.shields.io/pypi/l/evidpath.svg)](https://github.com/AlankritVerma01/limitation/blob/main/products/evidpath/LICENSE)
+
 This package is the active product track for the repository.
 
 For the first public package release, the primary supported installed-package
 path is an external recommender endpoint. The built-in reference path remains
 best suited to repository, demo, and local development workflows until a fully
 portable packaged reference bundle ships.
+
+## Package Links
+
+- PyPI: <https://pypi.org/project/evidpath/>
+- TestPyPI: <https://test.pypi.org/project/evidpath/>
+- Releases: <https://github.com/AlankritVerma01/limitation/releases>
+- Issues: <https://github.com/AlankritVerma01/limitation/issues>
+- External target contract: [EXTERNAL_TARGET_CONTRACT.md](./EXTERNAL_TARGET_CONTRACT.md)
 
 ## What It Does
 
@@ -87,6 +100,20 @@ The repository already includes stable demo artifacts you can open directly:
 - release instructions: [RELEASING.md](./RELEASING.md)
 - example external service: [examples/recommender_http_service/README.md](./examples/recommender_http_service/README.md)
 
+## Install
+
+Install from PyPI:
+
+```bash
+python -m pip install evidpath
+```
+
+Preview builds from TestPyPI:
+
+```bash
+python -m pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple evidpath
+```
+
 ## Architecture
 
 The package is organized around:
@@ -126,6 +153,13 @@ For real product usage, the most important split is:
 
 - shared core = CLI, orchestration, artifacts, reporting, rollout
 - domain package = recommender semantics
+
+## Community
+
+- Contributions: [../../CONTRIBUTING.md](../../CONTRIBUTING.md)
+- Code of conduct: [../../CODE_OF_CONDUCT.md](../../CODE_OF_CONDUCT.md)
+- Security: [../../SECURITY.md](../../SECURITY.md)
+- Support: [../../SUPPORT.md](../../SUPPORT.md)
 
 ## Current Capabilities
 
