@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support
+    url: https://github.com/AlankritVerma01/limitation/blob/main/SUPPORT.md
+    about: Ask for usage help and troubleshooting guidance.
+  - name: Security
+    url: https://github.com/AlankritVerma01/limitation/blob/main/SECURITY.md
+    about: Report security-sensitive issues privately.

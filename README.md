@@ -1,5 +1,10 @@
 # limitation
 
+[![PyPI version](https://img.shields.io/pypi/v/evidpath.svg)](https://pypi.org/project/evidpath/)
+[![Python versions](https://img.shields.io/pypi/pyversions/evidpath.svg)](https://pypi.org/project/evidpath/)
+[![CI](https://github.com/AlankritVerma01/limitation/actions/workflows/evidpath-ci.yml/badge.svg)](https://github.com/AlankritVerma01/limitation/actions/workflows/evidpath-ci.yml)
+[![License](https://img.shields.io/pypi/l/evidpath.svg)](https://github.com/AlankritVerma01/limitation/blob/main/products/evidpath/LICENSE)
+
 This repository contains:
 
 - a public recommender-evaluation proof under [studies/01-recommender-offline-eval](studies/01-recommender-offline-eval/README.md)
@@ -8,6 +13,14 @@ This repository contains:
 The short product thesis is:
 
 > evaluate non-deterministic systems through interaction, not just offline metrics
+
+## Package Links
+
+- PyPI: <https://pypi.org/project/evidpath/>
+- TestPyPI: <https://test.pypi.org/project/evidpath/>
+- Releases: <https://github.com/AlankritVerma01/limitation/releases>
+- Product docs: [products/evidpath/README.md](products/evidpath/README.md)
+- Package docs for PyPI: [products/evidpath/README_PYPI.md](products/evidpath/README_PYPI.md)
 
 Today the active implementation is recommender-first, but the longer-term goal is broader: a reusable interaction-testing harness for systems that need scenario-based, trajectory-level evaluation.
 
@@ -54,6 +67,7 @@ If you want the active product:
 
 - read [products/evidpath/README.md](products/evidpath/README.md)
 - then read the active roadmap in [plans/evidpath-v0/README.md](plans/evidpath-v0/README.md)
+- install it with `python -m pip install evidpath`
 
 If you want the original public proof:
 
@@ -156,6 +170,10 @@ Useful links:
 ## Repo Guide
 
 - [Evidpath README](products/evidpath/README.md)
+- [Contributing guide](CONTRIBUTING.md)
+- [Code of conduct](CODE_OF_CONDUCT.md)
+- [Security policy](SECURITY.md)
+- [Support guide](SUPPORT.md)
 - [Evidpath plans](plans/evidpath-v0/README.md)
 - [Study 01 README](studies/01-recommender-offline-eval/README.md)
 - [V1 product spec](studies/01-recommender-offline-eval/docs/v1-product-spec.md)

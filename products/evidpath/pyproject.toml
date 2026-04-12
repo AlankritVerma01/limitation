@@ -40,9 +40,12 @@ classifiers = [
 dependencies = []
 
 [project.urls]
+Homepage = "https://github.com/AlankritVerma01/limitation/tree/main/products/evidpath"
 Source = "https://github.com/AlankritVerma01/limitation"
 Issues = "https://github.com/AlankritVerma01/limitation/issues"
 Documentation = "https://github.com/AlankritVerma01/limitation/tree/main/products/evidpath"
+Releases = "https://github.com/AlankritVerma01/limitation/releases"
+PyPI = "https://pypi.org/project/evidpath/"
 
 [project.optional-dependencies]
 dev = [
