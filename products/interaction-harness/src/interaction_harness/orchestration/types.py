@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from ..run_plan import PlannedWorkflow
+from ..artifacts.run_plan import PlannedWorkflow
 from ..schema import RegressionTarget, RunResult
 
 

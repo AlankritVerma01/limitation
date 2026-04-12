@@ -8,8 +8,9 @@ from datetime import datetime, timezone
 from hashlib import sha1
 from pathlib import Path
 
+from .artifacts.run_manifest import write_regression_manifest
 from .audit import write_run_artifacts
-from .cli_progress import ProgressCallback, emit_progress
+from .cli_app.progress import ProgressCallback, emit_progress
 from .config import DEFAULT_OUTPUT_DIR, slugify_name
 from .domain_registry import get_domain_definition
 from .domains.base import DomainDefinition
@@ -20,7 +21,6 @@ from .generation_support import (
 from .regression_policy import evaluate_regression_policy
 from .reporting.regression import RegressionJsonWriter, RegressionMarkdownWriter
 from .reporting.semantic_json import write_regression_semantic_artifact
-from .run_manifest import write_regression_manifest
 from .schema import (
     CohortDelta,
     FailureMode,

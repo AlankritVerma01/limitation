@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .cli_progress import ProgressCallback, emit_progress
+from .cli_app.progress import ProgressCallback, emit_progress
 from .domain_registry import get_domain_definition
 from .generation_support import (
     DEFAULT_PROVIDER_PROFILE,

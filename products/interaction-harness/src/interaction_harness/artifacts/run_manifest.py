@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .schema import RegressionDiff, RunResult
+from ..schema import RegressionDiff, RunResult
 
 
 def write_run_manifest(

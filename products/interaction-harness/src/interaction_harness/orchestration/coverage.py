@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..cli_progress import ProgressCallback, emit_progress
+from ..cli_app.progress import ProgressCallback, emit_progress
 from ..population_generation import (
     build_default_population_pack_path,
     generate_population_pack,

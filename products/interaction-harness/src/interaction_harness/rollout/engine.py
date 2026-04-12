@@ -6,7 +6,7 @@ from random import Random
 
 from ..adapters.base import SystemAdapter
 from ..agents.base import AgentPolicy
-from ..cli_progress import ProgressCallback, emit_progress
+from ..cli_app.progress import ProgressCallback, emit_progress
 from ..scenarios.base import Scenario
 from ..schema import RunConfig, SessionTrace, TraceStep
 

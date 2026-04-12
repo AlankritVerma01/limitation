@@ -23,7 +23,7 @@ from typing import Callable, Protocol
 from ..adapters.base import SystemAdapter
 from ..agents.base import AgentPolicy
 from ..analysis.base import Analyzer
-from ..cli_progress import ProgressCallback, emit_progress
+from ..cli_app.progress import ProgressCallback, emit_progress
 from ..generation_support import (
     DEFAULT_PROVIDER_PROFILE,
     DEFAULT_SEMANTIC_PROVIDER_MODEL,
