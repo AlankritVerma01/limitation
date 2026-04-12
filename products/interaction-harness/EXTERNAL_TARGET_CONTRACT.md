@@ -112,6 +112,9 @@ health, metadata, and one lightweight recommendation probe:
 
 - external target = real customer path
 - reference target = product-owned local/demo path
+- mock target = internal-only fixture/debug path
 
 The harness uses the same adapter flow for both, but the external target is the
-main path for real usage.
+main path for real usage. The reference target exists to make demos,
+onboarding, CI, and local proof runs easy. The mock target exists only for
+narrow internal tests and debug loops.

@@ -89,6 +89,38 @@ The package is organized around:
 - each domain module owns its own runtime inputs, adapter construction, policy, judge, analyzer, and domain-level regression semantics
 - the recommender implementation lives in `src/interaction_harness/domains/recommender/`
 
+## Package Map
+
+The fastest way to navigate the codebase is:
+
+- `src/interaction_harness/cli.py`
+  - thin public CLI entrypoint
+- `src/interaction_harness/cli_app/`
+  - internal CLI package
+  - `parser.py` builds the parser and help text
+  - `handlers.py` maps CLI args into workflow requests
+  - `progress.py` owns progress events and rendering
+  - `constants.py` holds stable CLI surface wording
+  - `support.py` holds CLI-only summary helpers
+- `src/interaction_harness/orchestration/`
+  - shared planning and execution kernel
+  - `planner.py` keeps the public planning entrypoints
+  - `_planner_decisions.py`, `_planner_defaults.py`, and `_planner_support.py` hold the internal planning helpers
+- `src/interaction_harness/artifacts/`
+  - saved durable contracts
+  - `constants.py` holds stable contract constants
+  - `run_plan.py` owns the pre-run plan contract and validation
+  - `run_manifest.py` owns the post-run execution record
+- `src/interaction_harness/reporting/`
+  - markdown, JSON, chart, and semantic sidecar writers
+- `src/interaction_harness/domains/recommender/`
+  - recommender-specific runtime, judging, analysis, reporting, and reference/mock services
+
+For real product usage, the most important split is:
+
+- shared core = CLI, orchestration, artifacts, reporting, rollout
+- domain package = recommender semantics
+
 ## Current Capabilities
 
 - a real local reference recommender service
@@ -126,6 +158,22 @@ The supported product path is:
 
 The mock recommender service exists only as a narrow test/debug fixture. It is
 not the primary user path.
+
+## Surface Matrix
+
+Use this quick mental model when reading the code or choosing a workflow:
+
+- customer-usable:
+  - `check-target`, `audit`, `compare`, `run-swarm`, `plan-run`, and `execute-plan`
+  - customer-owned external recommender endpoints over HTTP
+- product-owned reference/demo:
+  - the local reference target
+  - reference artifacts used for demos, onboarding, CI, and repeatable local runs
+  - the in-repo example services, including the Hugging Face-backed wrapper example
+- internal-only fixture/debug:
+  - `--use-mock`
+  - narrow test/debug runs only
+  - not the main demo path and not the real customer integration path
 
 ## Customer Integration Model
 
@@ -166,6 +214,7 @@ So the mental model is:
 
 - external target = the real customer path
 - reference target = the product-owned demo and local baseline path
+- mock target = internal-only fixture/debug path
 
 ## Customer Onboarding Paths
 
@@ -194,6 +243,10 @@ Install the package once from the repository root:
 ```bash
 .venv/bin/python -m pip install -e products/interaction-harness
 ```
+
+That install exposes both `python -m interaction_harness` and the
+`interaction-harness` console command. The examples here keep `python -m` for
+explicitness.
 
 Run the buyer-facing single audit demo:
 
@@ -384,6 +437,12 @@ From the repository root:
 ```bash
 .venv/bin/python -m pip install -e products/interaction-harness[dev]
 .venv/bin/python -m interaction_harness --help
+```
+
+If you prefer the installed console script, the equivalent entrypoint is:
+
+```bash
+interaction-harness --help
 ```
 
 Every runtime and generation command requires an explicit `--domain`.

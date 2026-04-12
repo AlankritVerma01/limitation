@@ -13,6 +13,19 @@ Important framing:
 - `run_manifest.json` captures the realized execution after the run finishes
 - `semantic_advisory.json` and `semantic_regression_advisory.json` capture advisory-only semantic explanations as dedicated sidecars
 - `plan-run` and `execute-plan` expose that plan lifecycle directly when a team wants approval or review before execution
+- the package can be installed as a CLI, so teams can use either `python -m interaction_harness ...` or the installed `interaction-harness ...` command
+
+Support surface:
+
+- customer-usable:
+  - external HTTP endpoints with `check-target`, `audit`, `compare`, `run-swarm`, `plan-run`, and `execute-plan`
+- product-owned reference/demo:
+  - this demo flow
+  - the local reference target
+  - the example external services in `examples/`
+- internal-only fixture/debug:
+  - `--use-mock`
+  - narrow tests only, not the main demo path or customer path
 
 ## 30-Second Version
 
