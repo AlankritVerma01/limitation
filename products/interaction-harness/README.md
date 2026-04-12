@@ -79,6 +79,7 @@ The repository already includes stable demo artifacts you can open directly:
 - compare flow: [output/demo-regression-stable/regression_report.md](./output/demo-regression-stable/regression_report.md)
 - demo script: [DEMO.md](./DEMO.md)
 - external target contract: [EXTERNAL_TARGET_CONTRACT.md](./EXTERNAL_TARGET_CONTRACT.md)
+- release instructions: [RELEASING.md](./RELEASING.md)
 - example external service: [examples/recommender_http_service/README.md](./examples/recommender_http_service/README.md)
 
 ## Architecture

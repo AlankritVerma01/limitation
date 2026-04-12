@@ -11,7 +11,14 @@ requires-python = ">=3.13"
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "fastapi>=0.115", "uvicorn>=0.30"]
+dev = [
+    "build>=1.2",
+    "fastapi>=0.115",
+    "pytest>=8.0",
+    "ruff>=0.11",
+    "twine>=6.1",
+    "uvicorn>=0.30",
+]
 hf-example = ["transformers>=5.5", "torch>=2.11"]
 
 [project.scripts]

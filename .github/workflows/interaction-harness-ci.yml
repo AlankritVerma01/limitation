@@ -1,0 +1,57 @@
+name: interaction-harness-ci
+
+on:
+  push:
+    paths:
+      - ".github/workflows/interaction-harness-ci.yml"
+      - ".github/workflows/interaction-harness-publish.yml"
+      - "products/interaction-harness/**"
+  pull_request:
+    paths:
+      - ".github/workflows/interaction-harness-ci.yml"
+      - ".github/workflows/interaction-harness-publish.yml"
+      - "products/interaction-harness/**"
+  workflow_dispatch:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install package and release tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ./products/interaction-harness[dev]
+
+      - name: Lint interaction-harness
+        run: |
+          ruff check products/interaction-harness
+
+      - name: Run interaction-harness tests
+        run: |
+          pytest products/interaction-harness/tests -q
+
+      - name: Build wheel and sdist
+        working-directory: products/interaction-harness
+        run: |
+          python -m build
+
+      - name: Check distribution metadata
+        working-directory: products/interaction-harness
+        run: |
+          twine check dist/*
+
+      - name: Upload built distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: interaction-harness-dist
+          path: products/interaction-harness/dist/*
+          if-no-files-found: error
