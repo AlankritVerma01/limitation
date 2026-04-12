@@ -1,24 +1,23 @@
 # Hugging Face External Recommender Service
 
-This example proves the external-target path against a real third-party model
-source instead of only the in-repo handcrafted recommender service.
+This example shows the same external-target flow using a Hugging Face-backed
+model instead of only the in-repo handcrafted recommender examples.
 
-It is:
+Use it when:
 
-- out of process
-- HTTP served
-- backed by a Hugging Face embedding model
-- compatible with the same `--target-url` flow a customer would use
+- you want a more realistic third-party model example
+- you want to prove that Evidpath works with an external-style service boundary
+- you want a local example that behaves differently from the simpler demo service
 
 It is not:
 
-- harness-core model loading
-- a production deployment stack
-- the local reference target
+- the built-in reference target
+- a production deployment template
+- a replacement for your own service
 
-## Startup
+## Start The Service
 
-Install the HF example dependencies first:
+Install the extra dependencies first:
 
 ```bash
 .venv/bin/python -m pip install -e 'products/evidpath[dev,hf-example]'
@@ -40,16 +39,19 @@ Start the popularity-blend mode:
   --port 8062
 ```
 
-The first run reuses the shared MovieLens 100K artifact builder used by the
-other example recommender service and downloads the HF model weights through the
-normal Hugging Face cache if needed.
+The first run reuses the shared MovieLens-based artifact builder and downloads
+the Hugging Face model weights if needed.
 
-## Example Harness Usage
+## Test It With Evidpath
+
+Check the first service:
 
 ```bash
 .venv/bin/python -m evidpath check-target --domain recommender \
   --target-url http://127.0.0.1:8061
 ```
+
+Run a brief-driven swarm:
 
 ```bash
 .venv/bin/python -m evidpath run-swarm --domain recommender \
@@ -58,6 +60,8 @@ normal Hugging Face cache if needed.
   --generation-mode fixture \
   --output-dir products/evidpath/output/hf-run-swarm-demo
 ```
+
+Compare the two service modes:
 
 ```bash
 .venv/bin/python -m evidpath compare --domain recommender \
@@ -68,3 +72,14 @@ normal Hugging Face cache if needed.
   --rerun-count 2 \
   --output-dir products/evidpath/output/hf-compare-demo
 ```
+
+## What To Do Next
+
+Once the service is up:
+
+1. run `check-target`
+2. run a single `audit` or a broader `run-swarm`
+3. use `compare` when you want to inspect change between two versions
+
+If you want the simpler local external-target proof path first, start with
+[../recommender_http_service/README.md](../recommender_http_service/README.md).
