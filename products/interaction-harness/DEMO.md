@@ -9,8 +9,10 @@ Important framing:
 - the real customer path uses the same CLI flow against an external target URL
 - the repo now also includes a customer-style external service example for that path
 - `check-target` is the fast preflight step when a team brings an endpoint
-- `run_plan.json` captures the pre-run plan for `run-swarm` and `compare`
+- `run_plan.json` captures the pre-run plan for `run-swarm`, `compare`, and `audit`
 - `run_manifest.json` captures the realized execution after the run finishes
+- `semantic_advisory.json` and `semantic_regression_advisory.json` capture advisory-only semantic explanations as dedicated sidecars
+- `plan-run` and `execute-plan` expose that plan lifecycle directly when a team wants approval or review before execution
 
 ## 30-Second Version
 

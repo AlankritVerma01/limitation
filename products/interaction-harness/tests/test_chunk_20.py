@@ -13,6 +13,7 @@ from urllib import request
 
 import pytest
 from interaction_harness.cli import main
+from interaction_harness.orchestration.types import RunSwarmPlanContext
 from interaction_harness.population_generation import (
     generate_population_pack,
     write_population_pack,
@@ -98,34 +99,40 @@ def _planned_workflow(
     scenario_generation_mode: str,
     swarm_generation_mode: str,
     coverage_source: str,
-) -> PlannedWorkflow:
+) -> RunSwarmPlanContext:
     plan_path = tmp_path / "run_plan.json"
     plan_path.parent.mkdir(parents=True, exist_ok=True)
     plan_path.write_text("{}", encoding="utf-8")
-    return PlannedWorkflow(
-        payload={},
-        plan_path=str(plan_path),
-        plan_id="test-plan",
-        planner_mode="deterministic",
-        planner_provider_name="",
-        planner_model_name="",
-        planner_model_profile="",
-        planner_summary=f"planned {brief}",
-        scenario_pack_path=scenario_pack_path,
-        population_pack_path=population_pack_path,
-        scenario_action="explicit_reuse" if scenario_generation_mode == "reused" else "generate_new",
-        population_action="explicit_reuse" if swarm_generation_mode == "reused" else "generate_new",
-        scenario_generation_mode=scenario_generation_mode,
-        swarm_generation_mode=swarm_generation_mode,
-        coverage_source=coverage_source,
-        generation_mode=generation_mode,
-        ai_profile="fast",
-        scenario_count=3,
-        population_size=8,
-        population_candidate_count=16,
-        semantic_mode="off",
-        semantic_model=None,
-        semantic_profile="fast",
+    return RunSwarmPlanContext(
+        plan=PlannedWorkflow(
+            payload={},
+            plan_path=str(plan_path),
+            plan_id="test-plan",
+            planner_mode="deterministic",
+            planner_provider_name="",
+            planner_model_name="",
+            planner_model_profile="",
+            planner_summary=f"planned {brief}",
+            scenario_pack_path=scenario_pack_path,
+            population_pack_path=population_pack_path,
+            scenario_action="explicit_reuse" if scenario_generation_mode == "reused" else "generate_new",
+            population_action="explicit_reuse" if swarm_generation_mode == "reused" else "generate_new",
+            scenario_generation_mode=scenario_generation_mode,
+            swarm_generation_mode=swarm_generation_mode,
+            coverage_source=coverage_source,
+            generation_mode=generation_mode,
+            ai_profile="fast",
+            scenario_count=3,
+            population_size=8,
+            population_candidate_count=16,
+            semantic_mode="off",
+            semantic_model=None,
+            semantic_profile="fast",
+        ),
+        service_mode="mock",
+        service_artifact_dir=None,
+        adapter_base_url=None,
+        output_root=str(tmp_path),
     )
 
 
@@ -207,7 +214,7 @@ def test_run_swarm_provider_mode_routes_both_generators_through_provider(
     )
     with (
         patch(
-            "interaction_harness.cli.build_run_swarm_plan",
+            "interaction_harness.cli.plan_run_swarm",
             return_value=_planned_workflow(
                 tmp_path=tmp_path / "run-swarm",
                 brief="test provider mode",
@@ -220,11 +227,11 @@ def test_run_swarm_provider_mode_routes_both_generators_through_provider(
             ),
         ),
         patch(
-            "interaction_harness.cli.generate_scenario_pack",
+            "interaction_harness.orchestration.coverage.generate_scenario_pack",
             return_value=fake_scenario_pack,
         ) as mock_generate_scenarios,
         patch(
-            "interaction_harness.cli.generate_population_pack",
+            "interaction_harness.orchestration.coverage.generate_population_pack",
             return_value=fake_population_pack,
         ) as mock_generate_population,
     ):
@@ -254,7 +261,7 @@ def test_run_swarm_provider_mode_still_fails_when_provider_generation_fails(
 ) -> None:
     with (
         patch(
-            "interaction_harness.cli.build_run_swarm_plan",
+            "interaction_harness.cli.plan_run_swarm",
             return_value=_planned_workflow(
                 tmp_path=tmp_path / "run-swarm",
                 brief="test provider hard failure",
@@ -267,7 +274,7 @@ def test_run_swarm_provider_mode_still_fails_when_provider_generation_fails(
             ),
         ),
         patch(
-            "interaction_harness.cli.generate_scenario_pack",
+            "interaction_harness.orchestration.coverage.generate_scenario_pack",
             side_effect=RuntimeError("Provider-backed scenario generation failed after retrying."),
         ),
     ):
@@ -304,7 +311,7 @@ def test_run_swarm_mixed_reuse_summary_shows_separate_generation_fields(
 
     with (
         patch(
-            "interaction_harness.cli.build_run_swarm_plan",
+            "interaction_harness.cli.plan_run_swarm",
             return_value=_planned_workflow(
                 tmp_path=tmp_path / "run-swarm",
                 brief="mix saved scenarios with generated swarm",
@@ -317,7 +324,7 @@ def test_run_swarm_mixed_reuse_summary_shows_separate_generation_fields(
             ),
         ),
         patch(
-            "interaction_harness.cli.generate_population_pack",
+            "interaction_harness.orchestration.coverage.generate_population_pack",
             return_value=fake_population_pack,
         ),
     ):
@@ -360,8 +367,8 @@ def test_run_swarm_reuses_both_explicit_packs_without_generating(tmp_path: Path)
     write_population_pack(population_pack, population_pack_path)
 
     with (
-        patch("interaction_harness.cli.generate_scenario_pack") as mock_generate_scenarios,
-        patch("interaction_harness.cli.generate_population_pack") as mock_generate_population,
+        patch("interaction_harness.orchestration.coverage.generate_scenario_pack") as mock_generate_scenarios,
+        patch("interaction_harness.orchestration.coverage.generate_population_pack") as mock_generate_population,
     ):
         result = main(
             [
@@ -401,9 +408,9 @@ def test_run_swarm_reuses_one_explicit_pack_and_generates_the_missing_side(
     )
 
     with (
-        patch("interaction_harness.cli.generate_scenario_pack") as mock_generate_scenarios,
+        patch("interaction_harness.orchestration.coverage.generate_scenario_pack") as mock_generate_scenarios,
         patch(
-            "interaction_harness.cli.generate_population_pack",
+            "interaction_harness.orchestration.coverage.generate_population_pack",
             return_value=fake_population_pack,
         ) as mock_generate_population,
     ):
@@ -513,12 +520,14 @@ def test_run_swarm_saved_packs_can_be_replayed_through_audit_deterministically(
             "audit",
             "--domain",
             "recommender",
-            "--use-mock",
-            "--seed",
-            "5",
-            "--scenario-pack-path",
-            str(first_result["scenario_pack_path"]),
-            "--population-pack-path",
+                "--use-mock",
+                "--seed",
+                "5",
+                "--semantic-mode",
+                "fixture",
+                "--scenario-pack-path",
+                str(first_result["scenario_pack_path"]),
+                "--population-pack-path",
             str(first_result["population_pack_path"]),
             "--output-dir",
             str(tmp_path / "replay-run"),

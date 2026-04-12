@@ -22,13 +22,17 @@ def test_audit_writes_run_manifest_with_target_and_artifact_metadata(
     )
 
     manifest_path = Path(str(result["run_manifest_path"]))
+    plan_path = Path(str(result["run_plan_path"]))
+    plan_payload = json.loads(plan_path.read_text(encoding="utf-8"))
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert payload["workflow_type"] == "audit"
     assert payload["domain"] == "recommender"
+    assert payload["run_plan"]["run_plan_path"] == str(plan_path)
     assert payload["service"]["service_kind"] == "mock"
     assert payload["artifacts"]["report_path"].endswith("report.md")
     assert payload["artifacts"]["results_path"].endswith("results.json")
     assert payload["artifacts"]["traces_path"].endswith("traces.jsonl")
+    assert plan_payload["workflow_type"] == "audit"
 
 
 def test_run_swarm_writes_manifest_with_coverage_provenance(tmp_path: Path) -> None:

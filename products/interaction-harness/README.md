@@ -442,6 +442,37 @@ post-run `run_manifest.json`, beside the standard artifacts so the intended
 plan and realized execution can both be replayed and inspected later without
 depending on terminal output.
 
+When advisory semantics run, the artifact bundle also includes a dedicated
+semantic sidecar:
+
+- `semantic_advisory.json` for single-run workflows
+- `semantic_regression_advisory.json` for compare workflows
+
+These semantic artifacts are advisory only. They do not change deterministic
+scoring or regression gating.
+
+If you want to separate planning from execution explicitly, use:
+
+```bash
+.venv/bin/python -m interaction_harness plan-run --workflow run-swarm --domain recommender --target-url http://127.0.0.1:8051 --brief "test trust collapse and weak first-slate behavior" --generation-mode fixture --output-dir products/interaction-harness/output/planned-run
+.venv/bin/python -m interaction_harness execute-plan --run-plan-path products/interaction-harness/output/planned-run/run_plan.json
+```
+
+The same public plan-first flow also works for `compare`:
+
+```bash
+.venv/bin/python -m interaction_harness plan-run --workflow compare --domain recommender --baseline-url http://127.0.0.1:8051 --candidate-url http://127.0.0.1:8052 --brief "compare trust collapse and novelty balance across the two systems" --generation-mode fixture --rerun-count 2 --output-dir products/interaction-harness/output/planned-compare
+.venv/bin/python -m interaction_harness execute-plan --run-plan-path products/interaction-harness/output/planned-compare/run_plan.json
+```
+
+And `audit` now participates in the same lifecycle when you want a saved
+deterministic plan before execution:
+
+```bash
+.venv/bin/python -m interaction_harness plan-run --workflow audit --domain recommender --target-url http://127.0.0.1:8051 --scenario returning-user-home-feed --output-dir products/interaction-harness/output/planned-audit
+.venv/bin/python -m interaction_harness execute-plan --run-plan-path products/interaction-harness/output/planned-audit/run_plan.json
+```
+
 AI profile defaults:
 
 - `fast`: `gpt-5-mini`
@@ -450,6 +481,13 @@ AI profile defaults:
 
 Use `--model` or `--semantic-model` only when you want an explicit custom
 override.
+
+Planning behavior:
+
+- fixture-backed planning keeps `fast` when `--ai-profile` is omitted
+- provider-backed planning now defaults planned generation to `balanced` when
+  `--ai-profile` is omitted
+- an explicit `--ai-profile` always wins
 
 Reuse a saved scenario pack in a normal audit run against the supported local
 reference service:
