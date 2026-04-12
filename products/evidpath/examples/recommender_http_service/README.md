@@ -1,31 +1,29 @@
 # Example External Recommender Service
 
-This example service exists to prove the real customer path for Interaction
-Harness.
+This example gives you a local recommender service that behaves like a real
+external target for Evidpath.
 
-It is:
+Use it when:
 
-- out of process
-- HTTP served
-- backed by real model artifacts
-- usable through the same `--target-url` flow a customer would use
-- a template for teams that have model code but do not yet have a service
+- you want to try Evidpath without wiring your own service yet
+- you want to prove the external-target flow end to end
+- you have model logic but not a production service yet
 
 It is not:
 
-- the harness reference target
-- a harness-owned inference helper
-- a production deployment stack
+- the built-in reference target
+- a production deployment template
+- a replacement for your own service layer
 
-## Startup
+## Start The Service
 
-Install the harness dev dependencies first:
+Install the example dependencies first:
 
 ```bash
 .venv/bin/python -m pip install -e products/evidpath[dev]
 ```
 
-Start the popularity model:
+Start a popularity-based service:
 
 ```bash
 .venv/bin/python products/evidpath/examples/recommender_http_service/run.py \
@@ -33,7 +31,7 @@ Start the popularity model:
   --port 8051
 ```
 
-Start the item-item CF model:
+Start an item-item CF service:
 
 ```bash
 .venv/bin/python products/evidpath/examples/recommender_http_service/run.py \
@@ -41,7 +39,7 @@ Start the item-item CF model:
   --port 8052
 ```
 
-Start the genre-history blend model:
+Start a genre-history blend service:
 
 ```bash
 .venv/bin/python products/evidpath/examples/recommender_http_service/run.py \
@@ -50,10 +48,9 @@ Start the genre-history blend model:
 ```
 
 The first run builds lightweight example artifacts from MovieLens 100K. If the
-repo copy of MovieLens 100K is not present, the service downloads it
-automatically from the official GroupLens dataset URL.
+repo copy is not present, the service downloads it automatically.
 
-If you want to point at your own checked-out MovieLens data explicitly:
+If you want to point at your own checked-out MovieLens data:
 
 ```bash
 .venv/bin/python products/evidpath/examples/recommender_http_service/run.py \
@@ -62,32 +59,22 @@ If you want to point at your own checked-out MovieLens data explicitly:
   --port 8051
 ```
 
-If you prefer to manage the app server yourself, the package-style Uvicorn path
-still works:
-
-```bash
-IH_EXAMPLE_MODEL_KIND=popularity \
-.venv/bin/python -m uvicorn recommender_http_service.app:create_app --factory \
-  --app-dir products/evidpath/examples \
-  --host 127.0.0.1 --port 8051
-```
-
-## Endpoints
+## What The Service Exposes
 
 - `GET /health`
 - `GET /metadata`
 - `POST /recommendations`
 
-## Example Harness Usage
+## Test It With Evidpath
 
-Check one target before a full run:
+Check the service first:
 
 ```bash
 .venv/bin/python -m evidpath check-target --domain recommender \
   --target-url http://127.0.0.1:8051
 ```
 
-Audit one external target:
+Run one audit:
 
 ```bash
 .venv/bin/python -m evidpath audit --domain recommender \
@@ -97,7 +84,7 @@ Audit one external target:
   --output-dir products/evidpath/output/external-audit-demo
 ```
 
-Compare two external targets:
+Compare two service versions:
 
 ```bash
 .venv/bin/python -m evidpath compare --domain recommender \
@@ -109,9 +96,16 @@ Compare two external targets:
   --output-dir products/evidpath/output/external-compare-demo
 ```
 
-## Wrapper Template
+## What To Do Next
+
+After the service is running and `check-target` passes, the normal next steps
+are:
+
+1. run `audit`
+2. open `report.md` and `results.json`
+3. run `compare` when you want a baseline-vs-candidate decision workflow
 
 If your team already has recommender logic but not an HTTP service yet, start
-from [wrapper_template.py](./wrapper_template.py). It shows the minimal service
-shape the harness expects while keeping model loading and scoring in your own
-service layer.
+from [wrapper_template.py](./wrapper_template.py). It shows the smallest
+service shape Evidpath expects while keeping model loading and scoring in your
+own code.
