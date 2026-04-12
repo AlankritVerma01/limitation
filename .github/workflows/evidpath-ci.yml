@@ -16,19 +16,15 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.11"
 
       - name: Install package and release tooling
         run: |
@@ -36,7 +32,6 @@ jobs:
           python -m pip install -e ./products/evidpath[dev]
 
       - name: Lint evidpath
-        if: matrix.python-version == '3.11'
         run: |
           ruff check products/evidpath
 

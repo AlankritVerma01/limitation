@@ -18,7 +18,9 @@ from evidpath.domains.recommender import (
     load_reference_artifacts,
     run_reference_recommender_service,
 )
-from evidpath.domains.recommender import reference_artifacts as recommender_reference_artifacts
+from evidpath.domains.recommender import (
+    reference_artifacts as recommender_reference_artifacts,
+)
 from evidpath.rollout.engine import run_rollouts
 
 
