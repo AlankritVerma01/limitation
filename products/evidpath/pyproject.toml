@@ -5,10 +5,44 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "evidpath"
 version = "0.1.0"
-description = "CLI-first interaction testing harness with domain-owned semantics."
-readme = "README.md"
-requires-python = ">=3.13"
+description = "Deterministic interaction-testing CLI for auditing recommender systems with seeded users, trace-based judging, and reproducible regression workflows."
+readme = {file = "README_PYPI.md", content-type = "text/markdown"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Alankrit Verma", email = "alankrit386@gmail.com"},
+]
+maintainers = [
+    {name = "Alankrit Verma", email = "alankrit386@gmail.com"},
+]
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
+keywords = [
+    "recommender",
+    "evaluation",
+    "testing",
+    "audit",
+    "regression",
+    "synthetic-users",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Testing",
+]
 dependencies = []
+
+[project.urls]
+Source = "https://github.com/AlankritVerma01/limitation"
+Issues = "https://github.com/AlankritVerma01/limitation/issues"
+Documentation = "https://github.com/AlankritVerma01/limitation/tree/main/products/evidpath"
 
 [project.optional-dependencies]
 dev = [

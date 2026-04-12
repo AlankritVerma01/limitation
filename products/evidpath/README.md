@@ -2,6 +2,11 @@
 
 This package is the active product track for the repository.
 
+For the first public package release, the primary supported installed-package
+path is an external recommender endpoint. The built-in reference path remains
+best suited to repository, demo, and local development workflows until a fully
+portable packaged reference bundle ships.
+
 ## What It Does
 
 Evidpath is a deterministic interaction-testing tool.
@@ -152,9 +157,11 @@ For real product usage, the most important split is:
 
 The supported product path is:
 
-- CLI-first recommender audits
-- external recommender base URLs for real-system integration
-- local reference recommender service for repeatable local runs, demos, CI, and onboarding
+- installed/public package path:
+  - CLI-first recommender audits against external recommender base URLs
+  - `check-target`, `audit`, `compare`, `run-swarm`, `plan-run`, and `execute-plan`
+- repo/dev/demo path:
+  - local reference recommender service for repeatable local runs, demos, CI, and onboarding
 - artifact bundles as the main user-facing output
 
 The mock recommender service exists only as a narrow test/debug fixture. It is
@@ -232,12 +239,12 @@ If you have model code or artifacts but no service yet:
   [wrapper template](./examples/recommender_http_service/wrapper_template.py)
 - keep the harness contract stable and let your service own model loading
 
-If you want a local proof path first:
+If you want a local proof path first from a repository checkout:
 
 - use the built-in reference target for a stable demo/onboarding run
 - or start the example external service locally and exercise the real customer-style flow
 
-## Canonical Demo Flow
+## Canonical Repo Demo Flow
 
 Install the package once from the repository root:
 
@@ -482,8 +489,10 @@ real authored workflows:
 .venv/bin/python -m evidpath generate-scenarios --domain recommender --mode provider --ai-profile fast --brief "test trust and exploration balance for returning users" --scenario-pack-path products/evidpath/output/generated-scenarios/provider-pack.json
 ```
 
-Provider mode will auto-read a root `.env` when present. Useful environment
-variables:
+Provider mode will read existing shell env vars first, then look for a local
+`.env`, `~/.evidpath.env`, and finally the repo-root `.env`. Use
+[`products/evidpath/.env.example`](/Users/alankritverma/projects/limitation/products/evidpath/.env.example)
+as the template for values you want to set. Useful environment variables:
 
 - `OPENAI_API_KEY`
 - `OPENAI_BASE_URL`

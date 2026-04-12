@@ -3,6 +3,14 @@
 This package now has a GitHub Actions release path for building and publishing
 distributions.
 
+The intended flow for the first public release is:
+
+1. finish release work on `v1`
+2. open and merge a PR from `v1` into `main`
+3. dry-run TestPyPI from `main`
+4. create the GitHub Release from `main`
+5. let `evidpath-publish` ship to PyPI
+
 ## Workflows
 
 - `evidpath-ci`
@@ -33,15 +41,17 @@ Recommended environments:
 
 1. Bump the package version in `products/evidpath/pyproject.toml` if
    needed.
-2. Run the `evidpath-publish` workflow manually.
-3. Choose `testpypi` as the target repository.
-4. Verify the package page, README rendering, and install flow from TestPyPI.
+2. Push the release branch and open a PR into `main`.
+3. Merge into `main` after CI is green.
+4. Run the `evidpath-publish` workflow manually from `main`.
+5. Choose `testpypi` as the target repository.
+6. Verify the package page, README rendering, and install flow from TestPyPI.
 
 ## Publish to PyPI
 
 Option 1:
 
-1. Create a GitHub Release.
+1. Create a GitHub Release from `main`.
 2. The publish workflow will build and publish to PyPI automatically.
 
 Option 2:
@@ -60,8 +70,36 @@ python -m build
 twine check dist/*
 ```
 
+## `gh`-native branch and release flow
+
+Create or update the PR from `v1` to `main`:
+
+```bash
+git push origin v1
+gh pr create --base main --head v1 --fill
+gh pr status
+gh pr checks
+```
+
+Dry-run TestPyPI from `main` after the PR is merged:
+
+```bash
+gh workflow run evidpath-publish.yml --ref main -f repository=testpypi
+gh run list --workflow evidpath-publish.yml
+```
+
+Create the public release from `main` after TestPyPI verification:
+
+```bash
+gh release create v0.1.0 --target main --generate-notes
+```
+
 ## Current release caveat
 
 The automation path is in place, but the package should still be treated as
-mid-release-readiness until the installed-wheel runtime story is fully honest
-for the default reference/demo path.
+pre-release until all of the following are true:
+
+- Python `3.11+` validation is green
+- package metadata is complete
+- the published README is PyPI-safe
+- the external-target-first installed package path is validated from a clean install

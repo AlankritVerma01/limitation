@@ -280,12 +280,14 @@ def format_provider_error_reason(error: Exception | None) -> str:
 
 
 def _candidate_dotenv_paths() -> tuple[Path, ...]:
-    """Return the likely `.env` locations for local development."""
+    """Return the likely `.env` locations for local development and CLI usage."""
     cwd_path = Path.cwd() / ".env"
+    home_path = Path.home() / ".evidpath.env"
     repo_root_path = Path(__file__).resolve().parents[4] / ".env"
-    if cwd_path == repo_root_path:
-        return (cwd_path,)
-    return (cwd_path, repo_root_path)
+    candidates: list[Path] = [cwd_path, home_path]
+    if repo_root_path not in candidates:
+        candidates.append(repo_root_path)
+    return tuple(candidates)
 
 
 def _normalize_env_value(value: str) -> str:

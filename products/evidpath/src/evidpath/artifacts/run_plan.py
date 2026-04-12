@@ -9,7 +9,7 @@ from hashlib import sha1
 from pathlib import Path
 from typing import Any
 
-from ..config import DEFAULT_OUTPUT_DIR
+from ..config import default_output_dir
 from ..domain_registry import list_public_domain_definitions
 from .constants import (
     ALLOWED_AI_PROFILES,
@@ -59,7 +59,7 @@ class PlannedWorkflow:
 
 def write_run_plan(payload: dict[str, Any], *, output_dir: str) -> tuple[str, str]:
     """Write the durable pre-run plan artifact and return path plus plan id."""
-    resolved_output_dir = Path(output_dir or DEFAULT_OUTPUT_DIR)
+    resolved_output_dir = Path(output_dir or default_output_dir())
     resolved_output_dir.mkdir(parents=True, exist_ok=True)
     plan_path = resolved_output_dir / "run_plan.json"
     plan_id = str(payload.get("plan_id", ""))

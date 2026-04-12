@@ -7,9 +7,7 @@ from pathlib import Path
 
 from .schema import AgentSeed, RolloutConfig, RunConfig, ScenarioConfig, ScoringConfig
 
-DEFAULT_OUTPUT_DIR = (
-    Path(__file__).resolve().parents[4] / "products" / "evidpath" / "output"
-)
+DEFAULT_OUTPUT_DIR_NAME = "evidpath-output"
 DEFAULT_RUN_NAME = "evidpath-audit"
 
 
@@ -17,6 +15,15 @@ def slugify_name(value: str) -> str:
     """Return a filesystem-friendly slug for run and label names."""
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug or "run"
+
+
+def default_output_dir() -> Path:
+    """Return the default output root for packaged and local CLI usage.
+
+    Keep the default cwd-relative so installed-package usage does not depend on
+    a checked-out repo layout.
+    """
+    return Path.cwd() / DEFAULT_OUTPUT_DIR_NAME
 
 
 def build_run_config(
@@ -36,7 +43,7 @@ def build_run_config(
         seed=seed,
         output_dir=str(
             output_dir
-            or DEFAULT_OUTPUT_DIR / slugify_name(resolved_run_name) / f"seed-{seed}"
+            or default_output_dir() / slugify_name(resolved_run_name) / f"seed-{seed}"
         ),
         service_mode=service_mode,
         service_artifact_dir=service_artifact_dir,

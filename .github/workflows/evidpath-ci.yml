@@ -14,17 +14,21 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-and-build:
+  test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.13
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install package and release tooling
         run: |
@@ -32,12 +36,31 @@ jobs:
           python -m pip install -e ./products/evidpath[dev]
 
       - name: Lint evidpath
+        if: matrix.python-version == '3.11'
         run: |
           ruff check products/evidpath
 
       - name: Run evidpath tests
         run: |
           pytest products/evidpath/tests -q
+
+  build-and-smoke:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
 
       - name: Build wheel and sdist
         working-directory: products/evidpath
@@ -48,6 +71,12 @@ jobs:
         working-directory: products/evidpath
         run: |
           twine check dist/*
+
+      - name: Smoke install built wheel
+        run: |
+          python -m pip install products/evidpath/dist/*.whl
+          evidpath --help
+          python -m evidpath --help
 
       - name: Upload built distributions
         uses: actions/upload-artifact@v4

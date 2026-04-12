@@ -275,7 +275,8 @@ def test_help_marks_reference_service_as_supported_local_path(
         main(["audit", "--help"])
     captured = capsys.readouterr()
     audit_help = " ".join(captured.out.split())
-    assert "product-owned local reference target" in audit_help
+    assert "customer-owned external endpoint" in audit_help
+    assert "when it is available in the current environment" in audit_help
     assert "internal-only mock target" in audit_help
 
 

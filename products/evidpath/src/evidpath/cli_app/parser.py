@@ -30,13 +30,14 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Run Evidpath workflows through the shared CLI.\n\n"
             "Recommended v1 paths:\n"
+            "- `check-target --domain recommender --target-url ...`: validate a customer endpoint before a full run\n"
+            "- `audit --domain recommender --target-url ...`: run the direct external-target audit path\n"
+            "- `compare --domain recommender --baseline-url ... --candidate-url ...`: compare two external targets\n"
             "- `run-swarm --domain recommender --target-url ... --brief ...`: one-command intent-driven swarm run\n"
             "- `plan-run --workflow run-swarm|compare|audit ...` then `execute-plan --run-plan-path ...`: explicit plan-first workflow\n"
-            "- `audit --domain recommender`: product-owned local reference target or a customer-owned external endpoint\n"
-            "- `check-target --domain recommender --target-url ...`: validate a customer endpoint before a full run\n"
-            "- `compare --domain recommender`: product-owned reference artifacts or customer-owned external URLs\n"
             "- `generate-scenarios --domain recommender` / `generate-population --domain recommender`\n"
-            "- `serve-reference --domain recommender`: explicit local reference-service workflow\n\n"
+            "- `serve-reference --domain recommender`: explicit repo/dev local reference-service workflow when local artifacts are available\n\n"
+            "Installed package usage is external-target-first. "
             "AI-backed generation expands coverage. The runtime and regression core stay deterministic."
         ),
     )
@@ -61,8 +62,9 @@ def _build_audit_parser(
         "audit",
         help="Run one domain audit and write the standard artifact bundle.",
         description=(
-            "Run one domain audit against the product-owned local reference target "
-            "or a customer-owned external endpoint."
+            "Run one domain audit against a customer-owned external endpoint. "
+            "If no target URL is provided, Evidpath will try the product-owned "
+            "local reference target when it is available in the current environment."
         ),
     )
     parser.set_defaults(handler_name="audit")
@@ -88,8 +90,10 @@ def _build_run_swarm_parser(
         "run-swarm",
         help="Generate coverage from one brief, run the swarm, and write one audit bundle.",
         description=(
-            "Generate scenarios and a saved swarm from one brief, then run a domain audit "
-            "against the product-owned local reference target or a customer-owned external endpoint."
+            "Generate scenarios and a saved swarm from one brief, then run a "
+            "domain audit against a customer-owned external endpoint. If no "
+            "target URL is provided, Evidpath will try the product-owned local "
+            "reference target when it is available in the current environment."
         ),
     )
     parser.set_defaults(handler_name="run_swarm")
@@ -110,8 +114,9 @@ def _build_compare_parser(
         "compare",
         help="Compare baseline and candidate domain targets across reruns.",
         description=(
-            "Run regression compare mode for product-owned reference artifacts or "
-            "customer-owned external URLs."
+            "Run regression compare mode for customer-owned external URLs or, "
+            "when available in the current environment, product-owned local "
+            "reference artifacts."
         ),
     )
     parser.set_defaults(handler_name="compare")

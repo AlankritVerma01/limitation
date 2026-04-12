@@ -11,7 +11,7 @@ from pathlib import Path
 from .artifacts.run_manifest import write_regression_manifest
 from .audit import write_run_artifacts
 from .cli_app.progress import ProgressCallback, emit_progress
-from .config import DEFAULT_OUTPUT_DIR, slugify_name
+from .config import default_output_dir, slugify_name
 from .domain_registry import get_domain_definition
 from .domains.base import DomainDefinition
 from .generation_support import (
@@ -323,7 +323,7 @@ def _default_regression_output_dir(
 ) -> Path:
     """Build the default output path for one regression comparison run."""
     return (
-        DEFAULT_OUTPUT_DIR
+        default_output_dir()
         / "regression"
         / (
             f"{slugify_name(baseline_target.label)}-"

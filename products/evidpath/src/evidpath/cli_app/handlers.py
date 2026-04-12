@@ -6,7 +6,7 @@ import argparse
 from contextlib import suppress
 
 from ..artifacts.run_plan import load_run_plan
-from ..config import DEFAULT_OUTPUT_DIR
+from ..config import default_output_dir
 from ..domain_registry import get_domain_definition
 from ..orchestration import (
     AuditExecutionRequest,
@@ -313,7 +313,7 @@ def handle_generate_scenarios_command(
     args: argparse.Namespace,
     progress_callback: ProgressCallback,
 ) -> dict[str, str | int]:
-    output_root = args.output_dir or str(DEFAULT_OUTPUT_DIR)
+    output_root = args.output_dir or str(default_output_dir())
     scenario_pack_path = args.scenario_pack_path or build_default_scenario_pack_path(
         output_root,
         brief=args.brief,
@@ -363,7 +363,7 @@ def handle_generate_population_command(
     args: argparse.Namespace,
     progress_callback: ProgressCallback,
 ) -> dict[str, str | int]:
-    output_root = args.output_dir or str(DEFAULT_OUTPUT_DIR)
+    output_root = args.output_dir or str(default_output_dir())
     population_pack_path = args.population_pack_path or build_default_population_pack_path(
         output_root,
         brief=args.brief,
@@ -475,7 +475,7 @@ def _build_run_swarm_plan_from_args(args: argparse.Namespace):
         args,
         domain_name=args.domain,
     )
-    output_root = args.output_dir or str(DEFAULT_OUTPUT_DIR)
+    output_root = args.output_dir or str(default_output_dir())
     return plan_run_swarm(
         RunSwarmPlanRequest(
             domain_name=args.domain,
@@ -516,7 +516,7 @@ def _build_audit_plan_from_args(args: argparse.Namespace):
         args,
         domain_name=args.domain,
     )
-    output_root = args.output_dir or str(DEFAULT_OUTPUT_DIR)
+    output_root = args.output_dir or str(default_output_dir())
     return plan_audit(
         AuditPlanRequest(
             domain_name=args.domain,
@@ -551,7 +551,7 @@ def _build_compare_plan_from_args(args: argparse.Namespace):
         url=args.candidate_url,
         side_name="candidate",
     )
-    output_root = args.output_dir or str(DEFAULT_OUTPUT_DIR)
+    output_root = args.output_dir or str(default_output_dir())
     return plan_compare(
         ComparePlanRequest(
             domain_name=args.domain,

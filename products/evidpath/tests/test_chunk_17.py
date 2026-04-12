@@ -157,7 +157,9 @@ def test_audit_help_uses_domain_neutral_target_wording(capsys) -> None:
     captured = capsys.readouterr()
     assert exc_info.value.code == 0
     assert "Customer-owned external endpoint" in captured.out
-    assert "real customer integration path" in captured.out
+    assert "installed-" in captured.out
+    assert "package path" in captured.out
     assert "Supported domain for this command" in captured.out
     assert "product-owned local reference target" in captured.out
+    assert "when it is available in the current environment" in captured.out
     assert "internal-only mock target" in captured.out
