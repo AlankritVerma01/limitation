@@ -13,6 +13,7 @@ from .generation_support import (
 from .reporting.chart import CohortChartWriter
 from .reporting.json import JsonReportWriter
 from .reporting.markdown import MarkdownReportWriter
+from .reporting.semantic_json import write_run_semantic_artifact
 from .schema import RunResult
 
 
@@ -102,6 +103,9 @@ def write_run_artifacts(
         message="Writing artifacts",
         stage="start",
     )
+    semantic_path = write_run_semantic_artifact(run_result, resolved_output_dir)
+    if semantic_path is not None:
+        run_result.metadata["semantic_advisory_path"] = semantic_path
     markdown_paths = MarkdownReportWriter().write(run_result, resolved_output_dir)
     include_slice_membership = bool(
         run_result.metadata.get("include_slice_membership", False)
@@ -116,7 +120,12 @@ def write_run_artifacts(
         message="Wrote artifacts",
         stage="finish",
     )
-    return {**markdown_paths, **json_paths, **chart_paths}
+    semantic_paths = (
+        {"semantic_advisory_path": semantic_path}
+        if semantic_path is not None
+        else {}
+    )
+    return {**markdown_paths, **json_paths, **chart_paths, **semantic_paths}
 
 
 def run_recommender_audit(

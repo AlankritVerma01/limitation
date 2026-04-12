@@ -167,6 +167,11 @@ class MarkdownReportWriter:
             f"- Population size source: `{run_result.metadata.get('population_size_source', 'built_in')}`",
             f"- Discovered slices: `{run_result.metadata.get('slice_count', len(run_result.slice_discovery.slice_summaries))}`",
             f"- Semantic mode: `{run_result.metadata.get('semantic_mode', 'off')}`",
+            f"- Semantic provider: `{run_result.metadata.get('semantic_provider_name', 'n/a') or 'n/a'}`",
+            f"- Semantic model: `{run_result.metadata.get('semantic_model', 'n/a') or 'n/a'}`",
+            f"- Semantic profile: `{run_result.metadata.get('semantic_model_profile', 'n/a') or 'n/a'}`",
+            f"- Semantic origin: `{run_result.metadata.get('semantic_advisory_origin', 'n/a') or 'n/a'}`",
+            f"- Semantic advisory artifact: `{run_result.metadata.get('semantic_advisory_path', 'n/a') or 'n/a'}`",
             f"- Run plan ID: `{run_result.metadata.get('run_plan_id', 'n/a') or 'n/a'}`",
             f"- Run plan: `{run_result.metadata.get('run_plan_path', 'n/a') or 'n/a'}`",
             f"- Planner mode: `{run_result.metadata.get('planner_mode', 'n/a') or 'n/a'}`",
@@ -186,11 +191,15 @@ class MarkdownReportWriter:
         if interpretation is None:
             lines.append("- Semantic interpretation was not enabled for this run.")
             return lines
+        lines.append("- This section is advisory only and does not change deterministic gating.")
         lines.append(f"- Mode: `{interpretation.mode}`")
         if interpretation.provider_name:
             lines.append(
                 f"- Provider: `{interpretation.provider_name}` / `{interpretation.model_name or 'unknown'}`"
             )
+        lines.append(
+            f"- Advisory artifact: `{run_result.metadata.get('semantic_advisory_path', 'n/a') or 'n/a'}`"
+        )
         lines.append(f"- Advisory summary: {interpretation.advisory_summary}")
         for explanation in interpretation.trace_explanations:
             lines.append(

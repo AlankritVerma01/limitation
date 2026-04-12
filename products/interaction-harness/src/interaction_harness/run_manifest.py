@@ -52,6 +52,27 @@ def write_run_manifest(
         },
         "seed": run_result.run_config.rollout.seed,
         "semantic_mode": str(run_result.metadata.get("semantic_mode", "off")),
+        "semantic_advisory": {
+            "enabled": bool(run_result.semantic_interpretation is not None),
+            "advisory_only": True,
+            "artifact_path": str(artifact_paths.get("semantic_advisory_path", "")),
+            "mode": str(run_result.metadata.get("semantic_mode", "off")),
+            "provider_name": str(run_result.metadata.get("semantic_provider_name", "")),
+            "model_name": str(run_result.metadata.get("semantic_model", "")),
+            "model_profile": str(
+                run_result.metadata.get("semantic_model_profile", "")
+            ),
+            "decision_origin": str(
+                run_result.metadata.get("semantic_advisory_origin", "")
+            ),
+            "gating": str(run_result.metadata.get("semantic_advisory_gating", "advisory_only")),
+            "rationale": str(
+                run_result.metadata.get("semantic_advisory_rationale", "")
+            ),
+            "execution_status": "completed"
+            if run_result.semantic_interpretation is not None
+            else "skipped",
+        },
         "service": {
             "service_kind": str(run_result.metadata.get("service_kind", "")),
             "target_mode": str(run_result.metadata.get("target_mode", "")),
@@ -148,6 +169,33 @@ def write_regression_manifest(
         },
         "base_seed": int(regression_diff.metadata.get("base_seed", 0)),
         "rerun_count": int(regression_diff.metadata.get("rerun_count", 0)),
+        "semantic_advisory": {
+            "enabled": bool(regression_diff.semantic_interpretation is not None),
+            "advisory_only": True,
+            "artifact_path": str(
+                artifact_paths.get("semantic_regression_advisory_path", "")
+            ),
+            "mode": str(regression_diff.metadata.get("semantic_mode", "off")),
+            "provider_name": str(
+                regression_diff.metadata.get("semantic_provider_name", "")
+            ),
+            "model_name": str(regression_diff.metadata.get("semantic_model", "")),
+            "model_profile": str(
+                regression_diff.metadata.get("semantic_model_profile", "")
+            ),
+            "decision_origin": str(
+                regression_diff.metadata.get("semantic_advisory_origin", "")
+            ),
+            "gating": str(
+                regression_diff.metadata.get("semantic_advisory_gating", "advisory_only")
+            ),
+            "rationale": str(
+                regression_diff.metadata.get("semantic_advisory_rationale", "")
+            ),
+            "execution_status": "completed"
+            if regression_diff.semantic_interpretation is not None
+            else "skipped",
+        },
         "policy_name": str(regression_diff.metadata.get("policy_name", "")),
         "policy_mode": str(regression_diff.metadata.get("policy_mode", "")),
         "baseline": {

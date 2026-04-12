@@ -53,6 +53,8 @@ def _normalize_regression_payload(payload: dict[str, Any]) -> dict[str, Any]:
         payload["metadata"]["run_manifest_path"] = "<normalized>"
     if "run_plan_path" in payload.get("metadata", {}):
         payload["metadata"]["run_plan_path"] = "<normalized>"
+    if "semantic_advisory_path" in payload.get("metadata", {}):
+        payload["metadata"]["semantic_advisory_path"] = "<normalized>"
     if "semantic_interpretation" in payload and payload["semantic_interpretation"] is None:
         payload.pop("semantic_interpretation", None)
     semantic = payload.get("semantic_interpretation")
@@ -107,6 +109,12 @@ class RegressionMarkdownWriter:
             f"- Planner mode: `{regression_diff.metadata.get('planner_mode', 'n/a') or 'n/a'}`",
             f"- Planner model: `{regression_diff.metadata.get('planner_model_name', 'n/a') or 'n/a'}`",
             f"- Planner profile: `{regression_diff.metadata.get('planner_model_profile', 'n/a') or 'n/a'}`",
+            f"- Semantic mode: `{regression_diff.metadata.get('semantic_mode', 'n/a') or 'n/a'}`",
+            f"- Semantic provider: `{regression_diff.metadata.get('semantic_provider_name', 'n/a') or 'n/a'}`",
+            f"- Semantic model: `{regression_diff.metadata.get('semantic_model', 'n/a') or 'n/a'}`",
+            f"- Semantic profile: `{regression_diff.metadata.get('semantic_model_profile', 'n/a') or 'n/a'}`",
+            f"- Semantic origin: `{regression_diff.metadata.get('semantic_advisory_origin', 'n/a') or 'n/a'}`",
+            f"- Semantic advisory artifact: `{regression_diff.metadata.get('semantic_advisory_path', 'n/a') or 'n/a'}`",
             f"- Scenario pack: `{regression_diff.metadata.get('scenario_pack_path', 'n/a') or 'n/a'}`",
             f"- Swarm pack: `{regression_diff.metadata.get('population_pack_path', 'n/a') or 'n/a'}`",
             f"- Run manifest: `{regression_diff.metadata.get('run_manifest_path', 'n/a') or 'n/a'}`",
@@ -343,11 +351,15 @@ class RegressionMarkdownWriter:
         if interpretation is None:
             lines.append("- Semantic interpretation was not enabled for this comparison.")
             return lines
+        lines.append("- This section is advisory only and does not change deterministic regression gating.")
         lines.append(f"- Mode: `{interpretation.mode}`")
         if interpretation.provider_name:
             lines.append(
                 f"- Provider: `{interpretation.provider_name}` / `{interpretation.model_name or 'unknown'}`"
             )
+        lines.append(
+            f"- Advisory artifact: `{regression_diff.metadata.get('semantic_advisory_path', 'n/a') or 'n/a'}`"
+        )
         lines.append(f"- Advisory summary: {interpretation.advisory_summary}")
         for explanation in interpretation.trace_explanations:
             lines.append(

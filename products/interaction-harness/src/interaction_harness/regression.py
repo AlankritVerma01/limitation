@@ -19,6 +19,7 @@ from .generation_support import (
 )
 from .regression_policy import evaluate_regression_policy
 from .reporting.regression import RegressionJsonWriter, RegressionMarkdownWriter
+from .reporting.semantic_json import write_regression_semantic_artifact
 from .run_manifest import write_regression_manifest
 from .schema import (
     CohortDelta,
@@ -229,6 +230,12 @@ def run_domain_regression_audit(
         message="Interpreting semantics",
         stage="start",
     )
+    semantic_interpretation = interpret_regression_semantics(
+        regression_diff,
+        mode=semantic_mode,
+        model_name=semantic_model,
+        model_profile=semantic_profile,
+    )
     regression_diff = RegressionDiff(
         gating_mode=regression_diff.gating_mode,
         baseline_summary=regression_diff.baseline_summary,
@@ -238,18 +245,18 @@ def run_domain_regression_audit(
         risk_flag_deltas=regression_diff.risk_flag_deltas,
         notable_trace_deltas=regression_diff.notable_trace_deltas,
         slice_deltas=regression_diff.slice_deltas,
-        semantic_interpretation=interpret_regression_semantics(
-            regression_diff,
-            mode=semantic_mode,
-            model_name=semantic_model,
-            model_profile=semantic_profile,
-        ),
+        semantic_interpretation=semantic_interpretation,
         decision=regression_diff.decision,
         metadata={
             **regression_diff.metadata,
             "semantic_mode": semantic_mode,
             "semantic_model": semantic_model if semantic_mode != "off" else "",
             "semantic_model_profile": semantic_profile if semantic_mode != "off" else "",
+            "semantic_provider_name": (
+                semantic_interpretation.provider_name
+                if semantic_interpretation is not None
+                else ""
+            ),
         },
     )
     regression_diff.metadata["run_manifest_path"] = str(
@@ -271,6 +278,12 @@ def run_domain_regression_audit(
         message="Writing regression artifacts",
         stage="start",
     )
+    semantic_path = write_regression_semantic_artifact(
+        regression_diff,
+        resolved_output_dir,
+    )
+    if semantic_path is not None:
+        regression_diff.metadata["semantic_advisory_path"] = semantic_path
     markdown_paths = RegressionMarkdownWriter().write(regression_diff, resolved_output_dir)
     json_paths = RegressionJsonWriter().write(regression_diff, resolved_output_dir)
     emit_progress(
@@ -283,6 +296,11 @@ def run_domain_regression_audit(
     output_artifact_paths = {
         **markdown_paths,
         **json_paths,
+        **(
+            {"semantic_regression_advisory_path": semantic_path}
+            if semantic_path is not None
+            else {}
+        ),
     }
     manifest_path = write_regression_manifest(
         regression_diff,
