@@ -3,7 +3,7 @@
 This repository contains:
 
 - a public recommender-evaluation proof under [studies/01-recommender-offline-eval](studies/01-recommender-offline-eval/README.md)
-- the active product build under [products/interaction-harness](products/interaction-harness/README.md)
+- the active product build under [products/evidpath](products/evidpath/README.md)
 
 The short product thesis is:
 
@@ -13,8 +13,6 @@ Today the active implementation is recommender-first, but the longer-term goal i
 
 ## Current Product State
 
-The interaction harness is now a real working product skeleton, not just a plan.
-
 It currently includes:
 
 - a real HTTP-shaped system boundary
@@ -22,10 +20,13 @@ It currently includes:
 - a mock service kept only for narrow tests
 - seeded synthetic users with explicit multi-step state
 - deterministic judging, cohort analysis, and failure surfacing
-- report-only baseline-vs-candidate regression runs across reruns
+- baseline-vs-candidate regression runs across reruns with deterministic
+  `pass` / `warn` / `fail` policy output
+- saved structured scenario packs with fixture and provider generation paths
+- saved recommender population packs with explicit generated swarms
 - polished markdown, JSON, and trace artifacts
 
-The study remains the proof. The interaction harness is the product direction.
+The study remains the proof. The Evidpath is the product direction.
 
 ## The Problem
 
@@ -51,8 +52,8 @@ That is the hidden-tradeoff insight this tool is designed to catch.
 
 If you want the active product:
 
-- read [products/interaction-harness/README.md](products/interaction-harness/README.md)
-- then read the active roadmap in [plans/interaction-harness-v0/README.md](plans/interaction-harness-v0/README.md)
+- read [products/evidpath/README.md](products/evidpath/README.md)
+- then read the active roadmap in [plans/evidpath-v0/README.md](plans/evidpath-v0/README.md)
 
 If you want the original public proof:
 
@@ -154,8 +155,8 @@ Useful links:
 
 ## Repo Guide
 
-- [Interaction Harness README](products/interaction-harness/README.md)
-- [Interaction Harness plans](plans/interaction-harness-v0/README.md)
+- [Evidpath README](products/evidpath/README.md)
+- [Evidpath plans](plans/evidpath-v0/README.md)
 - [Study 01 README](studies/01-recommender-offline-eval/README.md)
 - [V1 product spec](studies/01-recommender-offline-eval/docs/v1-product-spec.md)
 - [Canonical artifacts](studies/01-recommender-offline-eval/artifacts/canonical)
