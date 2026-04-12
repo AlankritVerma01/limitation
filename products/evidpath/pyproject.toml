@@ -61,5 +61,8 @@ evidpath = "evidpath.__main__:cli_entrypoint"
 [tool.setuptools]
 package-dir = {"" = "src"}
 
+[tool.setuptools.package-data]
+"evidpath.domains.recommender" = ["reference_backend_artifacts.json"]
+
 [tool.setuptools.packages.find]
 where = ["src"]

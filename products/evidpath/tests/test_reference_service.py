@@ -18,6 +18,7 @@ from evidpath.domains.recommender import (
     load_reference_artifacts,
     run_reference_recommender_service,
 )
+from evidpath.domains.recommender import reference_artifacts as recommender_reference_artifacts
 from evidpath.rollout.engine import run_rollouts
 
 
@@ -33,6 +34,31 @@ def test_reference_artifact_build_writes_expected_bundle(reference_artifact_dir:
     assert artifact_path.exists()
     payload = load_reference_artifacts(reference_artifact_dir)
     assert payload["artifact_id"].startswith("movielens-100k-reference-")
+    assert payload["dataset"] == "MovieLens 100K"
+    assert payload["item_count"] > 1000
+
+
+def test_reference_artifact_build_falls_back_to_packaged_bundle_when_repo_data_is_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    artifact_dir = tmp_path / "reference-artifacts"
+    missing_root = tmp_path / "missing"
+    monkeypatch.setattr(
+        recommender_reference_artifacts,
+        "DEFAULT_ITEMS_PATH",
+        missing_root / "u.item",
+    )
+    monkeypatch.setattr(
+        recommender_reference_artifacts,
+        "DEFAULT_RATINGS_PATH",
+        missing_root / "u.data",
+    )
+
+    artifact_path = build_reference_artifacts(artifact_dir)
+    payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+
+    assert artifact_path.exists()
     assert payload["dataset"] == "MovieLens 100K"
     assert payload["item_count"] > 1000
 

@@ -57,6 +57,7 @@ DEFAULT_REFERENCE_ARTIFACT_DIR = (
 DEFAULT_ITEMS_PATH = REFERENCE_DATA_DIR / "u.item"
 DEFAULT_RATINGS_PATH = REFERENCE_DATA_DIR / "u.data"
 ARTIFACT_FILENAME = "reference_backend_artifacts.json"
+PACKAGED_REFERENCE_ARTIFACT_PATH = Path(__file__).with_name(ARTIFACT_FILENAME)
 
 
 def build_reference_artifacts(
@@ -69,6 +70,8 @@ def build_reference_artifacts(
     items_source = Path(items_path or DEFAULT_ITEMS_PATH)
     ratings_source = Path(ratings_path or DEFAULT_RATINGS_PATH)
     if not items_source.exists() or not ratings_source.exists():
+        if items_path is None and ratings_path is None and PACKAGED_REFERENCE_ARTIFACT_PATH.exists():
+            return _write_packaged_reference_artifacts(output_dir)
         missing = [str(path) for path in (items_source, ratings_source) if not path.exists()]
         raise FileNotFoundError(f"Reference source data missing: {', '.join(missing)}")
 
@@ -108,6 +111,19 @@ def build_reference_artifacts(
     artifact_path = resolved_dir / ARTIFACT_FILENAME
     artifact_path.write_text(
         json.dumps(artifact_payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    load_reference_artifacts.cache_clear()
+    return artifact_path
+
+
+def _write_packaged_reference_artifacts(output_dir: str | Path) -> Path:
+    """Write the packaged reference artifact bundle to the requested directory."""
+    resolved_dir = Path(output_dir)
+    resolved_dir.mkdir(parents=True, exist_ok=True)
+    artifact_path = resolved_dir / ARTIFACT_FILENAME
+    artifact_path.write_text(
+        PACKAGED_REFERENCE_ARTIFACT_PATH.read_text(encoding="utf-8"),
         encoding="utf-8",
     )
     load_reference_artifacts.cache_clear()
