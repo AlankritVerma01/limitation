@@ -69,3 +69,11 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: service, subprocess, or full workflow tests that are skipped by default",
+    "system: tests that exercise a running target, service context, or full Evidpath workflow",
+    "example: tests that exercise packaged example applications or wrappers",
+]
