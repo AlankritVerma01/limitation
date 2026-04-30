@@ -14,6 +14,13 @@ on:
           - testpypi
           - pypi
 
+permissions:
+  contents: read
+
+concurrency:
+  group: evidpath-publish-${{ github.ref_name || inputs.repository }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -31,6 +38,24 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install build twine
+
+      - name: Verify release tag matches package version
+        if: github.event_name == 'release'
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+
+          with open("products/evidpath/pyproject.toml", "rb") as package_file:
+              version = tomllib.load(package_file)["project"]["version"]
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          expected = f"v{version}"
+          if tag != expected:
+              raise SystemExit(
+                  f"Release tag {tag!r} does not match package version {expected!r}."
+              )
+          PY
 
       - name: Build wheel and sdist
         working-directory: products/evidpath
@@ -79,7 +104,7 @@ jobs:
           packages-dir: dist
 
   publish-pypi:
-    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.repository == 'pypi')
+    if: (github.event_name == 'release' && startsWith(github.ref_name, 'v')) || (github.event_name == 'workflow_dispatch' && inputs.repository == 'pypi')
     needs: build
     runs-on: ubuntu-latest
     permissions:

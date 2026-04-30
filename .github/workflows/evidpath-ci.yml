@@ -5,11 +5,17 @@ on:
     paths:
       - ".github/workflows/evidpath-ci.yml"
       - ".github/workflows/evidpath-publish.yml"
+      - ".github/workflows/evidpath-release-please.yml"
+      - ".release-please-manifest.json"
+      - "release-please-config.json"
       - "products/evidpath/**"
   pull_request:
     paths:
       - ".github/workflows/evidpath-ci.yml"
       - ".github/workflows/evidpath-publish.yml"
+      - ".github/workflows/evidpath-release-please.yml"
+      - ".release-please-manifest.json"
+      - "release-please-config.json"
       - "products/evidpath/**"
   workflow_dispatch:
 

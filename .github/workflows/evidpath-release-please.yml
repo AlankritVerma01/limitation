@@ -1,0 +1,31 @@
+name: evidpath-release-please
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/evidpath-release-please.yml"
+      - "release-please-config.json"
+      - ".release-please-manifest.json"
+      - "products/evidpath/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: evidpath-release-please
+  cancel-in-progress: true
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create or update release PR
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
