@@ -1,0 +1,163 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from evidpath.cli import main
+from evidpath.domains.recommender import ensure_reference_artifacts
+from evidpath.regression import run_regression_audit
+from evidpath.schema import RegressionTarget
+
+
+def test_single_run_report_includes_executive_summary_and_compact_traces(
+    tmp_path: Path,
+) -> None:
+    result = main(
+        [
+            "audit",
+            "--domain",
+            "recommender",
+            "--seed",
+            "11",
+            "--use-mock",
+            "--run-name",
+            "Polished Demo Run",
+            "--output-dir",
+            str(tmp_path / "single"),
+        ]
+    )
+    report_body = Path(result["report_path"]).read_text(encoding="utf-8")
+    results_payload = json.loads(
+        Path(result["results_path"]).read_text(encoding="utf-8")
+    )
+    assert "## Executive Summary" in report_body
+    assert "## Representative Traces To Inspect" in report_body
+    assert "Highest-Risk Cohorts" in report_body or "Strongest Cohorts" in report_body
+    assert results_payload["summary"]["display_name"] == "Polished Demo Run"
+    assert results_payload["summary"]["run_id"].startswith("run-")
+    assert results_payload["summary"]["generated_at_utc"] == "<normalized>"
+
+
+def test_regression_outputs_include_summary_and_most_important_changes(
+    tmp_path: Path,
+) -> None:
+    artifact_dir = tmp_path / "artifacts"
+    ensure_reference_artifacts(artifact_dir)
+    result = run_regression_audit(
+        baseline_target=RegressionTarget(
+            label="stable-baseline",
+            mode="reference_artifact",
+            service_artifact_dir=str(artifact_dir),
+        ),
+        candidate_target=RegressionTarget(
+            label="stable-candidate",
+            mode="reference_artifact",
+            service_artifact_dir=str(artifact_dir),
+        ),
+        base_seed=3,
+        rerun_count=2,
+        output_dir=str(tmp_path / "regression"),
+    )
+    report_body = Path(result["regression_report_path"]).read_text(encoding="utf-8")
+    payload = json.loads(
+        Path(result["regression_summary_path"]).read_text(encoding="utf-8")
+    )
+    assert "## Executive Summary" in report_body
+    assert "## Most Important Changes" in report_body
+    assert payload["summary"]["display_name"] == "stable-baseline vs stable-candidate"
+    assert payload["summary"]["regression_id"].startswith("reg-")
+    assert payload["summary"]["generated_at_utc"] == "<normalized>"
+    assert "overall_direction" in payload["summary"]
+
+
+def test_audit_writes_run_manifest_with_target_and_artifact_metadata(
+    tmp_path: Path,
+) -> None:
+    result = main(
+        [
+            "audit",
+            "--domain",
+            "recommender",
+            "--use-mock",
+            "--output-dir",
+            str(tmp_path / "audit"),
+        ]
+    )
+
+    manifest_path = Path(str(result["run_manifest_path"]))
+    plan_path = Path(str(result["run_plan_path"]))
+    plan_payload = json.loads(plan_path.read_text(encoding="utf-8"))
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert payload["workflow_type"] == "audit"
+    assert payload["domain"] == "recommender"
+    assert payload["run_plan"]["run_plan_path"] == str(plan_path)
+    assert payload["service"]["service_kind"] == "mock"
+    assert payload["artifacts"]["report_path"].endswith("report.md")
+    assert payload["artifacts"]["results_path"].endswith("results.json")
+    assert payload["artifacts"]["traces_path"].endswith("traces.jsonl")
+    assert plan_payload["workflow_type"] == "audit"
+
+
+def test_run_swarm_writes_manifest_with_coverage_provenance(tmp_path: Path) -> None:
+    result = main(
+        [
+            "run-swarm",
+            "--domain",
+            "recommender",
+            "--use-mock",
+            "--brief",
+            "test manifest provenance for provider-free swarm generation",
+            "--generation-mode",
+            "fixture",
+            "--output-dir",
+            str(tmp_path / "run-swarm"),
+        ]
+    )
+
+    manifest_path = Path(str(result["run_manifest_path"]))
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert payload["workflow_type"] == "run-swarm"
+    assert payload["coverage"]["scenario_source"] == "generated_pack"
+    assert payload["coverage"]["scenario_pack_mode"] == "fixture"
+    assert payload["coverage"]["population_source"] == "generated_pack"
+    assert payload["coverage"]["population_pack_mode"] == "fixture"
+    assert payload["workflow_metadata"]["coverage_source"] == "generated"
+    assert payload["workflow_metadata"]["scenario_generation_mode"] == "fixture"
+    assert payload["workflow_metadata"]["swarm_generation_mode"] == "fixture"
+
+
+def test_compare_writes_regression_run_manifest(tmp_path: Path) -> None:
+    baseline_dir = tmp_path / "baseline"
+    candidate_dir = tmp_path / "candidate"
+    ensure_reference_artifacts(baseline_dir)
+    ensure_reference_artifacts(candidate_dir)
+    result = main(
+        [
+            "compare",
+            "--domain",
+            "recommender",
+            "--baseline-artifact-dir",
+            str(baseline_dir),
+            "--candidate-artifact-dir",
+            str(candidate_dir),
+            "--scenario",
+            "returning-user-home-feed",
+            "--rerun-count",
+            "1",
+            "--output-dir",
+            str(tmp_path / "compare"),
+        ]
+    )
+
+    manifest_path = Path(str(result["run_manifest_path"]))
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert payload["workflow_type"] == "compare"
+    assert payload["domain"] == "recommender"
+    assert payload["baseline"]["label"] == "baseline"
+    assert payload["candidate"]["label"] == "candidate"
+    assert payload["artifacts"]["regression_report_path"].endswith(
+        "regression_report.md"
+    )
+    assert payload["artifacts"]["regression_summary_path"].endswith(
+        "regression_summary.json"
+    )
