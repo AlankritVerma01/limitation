@@ -34,9 +34,9 @@ The intended flow on `main` is:
 Configure Trusted Publishers in both PyPI and TestPyPI for this repository and
 workflow.
 
-Use the workflow file:
+Use this workflow filename in the PyPI form:
 
-- `.github/workflows/evidpath-publish.yml`
+- `evidpath-publish.yml`
 
 Recommended environments:
 
@@ -47,7 +47,7 @@ Because the repository moved accounts, make sure both PyPI projects trust:
 
 - owner: `NDETERMINA`
 - repository: `limitation`
-- workflow: `.github/workflows/evidpath-publish.yml`
+- workflow: `evidpath-publish.yml`
 - environments: `testpypi` and `pypi`
 
 ## Manual dry run to TestPyPI
