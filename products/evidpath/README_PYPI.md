@@ -1,9 +1,9 @@
 # Evidpath
 
-[Source](https://github.com/AlankritVerma01/limitation) |
-[Full docs](https://github.com/AlankritVerma01/limitation/tree/main/products/evidpath) |
-[Releases](https://github.com/AlankritVerma01/limitation/releases) |
-[Issues](https://github.com/AlankritVerma01/limitation/issues)
+[Source](https://github.com/NDETERMINA/limitation) |
+[Full docs](https://github.com/NDETERMINA/limitation/tree/main/products/evidpath) |
+[Releases](https://github.com/NDETERMINA/limitation/releases) |
+[Issues](https://github.com/NDETERMINA/limitation/issues)
 
 Evidpath helps teams check a recommender before launch. Point it at a
 recommender endpoint, run an audit, and open a report that shows what happened.
@@ -49,7 +49,7 @@ evidpath compare --domain recommender --baseline-url http://127.0.0.1:8051 --can
 
 - a recommender HTTP endpoint
 - the request and response shape described in the
-  [external target contract](https://github.com/AlankritVerma01/limitation/blob/main/products/evidpath/EXTERNAL_TARGET_CONTRACT.md)
+  [external target contract](https://github.com/NDETERMINA/limitation/blob/main/products/evidpath/EXTERNAL_TARGET_CONTRACT.md)
 
 The external endpoint path is the main packaged-user path for `0.1.0`.
 The reference target remains available in the repo for demos and local
@@ -61,7 +61,7 @@ need an API key.
 
 ## Links
 
-- Full product docs: https://github.com/AlankritVerma01/limitation/tree/main/products/evidpath
-- Demo guide: https://github.com/AlankritVerma01/limitation/blob/main/products/evidpath/DEMO.md
-- Releases: https://github.com/AlankritVerma01/limitation/releases
-- Issues: https://github.com/AlankritVerma01/limitation/issues
+- Full product docs: https://github.com/NDETERMINA/limitation/tree/main/products/evidpath
+- Demo guide: https://github.com/NDETERMINA/limitation/blob/main/products/evidpath/DEMO.md
+- Releases: https://github.com/NDETERMINA/limitation/releases
+- Issues: https://github.com/NDETERMINA/limitation/issues

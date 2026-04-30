@@ -15,7 +15,7 @@ Please do not open public issues for suspected security problems.
 
 Instead, report privately through GitHub Security Advisories when available, or contact the maintainer privately through the GitHub profile:
 
-- <https://github.com/AlankritVerma01>
+- <https://github.com/NDETERMINA>
 
 Include:
 

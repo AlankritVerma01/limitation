@@ -2,8 +2,8 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/evidpath.svg)](https://pypi.org/project/evidpath/)
 [![Python versions](https://img.shields.io/pypi/pyversions/evidpath.svg)](https://pypi.org/project/evidpath/)
-[![CI](https://github.com/AlankritVerma01/limitation/actions/workflows/evidpath-ci.yml/badge.svg)](https://github.com/AlankritVerma01/limitation/actions/workflows/evidpath-ci.yml)
-[![License](https://img.shields.io/pypi/l/evidpath.svg)](https://github.com/AlankritVerma01/limitation/blob/main/products/evidpath/LICENSE)
+[![CI](https://github.com/NDETERMINA/limitation/actions/workflows/evidpath-ci.yml/badge.svg)](https://github.com/NDETERMINA/limitation/actions/workflows/evidpath-ci.yml)
+[![License](https://img.shields.io/pypi/l/evidpath.svg)](https://github.com/NDETERMINA/limitation/blob/main/products/evidpath/LICENSE)
 
 Evidpath helps teams check a recommender before launch by running interaction
 tests, saving clear evidence, and comparing two versions before they ship.
@@ -43,7 +43,7 @@ That run writes an output folder with files such as `report.md`,
 - product guide: [products/evidpath/README.md](products/evidpath/README.md)
 - PyPI: <https://pypi.org/project/evidpath/>
 - TestPyPI: <https://test.pypi.org/project/evidpath/>
-- releases: <https://github.com/AlankritVerma01/limitation/releases>
+- releases: <https://github.com/NDETERMINA/limitation/releases>
 - demo guide: [products/evidpath/DEMO.md](products/evidpath/DEMO.md)
 - external target contract: [products/evidpath/EXTERNAL_TARGET_CONTRACT.md](products/evidpath/EXTERNAL_TARGET_CONTRACT.md)
 - contributing: [CONTRIBUTING.md](CONTRIBUTING.md)

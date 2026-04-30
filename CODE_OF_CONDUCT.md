@@ -20,7 +20,7 @@ We want this project to feel rigorous, respectful, and welcoming.
 
 If you experience or witness unacceptable behavior, contact the maintainer privately through the GitHub profile:
 
-- <https://github.com/AlankritVerma01>
+- <https://github.com/NDETERMINA>
 
 ## Enforcement
 

@@ -2,13 +2,13 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/evidpath.svg)](https://pypi.org/project/evidpath/)
 [![Python versions](https://img.shields.io/pypi/pyversions/evidpath.svg)](https://pypi.org/project/evidpath/)
-[![CI](https://github.com/AlankritVerma01/limitation/actions/workflows/evidpath-ci.yml/badge.svg)](https://github.com/AlankritVerma01/limitation/actions/workflows/evidpath-ci.yml)
-[![License](https://img.shields.io/pypi/l/evidpath.svg)](https://github.com/AlankritVerma01/limitation/blob/main/products/evidpath/LICENSE)
+[![CI](https://github.com/NDETERMINA/limitation/actions/workflows/evidpath-ci.yml/badge.svg)](https://github.com/NDETERMINA/limitation/actions/workflows/evidpath-ci.yml)
+[![License](https://img.shields.io/pypi/l/evidpath.svg)](https://github.com/NDETERMINA/limitation/blob/main/products/evidpath/LICENSE)
 
 [PyPI](https://pypi.org/project/evidpath/) |
 [TestPyPI](https://test.pypi.org/project/evidpath/) |
-[Releases](https://github.com/AlankritVerma01/limitation/releases) |
-[Issues](https://github.com/AlankritVerma01/limitation/issues) |
+[Releases](https://github.com/NDETERMINA/limitation/releases) |
+[Issues](https://github.com/NDETERMINA/limitation/issues) |
 [External target contract](./EXTERNAL_TARGET_CONTRACT.md)
 
 Evidpath helps teams evaluate a recommender before launch. You point it at a

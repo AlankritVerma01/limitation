@@ -19,4 +19,4 @@ For package or CLI issues, include:
 
 Please report security-sensitive issues privately through GitHub Security Advisories when available, or contact the maintainer through:
 
-- <https://github.com/AlankritVerma01>
+- <https://github.com/NDETERMINA>
