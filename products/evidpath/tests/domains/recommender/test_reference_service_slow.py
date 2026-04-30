@@ -31,7 +31,9 @@ def reference_artifact_dir(tmp_path: Path) -> Path:
     return artifact_dir
 
 
-def test_reference_artifact_build_writes_expected_bundle(reference_artifact_dir: Path) -> None:
+def test_reference_artifact_build_writes_expected_bundle(
+    reference_artifact_dir: Path,
+) -> None:
     artifact_path = reference_artifact_dir / ARTIFACT_FILENAME
     assert artifact_path.exists()
     payload = load_reference_artifacts(reference_artifact_dir)
@@ -65,8 +67,13 @@ def test_reference_artifact_build_falls_back_to_packaged_bundle_when_repo_data_i
     assert payload["item_count"] > 1000
 
 
-def test_reference_service_answers_health_and_metadata(reference_artifact_dir: Path) -> None:
-    with run_reference_recommender_service(str(reference_artifact_dir)) as (base_url, metadata):
+def test_reference_service_answers_health_and_metadata(
+    reference_artifact_dir: Path,
+) -> None:
+    with run_reference_recommender_service(str(reference_artifact_dir)) as (
+        base_url,
+        metadata,
+    ):
         assert metadata["service_kind"] == "reference"
         with request.urlopen(f"{base_url}/health", timeout=2.0) as response:
             health = json.loads(response.read().decode("utf-8"))
@@ -76,8 +83,13 @@ def test_reference_service_answers_health_and_metadata(reference_artifact_dir: P
     assert remote_metadata["artifact_id"] == metadata["artifact_id"]
 
 
-def test_reference_service_rejects_malformed_requests(reference_artifact_dir: Path) -> None:
-    with run_reference_recommender_service(str(reference_artifact_dir)) as (base_url, _metadata):
+def test_reference_service_rejects_malformed_requests(
+    reference_artifact_dir: Path,
+) -> None:
+    with run_reference_recommender_service(str(reference_artifact_dir)) as (
+        base_url,
+        _metadata,
+    ):
         req = request.Request(
             f"{base_url}/recommendations",
             data=json.dumps({"bad": "payload"}).encode("utf-8"),
@@ -89,7 +101,9 @@ def test_reference_service_rejects_malformed_requests(reference_artifact_dir: Pa
     assert exc_info.value.code == 400
 
 
-def test_http_adapter_works_against_reference_service(reference_artifact_dir: Path) -> None:
+def test_http_adapter_works_against_reference_service(
+    reference_artifact_dir: Path,
+) -> None:
     run_config, _resolved_inputs = build_recommender_run_config(
         seed=4,
         scenario_names=("returning-user-home-feed",),
@@ -99,7 +113,10 @@ def test_http_adapter_works_against_reference_service(reference_artifact_dir: Pa
     agent_seed = run_config.agent_seeds[0]
     observation = scenario.initialize(agent_seed, run_config)
     state = initial_state_from_seed(agent_seed, observation.scenario_context)
-    with run_reference_recommender_service(str(reference_artifact_dir)) as (base_url, _metadata):
+    with run_reference_recommender_service(str(reference_artifact_dir)) as (
+        base_url,
+        _metadata,
+    ):
         adapter = HttpRecommenderAdapter(base_url, timeout_seconds=2.0)
         slate = adapter.get_slate(state, observation, run_config.scenarios[0])
         metadata = adapter.get_service_metadata()
@@ -115,7 +132,10 @@ def test_rollout_runs_against_reference_service(reference_artifact_dir: Path) ->
         service_artifact_dir=str(reference_artifact_dir),
     )
     scenarios = build_scenarios(run_config.scenarios)
-    with run_reference_recommender_service(str(reference_artifact_dir)) as (base_url, _metadata):
+    with run_reference_recommender_service(str(reference_artifact_dir)) as (
+        base_url,
+        _metadata,
+    ):
         traces = run_rollouts(
             HttpRecommenderAdapter(base_url, timeout_seconds=2.0),
             scenarios,
@@ -126,7 +146,9 @@ def test_rollout_runs_against_reference_service(reference_artifact_dir: Path) ->
     assert all(trace.steps for trace in traces)
 
 
-def test_reference_service_is_default_for_audit_runs(reference_artifact_dir: Path, tmp_path: Path) -> None:
+def test_reference_service_is_default_for_audit_runs(
+    reference_artifact_dir: Path, tmp_path: Path
+) -> None:
     paths = run_recommender_audit(
         seed=3,
         output_dir=str(tmp_path / "audit"),

@@ -6,6 +6,7 @@
 
 - [ ] `ruff check products/evidpath`
 - [ ] `pytest products/evidpath/tests -q`
+- [ ] Pre-release/nightly: `pytest products/evidpath/tests -q --run-slow`
 - [ ] docs or metadata updated when needed
 
 ## Notes

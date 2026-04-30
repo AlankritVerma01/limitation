@@ -33,7 +33,7 @@ from evidpath.scenario_generation import (
 from evidpath.schema import GeneratedPersona
 
 EXAMPLE_SERVICE_DIR = (
-    Path(__file__).resolve().parents[1] / "examples" / "recommender_http_service"
+    Path(__file__).resolve().parents[3] / "examples" / "recommender_http_service"
 )
 
 
@@ -115,7 +115,9 @@ def _run_malformed_service() -> str:
             if self.path == "/health":
                 self._write_json(200, '{"status":"ok","service_kind":"external"}')
             elif self.path == "/metadata":
-                self._write_json(200, '{"service_kind":"external","model_kind":"broken"}')
+                self._write_json(
+                    200, '{"service_kind":"external","model_kind":"broken"}'
+                )
             else:
                 self._write_json(404, '{"detail":"not_found"}')
 
@@ -166,7 +168,9 @@ def test_demo_audit_flow_surfaces_risky_and_healthy_cohorts(tmp_path: Path) -> N
     assert "trust_collapse" in report
 
 
-def test_demo_compare_flow_writes_buyer_readable_regression_summary(tmp_path: Path) -> None:
+def test_demo_compare_flow_writes_buyer_readable_regression_summary(
+    tmp_path: Path,
+) -> None:
     baseline_dir = tmp_path / "baseline"
     candidate_dir = tmp_path / "candidate"
     ensure_reference_artifacts(baseline_dir)
@@ -200,7 +204,9 @@ def test_demo_compare_flow_writes_buyer_readable_regression_summary(tmp_path: Pa
     assert "Overall direction:" in report
 
 
-def test_example_external_service_health_and_metadata_for_both_models(tmp_path: Path) -> None:
+def test_example_external_service_health_and_metadata_for_both_models(
+    tmp_path: Path,
+) -> None:
     for model_kind in ("popularity", "item-item-cf", "genre-history-blend"):
         with _run_example_service(
             model_kind=model_kind,
@@ -226,7 +232,9 @@ def test_example_service_can_build_artifacts_from_downloaded_source_data(
     finally:
         sys.path.pop(0)
 
-    monkeypatch.setattr(service_artifacts, "DEFAULT_DATA_DIR", tmp_path / "missing-ml-100k")
+    monkeypatch.setattr(
+        service_artifacts, "DEFAULT_DATA_DIR", tmp_path / "missing-ml-100k"
+    )
 
     archive_bytes = BytesIO()
     with zipfile.ZipFile(archive_bytes, "w") as zipped:
@@ -253,15 +261,21 @@ def test_example_service_can_build_artifacts_from_downloaded_source_data(
         def read(self):
             return archive_payload
 
-    monkeypatch.setattr(service_artifacts.request, "urlopen", lambda *args, **kwargs: _Response())
+    monkeypatch.setattr(
+        service_artifacts.request, "urlopen", lambda *args, **kwargs: _Response()
+    )
 
-    artifact_path = service_artifacts.ensure_example_artifacts(tmp_path / "downloaded-artifacts")
+    artifact_path = service_artifacts.ensure_example_artifacts(
+        tmp_path / "downloaded-artifacts"
+    )
     payload = json.loads(artifact_path.read_text(encoding="utf-8"))
     assert payload["dataset"] == "MovieLens 100K"
     assert payload["item_count"] == 2
 
 
-def test_example_external_service_recommendation_contract_for_both_models(tmp_path: Path) -> None:
+def test_example_external_service_recommendation_contract_for_both_models(
+    tmp_path: Path,
+) -> None:
     payload = {
         "request_id": "demo-request",
         "agent_id": "agent-demo",
@@ -290,12 +304,20 @@ def test_example_external_service_recommendation_contract_for_both_models(tmp_pa
         assert body["request_id"] == "demo-request"
         assert len(body["items"]) == 5
         assert body["items"][0]["rank"] == 1
-        assert {"item_id", "title", "genre", "score", "rank", "popularity", "novelty"} <= set(
-            body["items"][0]
-        )
+        assert {
+            "item_id",
+            "title",
+            "genre",
+            "score",
+            "rank",
+            "popularity",
+            "novelty",
+        } <= set(body["items"][0])
 
 
-def test_check_target_command_validates_a_healthy_external_service(tmp_path: Path, capsys) -> None:
+def test_check_target_command_validates_a_healthy_external_service(
+    tmp_path: Path, capsys
+) -> None:
     with _run_example_service(
         model_kind="genre-history-blend",
         artifact_dir=tmp_path / "genre-history-artifacts",
@@ -332,7 +354,9 @@ def test_check_target_rejects_malformed_recommendation_payload() -> None:
         except RuntimeError as exc:
             assert "invalid response payload" in str(exc).lower()
         else:
-            raise AssertionError("Expected malformed recommendation payload to fail target check.")
+            raise AssertionError(
+                "Expected malformed recommendation payload to fail target check."
+            )
 
 
 def test_check_target_rejects_unreachable_target() -> None:
@@ -386,13 +410,16 @@ def test_external_audit_flow_captures_service_metadata(tmp_path: Path) -> None:
 
 
 def test_external_compare_flow_supports_two_model_variants(tmp_path: Path) -> None:
-    with _run_example_service(
-        model_kind="popularity",
-        artifact_dir=tmp_path / "popularity-artifacts",
-    ) as baseline_url, _run_example_service(
-        model_kind="item-item-cf",
-        artifact_dir=tmp_path / "cf-artifacts",
-    ) as candidate_url:
+    with (
+        _run_example_service(
+            model_kind="popularity",
+            artifact_dir=tmp_path / "popularity-artifacts",
+        ) as baseline_url,
+        _run_example_service(
+            model_kind="item-item-cf",
+            artifact_dir=tmp_path / "cf-artifacts",
+        ) as candidate_url,
+    ):
         result = main(
             [
                 "compare",
@@ -413,14 +440,18 @@ def test_external_compare_flow_supports_two_model_variants(tmp_path: Path) -> No
             ]
         )
 
-    payload = json.loads(Path(str(result["regression_summary_path"])).read_text(encoding="utf-8"))
+    payload = json.loads(
+        Path(str(result["regression_summary_path"])).read_text(encoding="utf-8")
+    )
     assert payload["baseline_summary"]["target"]["mode"] == "external_url"
     assert payload["candidate_summary"]["target"]["mode"] == "external_url"
     assert payload["baseline_summary"]["metadata"]["model_kind"] == "popularity"
     assert payload["candidate_summary"]["metadata"]["model_kind"] == "item-item-cf"
 
 
-def test_external_audit_supports_scenario_and_population_pack_reuse(tmp_path: Path) -> None:
+def test_external_audit_supports_scenario_and_population_pack_reuse(
+    tmp_path: Path,
+) -> None:
     scenario_pack = generate_scenario_pack(
         "test trust and exploration balance for returning users",
         generator_mode="fixture",
@@ -461,7 +492,9 @@ def test_external_audit_supports_scenario_and_population_pack_reuse(tmp_path: Pa
     assert payload["summary"]["target_mode"] == "external_url"
 
 
-def test_provider_generated_packs_can_be_reused_against_external_targets(tmp_path: Path) -> None:
+def test_provider_generated_packs_can_be_reused_against_external_targets(
+    tmp_path: Path,
+) -> None:
     provider_scenarios = [
         {
             "scenario_id": "provider-taste-recovery",
@@ -516,12 +549,15 @@ def test_provider_generated_packs_can_be_reused_against_external_targets(tmp_pat
         ),
         suggested_population_size=1,
     )
-    with patch(
-        "evidpath.scenario_generation.ProviderScenarioGenerator.generate",
-        return_value=provider_scenarios,
-    ), patch(
-        "evidpath.population_generation.ProviderPopulationGenerator.generate",
-        return_value=provider_personas,
+    with (
+        patch(
+            "evidpath.scenario_generation.ProviderScenarioGenerator.generate",
+            return_value=provider_scenarios,
+        ),
+        patch(
+            "evidpath.population_generation.ProviderPopulationGenerator.generate",
+            return_value=provider_personas,
+        ),
     ):
         scenario_pack = generate_scenario_pack(
             "provider-authored trust rebuild coverage",
@@ -578,8 +614,12 @@ def test_provider_generated_packs_can_be_reused_against_external_targets(tmp_pat
             ]
         )
 
-    first_payload = json.loads(Path(str(first["results_path"])).read_text(encoding="utf-8"))
-    second_payload = json.loads(Path(str(second["results_path"])).read_text(encoding="utf-8"))
+    first_payload = json.loads(
+        Path(str(first["results_path"])).read_text(encoding="utf-8")
+    )
+    second_payload = json.loads(
+        Path(str(second["results_path"])).read_text(encoding="utf-8")
+    )
     assert first_payload["metadata"]["scenario_pack_mode"] == "provider"
     assert first_payload["metadata"]["population_pack_mode"] == "provider"
     assert first_payload["traces"] == second_payload["traces"]

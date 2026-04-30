@@ -17,7 +17,7 @@ pytest.importorskip("torch")
 pytest.importorskip("transformers")
 
 HF_SERVICE_DIR = (
-    Path(__file__).resolve().parents[1] / "examples" / "hf_recommender_service"
+    Path(__file__).resolve().parents[3] / "examples" / "hf_recommender_service"
 )
 
 
@@ -142,7 +142,9 @@ def test_hf_wrapper_supports_health_metadata_recommendations_and_public_checks(
     assert payload["items"][0]["rank"] == 1
     assert check_result["probe_status"] == "ok"
     assert check_result["model_kind"] == "hf-semantic"
-    audit_payload = json.loads(Path(str(audit_result["results_path"])).read_text(encoding="utf-8"))
+    audit_payload = json.loads(
+        Path(str(audit_result["results_path"])).read_text(encoding="utf-8")
+    )
     assert audit_payload["metadata"]["service_kind"] == "external"
     assert audit_payload["metadata"]["model_kind"] == "hf-semantic"
     assert audit_payload["metadata"]["backend_name"] == "HFExternalRecommenderService"

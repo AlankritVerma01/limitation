@@ -14,10 +14,14 @@ from evidpath.regression import run_regression_audit
 from evidpath.schema import RegressionTarget
 
 
-def _build_modified_candidate_artifacts(baseline_dir: Path, candidate_dir: Path) -> None:
+def _build_modified_candidate_artifacts(
+    baseline_dir: Path, candidate_dir: Path
+) -> None:
     ensure_reference_artifacts(baseline_dir)
     candidate_dir.mkdir(parents=True, exist_ok=True)
-    baseline_payload = json.loads((baseline_dir / ARTIFACT_FILENAME).read_text(encoding="utf-8"))
+    baseline_payload = json.loads(
+        (baseline_dir / ARTIFACT_FILENAME).read_text(encoding="utf-8")
+    )
     candidate_payload = dict(baseline_payload)
     candidate_payload["artifact_id"] = "candidate-slice-discovery"
     candidate_items = []
@@ -39,7 +43,9 @@ def _build_modified_candidate_artifacts(baseline_dir: Path, candidate_dir: Path)
     )
 
 
-def test_recommender_slice_features_are_bucketed_and_deterministic(tmp_path: Path) -> None:
+def test_recommender_slice_features_are_bucketed_and_deterministic(
+    tmp_path: Path,
+) -> None:
     artifact_dir = tmp_path / "artifacts"
     ensure_reference_artifacts(artifact_dir)
     run_result = execute_recommender_audit(
@@ -48,7 +54,11 @@ def test_recommender_slice_features_are_bucketed_and_deterministic(tmp_path: Pat
         service_artifact_dir=str(artifact_dir),
     )
     first_trace = run_result.traces[0]
-    first_score = next(score for score in run_result.trace_scores if score.trace_id == first_trace.trace_id)
+    first_score = next(
+        score
+        for score in run_result.trace_scores
+        if score.trace_id == first_trace.trace_id
+    )
 
     features = extract_recommender_slice_features(
         trace_score=first_score,
@@ -63,7 +73,9 @@ def test_recommender_slice_features_are_bucketed_and_deterministic(tmp_path: Pat
     assert any(label.startswith("skip_rate_bucket=") for label in labels)
 
 
-def test_discovered_slices_include_deterministic_one_and_two_feature_signatures(tmp_path: Path) -> None:
+def test_discovered_slices_include_deterministic_one_and_two_feature_signatures(
+    tmp_path: Path,
+) -> None:
     artifact_dir = tmp_path / "artifacts"
     ensure_reference_artifacts(artifact_dir)
     run_result = execute_recommender_audit(
@@ -78,11 +90,19 @@ def test_discovered_slices_include_deterministic_one_and_two_feature_signatures(
         run_config=run_result.run_config,
     )
     assert slice_discovery.slice_summaries
-    assert all(1 <= len(slice_summary.feature_signature) <= 2 for slice_summary in slice_discovery.slice_summaries)
-    assert all(slice_summary.trace_count >= 2 for slice_summary in slice_discovery.slice_summaries)
+    assert all(
+        1 <= len(slice_summary.feature_signature) <= 2
+        for slice_summary in slice_discovery.slice_summaries
+    )
+    assert all(
+        slice_summary.trace_count >= 2
+        for slice_summary in slice_discovery.slice_summaries
+    )
 
 
-def test_single_run_results_include_slice_summaries_and_optional_membership(tmp_path: Path) -> None:
+def test_single_run_results_include_slice_summaries_and_optional_membership(
+    tmp_path: Path,
+) -> None:
     artifact_dir = tmp_path / "artifacts"
     ensure_reference_artifacts(artifact_dir)
 
@@ -96,7 +116,9 @@ def test_single_run_results_include_slice_summaries_and_optional_membership(tmp_
 
     write_run_artifacts(without_membership)
     without_payload = json.loads(
-        Path(without_membership.run_config.rollout.output_dir, "results.json").read_text(encoding="utf-8")
+        Path(
+            without_membership.run_config.rollout.output_dir, "results.json"
+        ).read_text(encoding="utf-8")
     )
     assert without_payload["slice_discovery"]["slice_summaries"]
     assert without_payload["slice_discovery"]["memberships"] == []
@@ -109,13 +131,15 @@ def test_single_run_results_include_slice_summaries_and_optional_membership(tmp_
     with_membership.metadata["include_slice_membership"] = True
     write_run_artifacts(with_membership)
     with_payload = json.loads(
-        Path(with_membership.run_config.rollout.output_dir, "results.json").read_text(encoding="utf-8")
+        Path(with_membership.run_config.rollout.output_dir, "results.json").read_text(
+            encoding="utf-8"
+        )
     )
     assert with_payload["slice_discovery"]["slice_summaries"]
     assert with_payload["slice_discovery"]["memberships"]
-    report_text = Path(with_membership.run_config.rollout.output_dir, "report.md").read_text(
-        encoding="utf-8"
-    )
+    report_text = Path(
+        with_membership.run_config.rollout.output_dir, "report.md"
+    ).read_text(encoding="utf-8")
     assert "## Discovered Failure Slices" in report_text
 
 
@@ -123,13 +147,19 @@ def test_same_vs_same_regression_keeps_slice_deltas_stable(tmp_path: Path) -> No
     artifact_dir = tmp_path / "artifacts"
     ensure_reference_artifacts(artifact_dir)
     result = run_regression_audit(
-        baseline_target=RegressionTarget("baseline", "reference_artifact", str(artifact_dir)),
-        candidate_target=RegressionTarget("candidate", "reference_artifact", str(artifact_dir)),
+        baseline_target=RegressionTarget(
+            "baseline", "reference_artifact", str(artifact_dir)
+        ),
+        candidate_target=RegressionTarget(
+            "candidate", "reference_artifact", str(artifact_dir)
+        ),
         base_seed=5,
         rerun_count=2,
         output_dir=str(tmp_path / "regression"),
     )
-    payload = json.loads(Path(result["regression_summary_path"]).read_text(encoding="utf-8"))
+    payload = json.loads(
+        Path(result["regression_summary_path"]).read_text(encoding="utf-8")
+    )
     assert payload["slice_deltas"]
     assert all(
         delta["change_type"] == "stable"
@@ -146,13 +176,19 @@ def test_changed_regression_surfaces_slice_changes(tmp_path: Path) -> None:
     candidate_dir = tmp_path / "candidate"
     _build_modified_candidate_artifacts(baseline_dir, candidate_dir)
     result = run_regression_audit(
-        baseline_target=RegressionTarget("baseline", "reference_artifact", str(baseline_dir)),
-        candidate_target=RegressionTarget("candidate", "reference_artifact", str(candidate_dir)),
+        baseline_target=RegressionTarget(
+            "baseline", "reference_artifact", str(baseline_dir)
+        ),
+        candidate_target=RegressionTarget(
+            "candidate", "reference_artifact", str(candidate_dir)
+        ),
         base_seed=6,
         rerun_count=2,
         output_dir=str(tmp_path / "regression"),
     )
-    payload = json.loads(Path(result["regression_summary_path"]).read_text(encoding="utf-8"))
+    payload = json.loads(
+        Path(result["regression_summary_path"]).read_text(encoding="utf-8")
+    )
     report_text = Path(result["regression_report_path"]).read_text(encoding="utf-8")
 
     assert payload["slice_deltas"]

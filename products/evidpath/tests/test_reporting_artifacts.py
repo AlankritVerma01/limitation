@@ -5,6 +5,69 @@ from pathlib import Path
 
 from evidpath.cli import main
 from evidpath.domains.recommender import ensure_reference_artifacts
+from evidpath.regression import run_regression_audit
+from evidpath.schema import RegressionTarget
+
+
+def test_single_run_report_includes_executive_summary_and_compact_traces(
+    tmp_path: Path,
+) -> None:
+    result = main(
+        [
+            "audit",
+            "--domain",
+            "recommender",
+            "--seed",
+            "11",
+            "--use-mock",
+            "--run-name",
+            "Polished Demo Run",
+            "--output-dir",
+            str(tmp_path / "single"),
+        ]
+    )
+    report_body = Path(result["report_path"]).read_text(encoding="utf-8")
+    results_payload = json.loads(
+        Path(result["results_path"]).read_text(encoding="utf-8")
+    )
+    assert "## Executive Summary" in report_body
+    assert "## Representative Traces To Inspect" in report_body
+    assert "Highest-Risk Cohorts" in report_body or "Strongest Cohorts" in report_body
+    assert results_payload["summary"]["display_name"] == "Polished Demo Run"
+    assert results_payload["summary"]["run_id"].startswith("run-")
+    assert results_payload["summary"]["generated_at_utc"] == "<normalized>"
+
+
+def test_regression_outputs_include_summary_and_most_important_changes(
+    tmp_path: Path,
+) -> None:
+    artifact_dir = tmp_path / "artifacts"
+    ensure_reference_artifacts(artifact_dir)
+    result = run_regression_audit(
+        baseline_target=RegressionTarget(
+            label="stable-baseline",
+            mode="reference_artifact",
+            service_artifact_dir=str(artifact_dir),
+        ),
+        candidate_target=RegressionTarget(
+            label="stable-candidate",
+            mode="reference_artifact",
+            service_artifact_dir=str(artifact_dir),
+        ),
+        base_seed=3,
+        rerun_count=2,
+        output_dir=str(tmp_path / "regression"),
+    )
+    report_body = Path(result["regression_report_path"]).read_text(encoding="utf-8")
+    payload = json.loads(
+        Path(result["regression_summary_path"]).read_text(encoding="utf-8")
+    )
+    assert "## Executive Summary" in report_body
+    assert "## Most Important Changes" in report_body
+    assert payload["summary"]["display_name"] == "stable-baseline vs stable-candidate"
+    assert payload["summary"]["regression_id"].startswith("reg-")
+    assert payload["summary"]["generated_at_utc"] == "<normalized>"
+    assert "overall_direction" in payload["summary"]
 
 
 def test_audit_writes_run_manifest_with_target_and_artifact_metadata(
@@ -92,7 +155,9 @@ def test_compare_writes_regression_run_manifest(tmp_path: Path) -> None:
     assert payload["domain"] == "recommender"
     assert payload["baseline"]["label"] == "baseline"
     assert payload["candidate"]["label"] == "candidate"
-    assert payload["artifacts"]["regression_report_path"].endswith("regression_report.md")
+    assert payload["artifacts"]["regression_report_path"].endswith(
+        "regression_report.md"
+    )
     assert payload["artifacts"]["regression_summary_path"].endswith(
         "regression_summary.json"
     )
