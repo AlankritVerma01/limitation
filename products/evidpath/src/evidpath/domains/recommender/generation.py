@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from ...generation_support import extract_focus_tokens
 from ...schema import AgentSeed, GeneratedPersona
@@ -845,95 +845,54 @@ def _apply_behavior_plan_adjustments(
     adjusted = profile
     for tag in behavior_plan:
         if tag == "first-hit-or-leave":
-            adjusted = _replace_profile(
+            adjusted = replace(
                 adjusted,
                 patience=max(1, min(adjusted.patience, 2)),
                 abandonment_sensitivity=min(1.0, adjusted.abandonment_sensitivity + 0.08),
                 abandonment_threshold=max(0.1, adjusted.abandonment_threshold - 0.06),
             )
         elif tag == "trust-before-explore":
-            adjusted = _replace_profile(
+            adjusted = replace(
                 adjusted,
                 quality_sensitivity=min(1.0, adjusted.quality_sensitivity + 0.08),
                 novelty_preference=max(0.0, adjusted.novelty_preference - 0.06),
                 history_reliance=min(1.0, adjusted.history_reliance + 0.06),
             )
         elif tag == "novelty-rewarded-after-quality":
-            adjusted = _replace_profile(
+            adjusted = replace(
                 adjusted,
                 novelty_preference=min(1.0, adjusted.novelty_preference + 0.08),
                 quality_sensitivity=min(1.0, adjusted.quality_sensitivity + 0.04),
                 repetition_tolerance=max(0.0, adjusted.repetition_tolerance - 0.05),
             )
         elif tag == "genre-loyal":
-            adjusted = _replace_profile(
+            adjusted = replace(
                 adjusted,
                 history_reliance=min(1.0, adjusted.history_reliance + 0.08),
                 sparse_history_confidence=max(0.0, adjusted.sparse_history_confidence - 0.04),
                 quality_sensitivity=min(1.0, adjusted.quality_sensitivity + 0.04),
             )
         elif tag == "quickly-bored-by-repetition":
-            adjusted = _replace_profile(
+            adjusted = replace(
                 adjusted,
                 repetition_tolerance=max(0.0, adjusted.repetition_tolerance - 0.08),
                 repeat_exposure_penalty=min(1.0, adjusted.repeat_exposure_penalty + 0.08),
                 novelty_preference=min(1.0, adjusted.novelty_preference + 0.04),
             )
         elif tag == "forgives-one-miss":
-            adjusted = _replace_profile(
+            adjusted = replace(
                 adjusted,
                 frustration_recovery=min(1.0, adjusted.frustration_recovery + 0.08),
                 abandonment_sensitivity=max(0.0, adjusted.abandonment_sensitivity - 0.06),
                 patience=max(1, adjusted.patience + 1),
             )
         elif tag == "needs-confidence-from-history":
-            adjusted = _replace_profile(
+            adjusted = replace(
                 adjusted,
                 history_reliance=min(1.0, adjusted.history_reliance + 0.1),
                 sparse_history_confidence=max(0.0, adjusted.sparse_history_confidence - 0.08),
             )
     return adjusted
-
-
-def _replace_profile(
-    profile: RecommenderPersonaProfile,
-    **updates: float | int | tuple[str, ...],
-) -> RecommenderPersonaProfile:
-    return RecommenderPersonaProfile(
-        preferred_genres=updates.get("preferred_genres", profile.preferred_genres),  # type: ignore[arg-type]
-        popularity_preference=float(
-            updates.get("popularity_preference", profile.popularity_preference)
-        ),
-        novelty_preference=float(updates.get("novelty_preference", profile.novelty_preference)),
-        repetition_tolerance=float(
-            updates.get("repetition_tolerance", profile.repetition_tolerance)
-        ),
-        sparse_history_confidence=float(
-            updates.get("sparse_history_confidence", profile.sparse_history_confidence)
-        ),
-        abandonment_sensitivity=float(
-            updates.get("abandonment_sensitivity", profile.abandonment_sensitivity)
-        ),
-        patience=int(updates.get("patience", profile.patience)),
-        engagement_baseline=float(
-            updates.get("engagement_baseline", profile.engagement_baseline)
-        ),
-        quality_sensitivity=float(
-            updates.get("quality_sensitivity", profile.quality_sensitivity)
-        ),
-        repeat_exposure_penalty=float(
-            updates.get("repeat_exposure_penalty", profile.repeat_exposure_penalty)
-        ),
-        novelty_fatigue=float(updates.get("novelty_fatigue", profile.novelty_fatigue)),
-        frustration_recovery=float(
-            updates.get("frustration_recovery", profile.frustration_recovery)
-        ),
-        history_reliance=float(updates.get("history_reliance", profile.history_reliance)),
-        skip_tolerance=int(updates.get("skip_tolerance", profile.skip_tolerance)),
-        abandonment_threshold=float(
-            updates.get("abandonment_threshold", profile.abandonment_threshold)
-        ),
-    )
 
 
 def _bucket(value: float) -> str:
