@@ -5,13 +5,13 @@ Evidpath. Shared orchestration should depend on the definition and
 helpers exported here rather than on scattered recommender-owned modules.
 """
 
-from .adapters import HttpRecommenderAdapter
 from .analyzer import RecommenderAnalyzer
 from .catalog import CATALOG, history_for_genres
 from .definition import (
     build_recommender_domain_definition,
     build_recommender_run_config,
 )
+from .drivers import HttpNativeDriverConfig, HttpNativeRecommenderDriver
 from .inputs import (
     project_recommender_population,
     project_recommender_scenarios,
@@ -49,7 +49,8 @@ __all__ = [
     "CATALOG",
     "BUILT_IN_RECOMMENDER_SCENARIOS",
     "BUILT_IN_RECOMMENDER_SCENARIO_NAMES",
-    "HttpRecommenderAdapter",
+    "HttpNativeDriverConfig",
+    "HttpNativeRecommenderDriver",
     "RecommenderAnalyzer",
     "RecommenderAgentPolicy",
     "RecommenderJudge",

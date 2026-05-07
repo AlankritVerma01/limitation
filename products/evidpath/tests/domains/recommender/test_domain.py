@@ -13,7 +13,8 @@ from evidpath.audit import (
 )
 from evidpath.cli import main
 from evidpath.domains.recommender import (
-    HttpRecommenderAdapter,
+    HttpNativeDriverConfig,
+    HttpNativeRecommenderDriver,
     RecommenderAgentPolicy,
     RecommenderAnalyzer,
     RecommenderJudge,
@@ -102,7 +103,9 @@ def test_http_adapter_normalizes_service_response() -> None:
     observation = scenario.initialize(agent_seed, run_config)
     state = initial_state_from_seed(agent_seed, observation.scenario_context)
     with run_mock_recommender_service() as base_url:
-        adapter = HttpRecommenderAdapter(base_url, timeout_seconds=2.0)
+        adapter = HttpNativeRecommenderDriver(
+            HttpNativeDriverConfig(base_url=base_url, timeout_seconds=2.0)
+        )
         slate = adapter.get_slate(state, observation, run_config.scenarios[0])
     assert isinstance(slate, Slate)
     assert len(slate.items) == 5
@@ -678,7 +681,9 @@ def test_trace_steps_include_decision_explanations() -> None:
     scenarios = build_scenarios(run_config.scenarios)
     with run_mock_recommender_service() as base_url:
         traces = run_rollouts(
-            HttpRecommenderAdapter(base_url, timeout_seconds=2.0),
+            HttpNativeRecommenderDriver(
+                HttpNativeDriverConfig(base_url=base_url, timeout_seconds=2.0)
+            ),
             scenarios,
             RecommenderAgentPolicy(),
             run_config,
@@ -790,7 +795,9 @@ def test_rollout_engine_is_transport_agnostic() -> None:
     scenarios = build_scenarios(run_config.scenarios)
     with run_mock_recommender_service() as base_url:
         traces = run_rollouts(
-            HttpRecommenderAdapter(base_url, timeout_seconds=2.0),
+            HttpNativeRecommenderDriver(
+                HttpNativeDriverConfig(base_url=base_url, timeout_seconds=2.0)
+            ),
             scenarios,
             RecommenderAgentPolicy(),
             run_config,
@@ -980,7 +987,9 @@ def test_external_url_metadata_is_clear_and_unreachable_targets_fail_cleanly(
     assert run_result.metadata["target_endpoint_host"]
     assert run_result.metadata["service_metadata_status"] == "available"
 
-    adapter = HttpRecommenderAdapter("http://127.0.0.1:1", timeout_seconds=0.1)
+    adapter = HttpNativeRecommenderDriver(
+        HttpNativeDriverConfig(base_url="http://127.0.0.1:1", timeout_seconds=0.1)
+    )
     state = run_result.traces[0].steps[0].agent_state_before
     observation = run_result.traces[0].steps[0].observation
     scenario_config = run_result.run_config.scenarios[0]

@@ -1,4 +1,4 @@
-"""Adapter implementations owned by the recommender domain."""
+"""Native HTTP driver for the recommender domain."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import asdict
 from urllib import request
 from urllib.error import HTTPError, URLError
 
-from ...schema import (
+from ....schema import (
     AdapterRequest,
     AdapterResponse,
     AgentState,
@@ -16,14 +16,15 @@ from ...schema import (
     Slate,
     SlateItem,
 )
+from ._config import HttpNativeDriverConfig
 
 
-class HttpRecommenderAdapter:
+class HttpNativeRecommenderDriver:
     """Calls a recommender endpoint and normalizes its response."""
 
-    def __init__(self, base_url: str, timeout_seconds: float = 2.0) -> None:
-        self.base_url = base_url.rstrip("/")
-        self.timeout_seconds = timeout_seconds
+    def __init__(self, config: HttpNativeDriverConfig) -> None:
+        self.base_url = config.base_url.rstrip("/")
+        self.timeout_seconds = config.timeout_seconds
 
     def get_slate(
         self,

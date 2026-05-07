@@ -7,7 +7,7 @@ from evidpath.audit import run_recommender_audit
 from evidpath.domain_registry import get_domain_definition
 from evidpath.domains.recommender import (
     CATALOG,
-    HttpRecommenderAdapter,
+    HttpNativeRecommenderDriver,
     RecommenderAgentPolicy,
     ensure_reference_artifacts,
     history_for_genres,
@@ -19,7 +19,7 @@ from evidpath.domains.recommender import (
 
 def test_recommender_domain_package_is_the_primary_import_surface() -> None:
     assert RecommenderAgentPolicy.__module__.startswith("evidpath.domains.recommender")
-    assert HttpRecommenderAdapter.__module__.startswith("evidpath.domains.recommender")
+    assert HttpNativeRecommenderDriver.__module__.startswith("evidpath.domains.recommender")
     assert callable(resolve_built_in_recommender_scenarios)
 
 

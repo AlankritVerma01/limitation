@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 from ...config import build_run_config, slugify_name
 from ...schema import RegressionTarget, RunConfig
-from .adapters import HttpRecommenderAdapter
+from .drivers import HttpNativeDriverConfig, HttpNativeRecommenderDriver
 from .mock_recommender import run_mock_recommender_service
 from .policy import build_seeded_archetypes, initial_state_from_seed
 from .reference_artifacts import ensure_reference_artifacts
@@ -75,9 +75,11 @@ def check_recommender_target(
     timeout_seconds: float,
 ) -> dict[str, str | int | float]:
     """Probe a recommender endpoint through the public contract before a real run."""
-    adapter = HttpRecommenderAdapter(base_url, timeout_seconds=timeout_seconds)
-    health = adapter.check_health()
-    metadata = adapter.get_service_metadata_strict()
+    driver = HttpNativeRecommenderDriver(
+        HttpNativeDriverConfig(base_url=base_url, timeout_seconds=timeout_seconds)
+    )
+    health = driver.check_health()
+    metadata = driver.get_service_metadata_strict()
     scenario_config = resolve_built_in_recommender_scenarios(
         ("returning-user-home-feed",)
     )[0]
@@ -93,7 +95,7 @@ def check_recommender_target(
     agent_seed = run_config.agent_seeds[0]
     observation = scenario.initialize(agent_seed, run_config)
     state = initial_state_from_seed(agent_seed, observation.scenario_context)
-    slate = adapter.get_slate(state, observation, scenario_config)
+    slate = driver.get_slate(state, observation, scenario_config)
     if not slate.items:
         raise RuntimeError(
             f"Recommender target returned an empty slate during contract validation: {base_url}."

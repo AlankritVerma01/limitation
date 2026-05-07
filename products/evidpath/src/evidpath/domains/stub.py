@@ -62,7 +62,7 @@ def build_stub_domain_definition() -> DomainDefinition:
         build_target_audit_kwargs=build_stub_target_audit_kwargs,
         build_runtime_scenarios=build_stub_runtime_scenarios,
         open_service_context=open_stub_service_context,
-        build_adapter=build_stub_adapter,
+        build_driver=build_stub_driver,
         build_policy=StubAgentPolicy,
         build_judge=StubJudge,
         build_analyzer=StubAnalyzer,
@@ -172,9 +172,9 @@ def open_stub_service_context(run_config: RunConfig):
     return nullcontext((base_url, metadata))
 
 
-def build_stub_adapter(base_url: str, timeout_seconds: float) -> "StubAdapter":
-    """Build the local in-memory stub adapter."""
-    return StubAdapter(base_url=base_url, timeout_seconds=timeout_seconds)
+def build_stub_driver(base_url: str, timeout_seconds: float) -> "StubDriver":
+    """Build the local in-memory stub driver."""
+    return StubDriver(base_url=base_url, timeout_seconds=timeout_seconds)
 
 
 def summarize_stub_run_metrics(run_result: RunResult) -> dict[str, float]:
@@ -252,8 +252,8 @@ class StubScenario:
         )
 
 
-class StubAdapter:
-    """In-memory adapter that emits a tiny deterministic slate."""
+class StubDriver:
+    """In-memory driver that emits a tiny deterministic slate."""
 
     def __init__(self, *, base_url: str, timeout_seconds: float) -> None:
         self.base_url = base_url

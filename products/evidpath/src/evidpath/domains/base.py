@@ -146,7 +146,7 @@ class DomainDefinition:
         [RunConfig],
         AbstractContextManager[tuple[str, dict[str, str | int | float]]],
     ]
-    build_adapter: Callable[[str, float], MetadataAdapter]
+    build_driver: Callable[[str, float], MetadataAdapter]
     build_policy: Callable[[], AgentPolicy]
     build_judge: Callable[[], Judge]
     build_analyzer: Callable[[], Analyzer]
@@ -239,7 +239,7 @@ class StandardDomainRunner:
             stage="start",
         )
         with self.definition.open_service_context(run_config) as (base_url, context_metadata):
-            return self._execute_with_adapter(
+            return self._execute_with_driver(
                 run_config=run_config,
                 scenarios=scenarios,
                 policy=policy,
@@ -278,7 +278,7 @@ class StandardDomainRunner:
         audit_kwargs.update(self.definition.build_target_audit_kwargs(target))
         return self.execute_audit(**audit_kwargs, progress_callback=progress_callback)
 
-    def _execute_with_adapter(
+    def _execute_with_driver(
         self,
         *,
         run_config: RunConfig,
@@ -294,12 +294,12 @@ class StandardDomainRunner:
         semantic_profile: str = DEFAULT_PROVIDER_PROFILE,
         progress_callback: ProgressCallback | None = None,
     ) -> RunResult:
-        """Execute one audit against an already running domain adapter."""
-        adapter = self.definition.build_adapter(
+        """Execute one audit against an already running domain driver."""
+        driver = self.definition.build_driver(
             adapter_base_url,
             run_config.rollout.service_timeout_seconds,
         )
-        service_metadata = adapter.get_service_metadata()
+        service_metadata = driver.get_service_metadata()
         emit_progress(
             progress_callback,
             phase="prepare_target",
@@ -317,7 +317,7 @@ class StandardDomainRunner:
                 "unavailable"
             )
         traces = run_rollouts(
-            adapter,
+            driver,
             scenarios,
             policy,
             run_config,
@@ -376,7 +376,7 @@ class StandardDomainRunner:
                 "domain_name": self.definition.name,
                 "audit_report_title": self.definition.audit_report_title,
                 "regression_report_title": self.definition.regression_report_title,
-                "adapter": type(adapter).__name__,
+                "adapter": type(driver).__name__,
                 "adapter_base_url": adapter_base_url,
                 "service_mode": run_config.rollout.service_mode,
                 "service_artifact_dir": run_config.rollout.service_artifact_dir or "",
