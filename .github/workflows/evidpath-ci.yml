@@ -79,7 +79,7 @@ jobs:
 
       - name: Run in-process driver determinism check
         run: |
-          pytest products/evidpath/tests/domains/recommender/test_drivers_in_process_slow.py::test_in_process_audit_is_deterministic_across_twin_runs --run-slow -v
+          uv run --locked pytest products/evidpath/tests/domains/recommender/test_drivers_in_process_slow.py::test_in_process_audit_is_deterministic_across_twin_runs --run-slow -v
 
   slow-tests:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
