@@ -288,6 +288,17 @@ deeper.
 
 ## Development And Planning
 
+From the repository root, sync the `uv` workspace and use the shared Make
+targets:
+
+```bash
+uv sync
+make lint
+make test
+make build
+make check-dist
+```
+
 - release instructions: [RELEASING.md](./RELEASING.md)
 - roadmap: [../plans/evidpath-v0/README.md](../plans/evidpath-v0/README.md)
 - contributing: [../../CONTRIBUTING.md](../../CONTRIBUTING.md)

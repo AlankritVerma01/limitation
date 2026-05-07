@@ -20,13 +20,13 @@ It is not:
 Install the example dependencies first:
 
 ```bash
-.venv/bin/python -m pip install -e products/evidpath[dev]
+uv sync
 ```
 
 Start a popularity-based service:
 
 ```bash
-.venv/bin/python products/evidpath/examples/recommender_http_service/run.py \
+uv run python products/evidpath/examples/recommender_http_service/run.py \
   --model-kind popularity \
   --port 8051
 ```
@@ -34,7 +34,7 @@ Start a popularity-based service:
 Start an item-item CF service:
 
 ```bash
-.venv/bin/python products/evidpath/examples/recommender_http_service/run.py \
+uv run python products/evidpath/examples/recommender_http_service/run.py \
   --model-kind item-item-cf \
   --port 8052
 ```
@@ -42,7 +42,7 @@ Start an item-item CF service:
 Start a genre-history blend service:
 
 ```bash
-.venv/bin/python products/evidpath/examples/recommender_http_service/run.py \
+uv run python products/evidpath/examples/recommender_http_service/run.py \
   --model-kind genre-history-blend \
   --port 8053
 ```
@@ -53,7 +53,7 @@ repo copy is not present, the service downloads it automatically.
 If you want to point at your own checked-out MovieLens data:
 
 ```bash
-.venv/bin/python products/evidpath/examples/recommender_http_service/run.py \
+uv run python products/evidpath/examples/recommender_http_service/run.py \
   --model-kind popularity \
   --data-dir /path/to/ml-100k \
   --port 8051
@@ -70,14 +70,14 @@ If you want to point at your own checked-out MovieLens data:
 Check the service first:
 
 ```bash
-.venv/bin/python -m evidpath check-target --domain recommender \
+uv run python -m evidpath check-target --domain recommender \
   --target-url http://127.0.0.1:8051
 ```
 
 Run one audit:
 
 ```bash
-.venv/bin/python -m evidpath audit --domain recommender \
+uv run python -m evidpath audit --domain recommender \
   --target-url http://127.0.0.1:8051 \
   --scenario returning-user-home-feed \
   --seed 7 \
@@ -87,7 +87,7 @@ Run one audit:
 Compare two service versions:
 
 ```bash
-.venv/bin/python -m evidpath compare --domain recommender \
+uv run python -m evidpath compare --domain recommender \
   --baseline-url http://127.0.0.1:8051 \
   --candidate-url http://127.0.0.1:8052 \
   --baseline-label popularity \

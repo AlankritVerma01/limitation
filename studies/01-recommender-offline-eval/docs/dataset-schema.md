@@ -51,6 +51,6 @@ Example commands:
 
 ```bash
 PYTHONPATH=studies/01-recommender-offline-eval/src \
-  .venv/bin/python -m recommender_offline_eval \
+  uv run python -m recommender_offline_eval \
   --config studies/01-recommender-offline-eval/examples/custom_csv_run.json
 ```

@@ -80,6 +80,40 @@ Useful links:
 - security: [SECURITY.md](SECURITY.md)
 - support: [SUPPORT.md](SUPPORT.md)
 
+## Development
+
+This repo uses `uv` as the Python project manager. The root is a virtual
+workspace, and the publishable package lives in `products/evidpath`.
+
+Install `uv`, then sync the default development environment:
+
+```bash
+uv sync
+```
+
+Common commands:
+
+```bash
+make lint
+make test
+make build
+make check-dist
+make ci
+```
+
+Run the package CLI from the workspace:
+
+```bash
+uv run evidpath --help
+```
+
+The Hugging Face example dependencies are intentionally opt-in because they are
+large:
+
+```bash
+uv sync --group hf-example
+```
+
 ## Background
 
 The earlier public write-up that motivated this direction is here:

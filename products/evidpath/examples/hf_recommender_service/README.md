@@ -20,13 +20,13 @@ It is not:
 Install the extra dependencies first:
 
 ```bash
-.venv/bin/python -m pip install -e 'products/evidpath[dev,hf-example]'
+uv sync --group hf-example
 ```
 
 Start the semantic mode:
 
 ```bash
-.venv/bin/python products/evidpath/examples/hf_recommender_service/run.py \
+uv run --group hf-example python products/evidpath/examples/hf_recommender_service/run.py \
   --model-kind hf-semantic \
   --port 8061
 ```
@@ -34,7 +34,7 @@ Start the semantic mode:
 Start the popularity-blend mode:
 
 ```bash
-.venv/bin/python products/evidpath/examples/hf_recommender_service/run.py \
+uv run --group hf-example python products/evidpath/examples/hf_recommender_service/run.py \
   --model-kind hf-semantic-popularity-blend \
   --port 8062
 ```
@@ -47,14 +47,14 @@ the Hugging Face model weights if needed.
 Check the first service:
 
 ```bash
-.venv/bin/python -m evidpath check-target --domain recommender \
+uv run --group hf-example python -m evidpath check-target --domain recommender \
   --target-url http://127.0.0.1:8061
 ```
 
 Run a brief-driven swarm:
 
 ```bash
-.venv/bin/python -m evidpath run-swarm --domain recommender \
+uv run --group hf-example python -m evidpath run-swarm --domain recommender \
   --target-url http://127.0.0.1:8061 \
   --brief "test trust collapse and novelty balance for impatient exploratory users" \
   --generation-mode fixture \
@@ -64,7 +64,7 @@ Run a brief-driven swarm:
 Compare the two service modes:
 
 ```bash
-.venv/bin/python -m evidpath compare --domain recommender \
+uv run --group hf-example python -m evidpath compare --domain recommender \
   --baseline-url http://127.0.0.1:8061 \
   --candidate-url http://127.0.0.1:8062 \
   --baseline-label hf-semantic \

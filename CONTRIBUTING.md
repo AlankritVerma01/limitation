@@ -11,9 +11,7 @@ Thanks for contributing to Evidpath.
 ## Local Setup
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e products/evidpath[dev]
+uv sync
 ```
 
 ## Common Checks
@@ -21,9 +19,11 @@ python -m pip install -e products/evidpath[dev]
 Run these before opening a PR:
 
 ```bash
-ruff check products/evidpath
-pytest products/evidpath/tests -q
-cd products/evidpath && python -m build && twine check dist/*
+make lint
+make test
+make build
+make check-dist
+make smoke-package
 ```
 
 ## Pull Requests

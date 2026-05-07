@@ -4,9 +4,9 @@
 
 ## Verification
 
-- [ ] `ruff check products/evidpath`
-- [ ] `pytest products/evidpath/tests -q`
-- [ ] Pre-release/nightly: `pytest products/evidpath/tests -q --run-slow`
+- [ ] `make lint`
+- [ ] `make test`
+- [ ] Pre-release/nightly: `make test-slow`
 - [ ] docs or metadata updated when needed
 
 ## Notes

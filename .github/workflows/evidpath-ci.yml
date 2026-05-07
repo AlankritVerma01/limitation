@@ -32,20 +32,24 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version-file: ".python-version"
 
-      - name: Install package and release tooling
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ./products/evidpath[dev]
+          uv sync --locked
 
       - name: Lint evidpath
         run: |
-          ruff check products/evidpath
+          uv run --locked ruff check products/evidpath
 
       - name: Run evidpath tests
         run: |
-          pytest products/evidpath/tests -q
+          uv run --locked pytest products/evidpath/tests -q
 
   determinism:
     needs: test
@@ -58,16 +62,20 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version-file: ".python-version"
 
-      - name: Install package
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ./products/evidpath[dev]
+          uv sync --locked
 
       - name: Run determinism check
         run: |
-          pytest products/evidpath/tests/test_determinism_slow.py --run-slow -v
+          uv run --locked pytest products/evidpath/tests/test_determinism_slow.py --run-slow -v
 
   slow-tests:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -80,16 +88,20 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version-file: ".python-version"
 
-      - name: Install package and slow-test dependencies
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ./products/evidpath[dev,hf-example]
+          uv sync --locked --group hf-example
 
       - name: Run slow Evidpath tests
         run: |
-          pytest products/evidpath/tests -q --run-slow
+          uv run --locked --group hf-example pytest products/evidpath/tests -q --run-slow
 
   build-and-smoke:
     needs: test
@@ -102,28 +114,29 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version-file: ".python-version"
 
-      - name: Install build tooling
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install build twine
+          uv sync --locked
 
       - name: Build wheel and sdist
-        working-directory: products/evidpath
         run: |
-          python -m build
+          uv build --package evidpath --out-dir products/evidpath/dist
 
       - name: Check distribution metadata
-        working-directory: products/evidpath
         run: |
-          twine check dist/*
+          uv run --locked twine check products/evidpath/dist/*
 
       - name: Smoke install built wheel
         run: |
-          python -m pip install products/evidpath/dist/*.whl
-          evidpath --help
-          python -m evidpath --help
+          uv run --no-project --with products/evidpath/dist/*.whl evidpath --help
+          uv run --no-project --with products/evidpath/dist/*.whl python -m evidpath --help
 
       - name: Upload built distributions
         uses: actions/upload-artifact@v4

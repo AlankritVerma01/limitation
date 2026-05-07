@@ -104,7 +104,7 @@ Before running a full audit, use the public CLI to validate reachability,
 health, metadata, and one lightweight recommendation probe:
 
 ```bash
-.venv/bin/python -m evidpath check-target --domain recommender \
+uv run python -m evidpath check-target --domain recommender \
   --target-url http://127.0.0.1:8051
 ```
 

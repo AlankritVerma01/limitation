@@ -1,3 +1,37 @@
+[project]
+name = "limitation"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = [
+  "evidpath",
+]
+
+[dependency-groups]
+dev = [
+  "build>=1.2",
+  "fastapi>=0.115",
+  "jupyter>=1.0",
+  "matplotlib>=3.8,<3.11",
+  "numpy>=1.26,<2.4",
+  "pandas>=2.2,<3.0",
+  "pytest>=8.0",
+  "ruff>=0.11",
+  "twine>=6.1",
+  "uvicorn>=0.30",
+]
+hf-example = [
+  "evidpath[hf-example]",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+evidpath = { workspace = true }
+
+[tool.uv.workspace]
+members = ["products/evidpath"]
+
 [tool.ruff]
 line-length = 88
 target-version = "py313"

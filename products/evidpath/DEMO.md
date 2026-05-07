@@ -35,22 +35,22 @@ The quickest proof points in this repo are:
 From the repository root:
 
 ```bash
-.venv/bin/python -m pip install -e products/evidpath
+uv sync
 ```
 
 That gives you both:
 
-- `python -m evidpath`
+- `uv run python -m evidpath`
 - `evidpath`
 
-The examples below use `python -m evidpath` for clarity.
+The examples below use `uv run python -m evidpath` for clarity.
 
 ## 5-Minute Walkthrough
 
 ### 1. Run one audit
 
 ```bash
-.venv/bin/python -m evidpath audit --domain recommender --seed 7 --scenario returning-user-home-feed --reference-artifact-dir products/evidpath/output/reference-artifacts-demo --output-dir products/evidpath/output/demo-single-live
+uv run python -m evidpath audit --domain recommender --seed 7 --scenario returning-user-home-feed --reference-artifact-dir products/evidpath/output/reference-artifacts-demo --output-dir products/evidpath/output/demo-single-live
 ```
 
 ### 2. Open the output
@@ -74,7 +74,7 @@ up. The point is to show that the output is concrete, not just a blended score.
 ### 4. Run compare mode
 
 ```bash
-.venv/bin/python -m evidpath compare --domain recommender --baseline-artifact-dir products/evidpath/output/reference-artifacts-demo --candidate-artifact-dir products/evidpath/output/reference-artifacts-demo --baseline-label current-prod --candidate-label current-prod-copy --rerun-count 2 --output-dir products/evidpath/output/demo-regression-live
+uv run python -m evidpath compare --domain recommender --baseline-artifact-dir products/evidpath/output/reference-artifacts-demo --candidate-artifact-dir products/evidpath/output/reference-artifacts-demo --baseline-label current-prod --candidate-label current-prod-copy --rerun-count 2 --output-dir products/evidpath/output/demo-regression-live
 ```
 
 Then open:

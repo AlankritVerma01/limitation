@@ -14,7 +14,7 @@ The intended flow on `main` is:
 ## Workflows
 
 - `evidpath-ci`
-  - runs lint, tests, `python -m build`, and `twine check`
+  - runs lint, tests, `uv build`, and `twine check`
   - uploads the built wheel and sdist as a workflow artifact
 - `evidpath-publish`
   - builds distributions in a dedicated job
@@ -85,10 +85,12 @@ already exist on PyPI.
 From the repository root:
 
 ```bash
-.venv/bin/python -m pip install -e products/evidpath[dev]
-cd products/evidpath
-python -m build
-twine check dist/*
+uv sync
+make lint
+make test
+make build
+make check-dist
+make smoke-package
 ```
 
 ## `gh`-native release flow

@@ -152,7 +152,7 @@
             "step": 1,
             "title": "Raiders of the Lost Ark (1981)",
             "utility": 0.17739643669503263,
-            "affinity": 0.15611906567150113,
+            "affinity": 0.1561190656715011,
             "popularity": 0.6938775510204082,
             "novelty": 0.30612244897959184,
             "repetition_penalty": 0.0
@@ -161,7 +161,7 @@
             "step": 2,
             "title": "Fargo (1996)",
             "utility": 0.13041766406588964,
-            "affinity": 0.23609442913839104,
+            "affinity": 0.23609442913839102,
             "popularity": 0.8142857142857143,
             "novelty": 0.18571428571428572,
             "repetition_penalty": 0.20412414523193154
@@ -169,8 +169,8 @@
           {
             "step": 3,
             "title": "Toy Story (1995)",
-            "utility": 0.16979223390558745,
-            "affinity": 0.08842718645686097,
+            "utility": 0.16979223390558743,
+            "affinity": 0.08842718645686094,
             "popularity": 0.6285714285714286,
             "novelty": 0.37142857142857144,
             "repetition_penalty": 0.0
@@ -192,8 +192,8 @@
           {
             "step": 1,
             "title": "Prophecy, The (1995)",
-            "utility": 0.6315147826305835,
-            "affinity": 0.9316582265642558,
+            "utility": 0.6315147826305834,
+            "affinity": 0.9316582265642557,
             "popularity": 0.026530612244897958,
             "novelty": 0.9734693877551021,
             "repetition_penalty": 0.6422285251880867
@@ -201,8 +201,8 @@
           {
             "step": 2,
             "title": "Cat People (1982)",
-            "utility": 0.5906783809781175,
-            "affinity": 0.9316582265642558,
+            "utility": 0.5906783809781173,
+            "affinity": 0.9316582265642557,
             "popularity": 0.022448979591836733,
             "novelty": 0.9775510204081632,
             "repetition_penalty": 0.8535533905932737
@@ -211,7 +211,7 @@
             "step": 3,
             "title": "Wes Craven's New Nightmare (1994)",
             "utility": 0.5628176305253436,
-            "affinity": 0.9316582265642558,
+            "affinity": 0.9316582265642557,
             "popularity": 0.018367346938775512,
             "novelty": 0.9816326530612245,
             "repetition_penalty": 1.0
@@ -220,7 +220,7 @@
             "step": 4,
             "title": "Relic, The (1997)",
             "utility": 0.5635319162396293,
-            "affinity": 0.9316582265642558,
+            "affinity": 0.9316582265642557,
             "popularity": 0.0163265306122449,
             "novelty": 0.9836734693877551,
             "repetition_penalty": 1.0
@@ -231,15 +231,15 @@
     {
       "bucket": "Niche-interest",
       "user_id": 366,
-      "utility_delta": 0.7362335010681929,
+      "utility_delta": 0.7362335010681927,
       "Model A": {
-        "mean_utility": 0.10965174732270458,
+        "mean_utility": 0.10965174732270457,
         "trace": [
           {
             "step": 1,
             "title": "Fargo (1996)",
-            "utility": 0.12098038611115944,
-            "affinity": 0.23609442913839104,
+            "utility": 0.12098038611115941,
+            "affinity": 0.23609442913839102,
             "popularity": 0.8142857142857143,
             "novelty": 0.18571428571428572,
             "repetition_penalty": 0.37079081189859825
@@ -247,8 +247,8 @@
           {
             "step": 2,
             "title": "Godfather, The (1972)",
-            "utility": 0.11952579115723727,
-            "affinity": 0.18503684451033894,
+            "utility": 0.11952579115723724,
+            "affinity": 0.1850368445103389,
             "popularity": 0.7,
             "novelty": 0.30000000000000004,
             "repetition_penalty": 0.5374574785652649
@@ -256,8 +256,8 @@
           {
             "step": 3,
             "title": "Raiders of the Lost Ark (1981)",
-            "utility": 0.10112008066392836,
-            "affinity": 0.15611906567150113,
+            "utility": 0.10112008066392833,
+            "affinity": 0.1561190656715011,
             "popularity": 0.6938775510204082,
             "novelty": 0.30612244897959184,
             "repetition_penalty": 0.20412414523193154
@@ -274,13 +274,13 @@
         ]
       },
       "Model B": {
-        "mean_utility": 0.8458852483908974,
+        "mean_utility": 0.8458852483908973,
         "trace": [
           {
             "step": 1,
             "title": "Prophecy, The (1995)",
-            "utility": 0.8442015749215096,
-            "affinity": 0.9316582265642558,
+            "utility": 0.8442015749215095,
+            "affinity": 0.9316582265642557,
             "popularity": 0.026530612244897958,
             "novelty": 0.9734693877551021,
             "repetition_penalty": 0.6422285251880867
@@ -288,8 +288,8 @@
           {
             "step": 2,
             "title": "Cat People (1982)",
-            "utility": 0.845426064717428,
-            "affinity": 0.9316582265642558,
+            "utility": 0.8454260647174279,
+            "affinity": 0.9316582265642557,
             "popularity": 0.022448979591836733,
             "novelty": 0.9775510204081632,
             "repetition_penalty": 0.8535533905932737
@@ -297,8 +297,8 @@
           {
             "step": 3,
             "title": "Wes Craven's New Nightmare (1994)",
-            "utility": 0.8466505545133464,
-            "affinity": 0.9316582265642558,
+            "utility": 0.8466505545133463,
+            "affinity": 0.9316582265642557,
             "popularity": 0.018367346938775512,
             "novelty": 0.9816326530612245,
             "repetition_penalty": 1.0
@@ -306,8 +306,8 @@
           {
             "step": 4,
             "title": "Relic, The (1997)",
-            "utility": 0.8472627994113056,
-            "affinity": 0.9316582265642558,
+            "utility": 0.8472627994113054,
+            "affinity": 0.9316582265642557,
             "popularity": 0.0163265306122449,
             "novelty": 0.9836734693877551,
             "repetition_penalty": 1.0
@@ -318,9 +318,9 @@
     {
       "bucket": "Low-patience",
       "user_id": 208,
-      "utility_delta": 0.22767527965106,
+      "utility_delta": 0.22767527965105988,
       "Model A": {
-        "mean_utility": 0.18968033876809554,
+        "mean_utility": 0.18968033876809548,
         "trace": [
           {
             "step": 1,
@@ -334,8 +334,8 @@
           {
             "step": 2,
             "title": "Fargo (1996)",
-            "utility": 0.14323164138621466,
-            "affinity": 0.20506718921203781,
+            "utility": 0.1432316413862146,
+            "affinity": 0.20506718921203776,
             "popularity": 0.8142857142857143,
             "novelty": 0.18571428571428572,
             "repetition_penalty": 0.20412414523193154
@@ -343,17 +343,17 @@
           {
             "step": 3,
             "title": "Return of the Jedi (1983)",
-            "utility": 0.08919640053364869,
+            "utility": 0.08919640053364866,
             "affinity": 0.2734905995288702,
             "popularity": 0.7510204081632653,
             "novelty": 0.24897959183673468,
-            "repetition_penalty": 0.5
+            "repetition_penalty": 0.5000000000000001
           },
           {
             "step": 4,
             "title": "Toy Story (1995)",
             "utility": 0.35706728324024795,
-            "affinity": 0.49035023397184185,
+            "affinity": 0.4903502339718418,
             "popularity": 0.6285714285714286,
             "novelty": 0.37142857142857144,
             "repetition_penalty": 0.0
@@ -361,13 +361,13 @@
         ]
       },
       "Model B": {
-        "mean_utility": 0.4173556184191555,
+        "mean_utility": 0.41735561841915536,
         "trace": [
           {
             "step": 1,
             "title": "Monty Python and the Holy Grail (1974)",
-            "utility": 0.5575460949189793,
-            "affinity": 0.8493115187425165,
+            "utility": 0.5575460949189792,
+            "affinity": 0.8493115187425164,
             "popularity": 0.47959183673469385,
             "novelty": 0.5204081632653061,
             "repetition_penalty": 0.0
@@ -375,8 +375,8 @@
           {
             "step": 2,
             "title": "Full Monty, The (1997)",
-            "utility": 0.40183180920469364,
-            "affinity": 0.8493115187425165,
+            "utility": 0.4018318092046934,
+            "affinity": 0.8493115187425164,
             "popularity": 0.42244897959183675,
             "novelty": 0.5775510204081633,
             "repetition_penalty": 0.5
@@ -384,8 +384,8 @@
           {
             "step": 3,
             "title": "American President, The (1995)",
-            "utility": 0.3829557598954497,
-            "affinity": 0.8939415371416509,
+            "utility": 0.3829557598954496,
+            "affinity": 0.8939415371416508,
             "popularity": 0.19795918367346937,
             "novelty": 0.8020408163265307,
             "repetition_penalty": 0.5773502691896258
@@ -393,8 +393,8 @@
           {
             "step": 4,
             "title": "Truth About Cats & Dogs, The (1996)",
-            "utility": 0.3270888096574993,
-            "affinity": 0.878429809005353,
+            "utility": 0.3270888096574992,
+            "affinity": 0.8784298090053528,
             "popularity": 0.2857142857142857,
             "novelty": 0.7142857142857143,
             "repetition_penalty": 0.7618016810571369
