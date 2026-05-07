@@ -162,13 +162,13 @@ def test_compare_supports_external_url_targets(tmp_path: Path) -> None:
         result = run_regression_audit(
             baseline_target=RegressionTarget(
                 "baseline",
-                "reference_artifact",
-                service_artifact_dir=str(baseline_dir),
+                "http_native_reference",
+                {"artifact_dir": str(baseline_dir)},
             ),
             candidate_target=RegressionTarget(
                 "candidate",
-                "external_url",
-                adapter_base_url=candidate_url,
+                "http_native_external",
+                {"base_url": candidate_url},
             ),
             base_seed=4,
             rerun_count=2,
@@ -179,9 +179,9 @@ def test_compare_supports_external_url_targets(tmp_path: Path) -> None:
         Path(result["regression_summary_path"]).read_text(encoding="utf-8")
     )
     report_text = Path(result["regression_report_path"]).read_text(encoding="utf-8")
-    assert payload["candidate_summary"]["target"]["mode"] == "external_url"
+    assert payload["candidate_summary"]["target"]["driver_kind"] == "http_native_external"
     assert payload["metadata"]["domain_name"] == "recommender"
-    assert payload["metadata"]["candidate_target_mode"] == "external_url"
+    assert payload["metadata"]["candidate_target_driver_kind"] == "http_native_external"
     assert payload["metadata"]["baseline_target_identity"]
     assert payload["metadata"]["candidate_target_identity"]
     assert report_text.startswith("# Evidpath Regression Audit")
@@ -202,13 +202,13 @@ def test_compare_honors_scenario_pack_path(tmp_path: Path) -> None:
     result = run_regression_audit(
         baseline_target=RegressionTarget(
             label="baseline",
-            mode="reference_artifact",
-            service_artifact_dir=str(baseline_dir),
+            driver_kind="http_native_reference",
+            driver_config={"artifact_dir": str(baseline_dir)},
         ),
         candidate_target=RegressionTarget(
             label="candidate",
-            mode="reference_artifact",
-            service_artifact_dir=str(candidate_dir),
+            driver_kind="http_native_reference",
+            driver_config={"artifact_dir": str(candidate_dir)},
         ),
         base_seed=4,
         rerun_count=1,
@@ -261,20 +261,20 @@ def test_default_regression_output_dir_distinguishes_external_urls_with_same_lab
     definition = get_domain_definition("recommender")
     first = _default_regression_output_dir(
         baseline_target=RegressionTarget(
-            "same", "external_url", adapter_base_url="http://localhost:8001"
+            "same", "http_native_external", {"base_url": "http://localhost:8001"}
         ),
         candidate_target=RegressionTarget(
-            "same", "external_url", adapter_base_url="http://localhost:8002"
+            "same", "http_native_external", {"base_url": "http://localhost:8002"}
         ),
         base_seed=3,
         domain_definition=definition,
     )
     second = _default_regression_output_dir(
         baseline_target=RegressionTarget(
-            "same", "external_url", adapter_base_url="http://localhost:8011"
+            "same", "http_native_external", {"base_url": "http://localhost:8011"}
         ),
         candidate_target=RegressionTarget(
-            "same", "external_url", adapter_base_url="http://localhost:8012"
+            "same", "http_native_external", {"base_url": "http://localhost:8012"}
         ),
         base_seed=3,
         domain_definition=definition,
@@ -289,20 +289,20 @@ def test_default_regression_output_dir_distinguishes_artifact_targets_with_same_
     definition = get_domain_definition("recommender")
     first = _default_regression_output_dir(
         baseline_target=RegressionTarget(
-            "same", "reference_artifact", service_artifact_dir=str(tmp_path / "a")
+            "same", "http_native_reference", {"artifact_dir": str(tmp_path / "a")}
         ),
         candidate_target=RegressionTarget(
-            "same", "reference_artifact", service_artifact_dir=str(tmp_path / "b")
+            "same", "http_native_reference", {"artifact_dir": str(tmp_path / "b")}
         ),
         base_seed=3,
         domain_definition=definition,
     )
     second = _default_regression_output_dir(
         baseline_target=RegressionTarget(
-            "same", "reference_artifact", service_artifact_dir=str(tmp_path / "c")
+            "same", "http_native_reference", {"artifact_dir": str(tmp_path / "c")}
         ),
         candidate_target=RegressionTarget(
-            "same", "reference_artifact", service_artifact_dir=str(tmp_path / "d")
+            "same", "http_native_reference", {"artifact_dir": str(tmp_path / "d")}
         ),
         base_seed=3,
         domain_definition=definition,

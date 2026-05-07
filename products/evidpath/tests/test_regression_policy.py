@@ -73,13 +73,13 @@ def test_modified_candidate_artifact_produces_visible_deltas(tmp_path: Path) -> 
     paths = run_regression_audit(
         baseline_target=RegressionTarget(
             label="baseline",
-            mode="reference_artifact",
-            service_artifact_dir=str(baseline_dir),
+            driver_kind="http_native_reference",
+            driver_config={"artifact_dir": str(baseline_dir)},
         ),
         candidate_target=RegressionTarget(
             label="candidate",
-            mode="reference_artifact",
-            service_artifact_dir=str(candidate_dir),
+            driver_kind="http_native_reference",
+            driver_config={"artifact_dir": str(candidate_dir)},
         ),
         base_seed=6,
         rerun_count=2,
@@ -136,7 +136,11 @@ def _build_regression_diff(
     candidate_spread: float = 0.0,
 ) -> RegressionDiff:
     baseline_summary = RerunSummary(
-        target=RegressionTarget("baseline", "reference_artifact", "/tmp/baseline"),
+        target=RegressionTarget(
+            "baseline",
+            "http_native_reference",
+            {"artifact_dir": "/tmp/baseline"},
+        ),
         run_count=2,
         seed_schedule=(1, 2),
         metric_summaries=(
@@ -148,7 +152,11 @@ def _build_regression_diff(
         metadata={"artifact_id": "baseline-artifact"},
     )
     candidate_summary = RerunSummary(
-        target=RegressionTarget("candidate", "reference_artifact", "/tmp/candidate"),
+        target=RegressionTarget(
+            "candidate",
+            "http_native_reference",
+            {"artifact_dir": "/tmp/candidate"},
+        ),
         run_count=2,
         seed_schedule=(1, 2),
         metric_summaries=(
@@ -363,10 +371,14 @@ def test_same_artifact_dir_regression_passes_and_writes_decision(
     ensure_reference_artifacts(artifact_dir)
     result = run_regression_audit(
         baseline_target=RegressionTarget(
-            "baseline", "reference_artifact", str(artifact_dir)
+            "baseline",
+            "http_native_reference",
+            {"artifact_dir": str(artifact_dir)},
         ),
         candidate_target=RegressionTarget(
-            "candidate", "reference_artifact", str(artifact_dir)
+            "candidate",
+            "http_native_reference",
+            {"artifact_dir": str(artifact_dir)},
         ),
         base_seed=4,
         rerun_count=2,
@@ -396,10 +408,14 @@ def test_fail_level_regression_still_writes_artifacts(tmp_path: Path) -> None:
     )
     result = run_regression_audit(
         baseline_target=RegressionTarget(
-            "baseline", "reference_artifact", str(baseline_dir)
+            "baseline",
+            "http_native_reference",
+            {"artifact_dir": str(baseline_dir)},
         ),
         candidate_target=RegressionTarget(
-            "candidate", "reference_artifact", str(candidate_dir)
+            "candidate",
+            "http_native_reference",
+            {"artifact_dir": str(candidate_dir)},
         ),
         base_seed=6,
         rerun_count=2,

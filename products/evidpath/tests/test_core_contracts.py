@@ -68,13 +68,13 @@ def test_domain_regression_runs_through_registered_stub_domain(tmp_path: Path) -
         domain_name="stub",
         baseline_target=RegressionTarget(
             label="baseline",
-            mode="reference_artifact",
-            service_artifact_dir=str(tmp_path / "baseline"),
+            driver_kind="http_native_reference",
+            driver_config={"artifact_dir": str(tmp_path / "baseline")},
         ),
         candidate_target=RegressionTarget(
             label="candidate",
-            mode="external_url",
-            adapter_base_url="stub://candidate",
+            driver_kind="http_native_external",
+            driver_config={"base_url": "stub://candidate"},
         ),
         base_seed=2,
         rerun_count=2,
@@ -86,8 +86,8 @@ def test_domain_regression_runs_through_registered_stub_domain(tmp_path: Path) -
     report_text = Path(result["regression_report_path"]).read_text(encoding="utf-8")
 
     assert payload["metadata"]["domain_name"] == "stub"
-    assert payload["metadata"]["baseline_target_mode"] == "reference_artifact"
-    assert payload["metadata"]["candidate_target_mode"] == "external_url"
+    assert payload["metadata"]["baseline_target_driver_kind"] == "http_native_reference"
+    assert payload["metadata"]["candidate_target_driver_kind"] == "http_native_external"
     assert report_text.startswith("# Evidpath Stub Regression")
 
 
@@ -139,13 +139,13 @@ def test_shared_regression_writer_renders_domain_supplied_sections(
         domain_name="stub",
         baseline_target=RegressionTarget(
             label="baseline",
-            mode="reference_artifact",
-            service_artifact_dir=str(tmp_path / "baseline"),
+            driver_kind="http_native_reference",
+            driver_config={"artifact_dir": str(tmp_path / "baseline")},
         ),
         candidate_target=RegressionTarget(
             label="candidate",
-            mode="external_url",
-            adapter_base_url="stub://candidate",
+            driver_kind="http_native_external",
+            driver_config={"base_url": "stub://candidate"},
         ),
         base_seed=4,
         rerun_count=2,

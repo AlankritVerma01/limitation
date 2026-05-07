@@ -369,8 +369,8 @@ def _build_regression_metadata(
         "seed_schedule": ",".join(str(seed) for seed in baseline_summary.seed_schedule),
         "baseline_label": baseline_target.label,
         "candidate_label": candidate_target.label,
-        "baseline_target_mode": baseline_target.mode,
-        "candidate_target_mode": candidate_target.mode,
+        "baseline_target_driver_kind": baseline_target.driver_kind,
+        "candidate_target_driver_kind": candidate_target.driver_kind,
         "baseline_target_identity": domain_definition.build_target_identity(baseline_target),
         "candidate_target_identity": domain_definition.build_target_identity(candidate_target),
         "baseline_target_endpoint_host": str(
@@ -493,7 +493,7 @@ def _summarize_target_runs(
     )
     metadata = dict(run_results[0].metadata if run_results else {})
     metadata["target_label"] = target.label
-    metadata["target_mode"] = target.mode
+    metadata["target_driver_kind"] = target.driver_kind
     metadata["target_identity"] = (
         str(run_results[0].metadata.get("target_identity", "")) if run_results else ""
     )
@@ -927,11 +927,11 @@ def _build_regression_id(
     """Build a short stable identifier for one regression comparison bundle."""
     payload = {
         "baseline_label": baseline_target.label,
-        "baseline_mode": baseline_target.mode,
-        "baseline_endpoint": baseline_target.adapter_base_url or "",
+        "baseline_driver_kind": baseline_target.driver_kind,
+        "baseline_driver_config": dict(baseline_target.driver_config),
         "candidate_label": candidate_target.label,
-        "candidate_mode": candidate_target.mode,
-        "candidate_endpoint": candidate_target.adapter_base_url or "",
+        "candidate_driver_kind": candidate_target.driver_kind,
+        "candidate_driver_config": dict(candidate_target.driver_config),
         "base_seed": base_seed,
         "rerun_count": rerun_count,
         "scenarios": list(scenario_names or ()),

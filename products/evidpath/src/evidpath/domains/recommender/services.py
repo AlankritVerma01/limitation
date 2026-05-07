@@ -40,34 +40,53 @@ def open_recommender_service_context(run_config: RunConfig):
 
 def build_recommender_target_identity(target: RegressionTarget) -> str:
     """Build a short stable identity for recommender compare and audit targets."""
-    if target.mode == "external_url":
-        normalized_url = (target.adapter_base_url or "").rstrip("/")
+    if target.driver_kind == "http_native_external":
+        base_url = str(target.driver_config.get("base_url", ""))
+        normalized_url = base_url.rstrip("/")
         parsed = urlparse(normalized_url)
         label = slugify_name(parsed.netloc or parsed.path or "external")
         raw_identity = normalized_url
         prefix = "url"
-    else:
-        artifact_dir = str(Path(target.service_artifact_dir or "")).rstrip("/")
+    elif target.driver_kind == "http_native_reference":
+        artifact_dir = str(target.driver_config.get("artifact_dir", "")).rstrip("/")
         label = slugify_name(Path(artifact_dir).name or "artifact")
         raw_identity = artifact_dir
         prefix = "artifact"
+    elif target.driver_kind == "http_native_mock":
+        label = "mock"
+        raw_identity = "mock"
+        prefix = "mock"
+    else:
+        raise NotImplementedError(
+            f"Unsupported recommender driver kind: {target.driver_kind}"
+        )
     return f"{prefix}-{label}-{_short_hash(raw_identity)}"
 
 
 def build_recommender_target_audit_kwargs(target: RegressionTarget) -> dict[str, object]:
     """Translate a regression target into audit-time service overrides."""
-    if target.mode == "reference_artifact":
-        if not target.service_artifact_dir:
-            raise ValueError("reference_artifact targets require service_artifact_dir.")
+    if target.driver_kind == "http_native_reference":
+        artifact_dir = target.driver_config.get("artifact_dir")
+        if not isinstance(artifact_dir, str) or not artifact_dir:
+            raise ValueError(
+                "http_native_reference targets require driver_config.artifact_dir."
+            )
         return {
             "service_mode": "reference",
-            "service_artifact_dir": target.service_artifact_dir,
+            "service_artifact_dir": artifact_dir,
         }
-    if target.mode == "external_url":
-        if not target.adapter_base_url:
-            raise ValueError("external_url targets require adapter_base_url.")
-        return {"adapter_base_url": target.adapter_base_url}
-    raise NotImplementedError(f"Unsupported regression target mode: {target.mode}")
+    if target.driver_kind == "http_native_external":
+        base_url = target.driver_config.get("base_url")
+        if not isinstance(base_url, str) or not base_url:
+            raise ValueError(
+                "http_native_external targets require driver_config.base_url."
+            )
+        return {"adapter_base_url": base_url}
+    if target.driver_kind == "http_native_mock":
+        return {"service_mode": "mock"}
+    raise NotImplementedError(
+        f"Unsupported recommender driver kind: {target.driver_kind}"
+    )
 
 
 def check_recommender_target(

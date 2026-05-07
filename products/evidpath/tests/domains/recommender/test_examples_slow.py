@@ -404,7 +404,7 @@ def test_external_audit_flow_captures_service_metadata(tmp_path: Path) -> None:
     assert payload["metadata"]["service_kind"] == "external"
     assert payload["metadata"]["model_kind"] == "popularity"
     assert payload["metadata"]["data_source"] in {"repo_copy", "downloaded"}
-    assert payload["summary"]["target_mode"] == "external_url"
+    assert payload["summary"]["target_driver_kind"] == "http_native_external"
     assert "Model kind: `popularity`" in report
     assert "Dataset: `MovieLens 100K`" in report
 
@@ -443,8 +443,8 @@ def test_external_compare_flow_supports_two_model_variants(tmp_path: Path) -> No
     payload = json.loads(
         Path(str(result["regression_summary_path"])).read_text(encoding="utf-8")
     )
-    assert payload["baseline_summary"]["target"]["mode"] == "external_url"
-    assert payload["candidate_summary"]["target"]["mode"] == "external_url"
+    assert payload["baseline_summary"]["target"]["driver_kind"] == "http_native_external"
+    assert payload["candidate_summary"]["target"]["driver_kind"] == "http_native_external"
     assert payload["baseline_summary"]["metadata"]["model_kind"] == "popularity"
     assert payload["candidate_summary"]["metadata"]["model_kind"] == "item-item-cf"
 
@@ -489,7 +489,7 @@ def test_external_audit_supports_scenario_and_population_pack_reuse(
     payload = json.loads(Path(str(result["results_path"])).read_text(encoding="utf-8"))
     assert payload["metadata"]["scenario_pack_id"] == scenario_pack.metadata.pack_id
     assert payload["metadata"]["population_pack_id"] == population_pack.metadata.pack_id
-    assert payload["summary"]["target_mode"] == "external_url"
+    assert payload["summary"]["target_driver_kind"] == "http_native_external"
 
 
 def test_provider_generated_packs_can_be_reused_against_external_targets(

@@ -128,12 +128,12 @@ def build_stub_run_config(
 
 def build_stub_target_identity(target: RegressionTarget) -> str:
     """Return a short stable identity for stub-domain targets."""
-    if target.mode == "external_url":
-        raw = target.adapter_base_url or ""
+    if target.driver_kind == "http_native_external":
+        raw = str(target.driver_config.get("base_url", ""))
         label = slugify_name(raw or "external")
         prefix = "url"
     else:
-        raw = target.service_artifact_dir or "stub-artifact"
+        raw = str(target.driver_config.get("artifact_dir", "stub-artifact"))
         label = slugify_name(raw)
         prefix = "artifact"
     digest = sha1(raw.encode("utf-8")).hexdigest()[:8]
@@ -142,16 +142,20 @@ def build_stub_target_identity(target: RegressionTarget) -> str:
 
 def build_stub_target_audit_kwargs(target: RegressionTarget) -> dict[str, object]:
     """Translate stub regression targets into audit-time overrides."""
-    if target.mode == "reference_artifact":
+    if target.driver_kind == "http_native_reference":
+        artifact_dir = str(target.driver_config.get("artifact_dir", ""))
         return {
             "service_mode": "reference",
-            "service_artifact_dir": target.service_artifact_dir,
+            "service_artifact_dir": artifact_dir,
         }
-    if target.mode == "external_url":
-        if not target.adapter_base_url:
-            raise ValueError("external_url targets require adapter_base_url.")
-        return {"adapter_base_url": target.adapter_base_url}
-    raise NotImplementedError(f"Unsupported stub target mode: {target.mode}")
+    if target.driver_kind == "http_native_external":
+        base_url = target.driver_config.get("base_url")
+        if not isinstance(base_url, str) or not base_url:
+            raise ValueError(
+                "http_native_external targets require driver_config.base_url."
+            )
+        return {"adapter_base_url": base_url}
+    raise NotImplementedError(f"Unsupported stub driver kind: {target.driver_kind}")
 
 
 def build_stub_runtime_scenarios(
