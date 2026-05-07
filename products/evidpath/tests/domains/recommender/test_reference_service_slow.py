@@ -9,7 +9,8 @@ import pytest
 from evidpath.audit import run_recommender_audit
 from evidpath.domains.recommender import (
     ARTIFACT_FILENAME,
-    HttpRecommenderAdapter,
+    HttpNativeDriverConfig,
+    HttpNativeRecommenderDriver,
     RecommenderAgentPolicy,
     build_recommender_run_config,
     build_reference_artifacts,
@@ -117,7 +118,9 @@ def test_http_adapter_works_against_reference_service(
         base_url,
         _metadata,
     ):
-        adapter = HttpRecommenderAdapter(base_url, timeout_seconds=2.0)
+        adapter = HttpNativeRecommenderDriver(
+            HttpNativeDriverConfig(base_url=base_url, timeout_seconds=2.0)
+        )
         slate = adapter.get_slate(state, observation, run_config.scenarios[0])
         metadata = adapter.get_service_metadata()
     assert len(slate.items) == 5
@@ -137,7 +140,9 @@ def test_rollout_runs_against_reference_service(reference_artifact_dir: Path) ->
         _metadata,
     ):
         traces = run_rollouts(
-            HttpRecommenderAdapter(base_url, timeout_seconds=2.0),
+            HttpNativeRecommenderDriver(
+                HttpNativeDriverConfig(base_url=base_url, timeout_seconds=2.0)
+            ),
             scenarios,
             RecommenderAgentPolicy(),
             run_config,

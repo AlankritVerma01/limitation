@@ -12,8 +12,8 @@ from ..base import (
     ResolvedRuntimeInputs,
     StandardDomainRunner,
 )
-from .adapters import HttpRecommenderAdapter
 from .analyzer import RecommenderAnalyzer
+from .drivers import HttpNativeDriverConfig, HttpNativeRecommenderDriver
 from .generation import (
     build_fixture_recommender_population_candidates,
     build_fixture_recommender_scenarios,
@@ -71,7 +71,7 @@ def build_recommender_domain_definition() -> DomainDefinition:
         check_target=check_recommender_target,
         build_runtime_scenarios=build_recommender_runtime_scenarios,
         open_service_context=open_recommender_service_context,
-        build_adapter=build_recommender_adapter,
+        build_driver=build_recommender_driver,
         build_policy=RecommenderAgentPolicy,
         build_judge=RecommenderJudge,
         build_analyzer=RecommenderAnalyzer,
@@ -144,9 +144,14 @@ def build_recommender_runtime_scenarios(
     return build_scenarios(scenario_configs)
 
 
-def build_recommender_adapter(base_url: str, timeout_seconds: float) -> HttpRecommenderAdapter:
-    """Build the recommender adapter for one running target endpoint."""
-    return HttpRecommenderAdapter(base_url, timeout_seconds=timeout_seconds)
+def build_recommender_driver(
+    base_url: str,
+    timeout_seconds: float,
+) -> HttpNativeRecommenderDriver:
+    """Build the recommender driver for one running target endpoint."""
+    return HttpNativeRecommenderDriver(
+        HttpNativeDriverConfig(base_url=base_url, timeout_seconds=timeout_seconds)
+    )
 
 
 def summarize_recommender_run_metrics(run_result: RunResult) -> dict[str, float]:
