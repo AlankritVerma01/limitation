@@ -216,8 +216,7 @@ Common variables:
 - `OPENAI_SEMANTIC_TIMEOUT_SECONDS`
 - `OPENAI_RETRY_COUNT`
 
-Use [`products/evidpath/.env.example`](/Users/alankritverma/projects/limitation/products/evidpath/.env.example)
-as the starting template.
+Use [`.env.example`](./.env.example) as the starting template.
 
 ## Advanced Workflows
 
