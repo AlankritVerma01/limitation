@@ -575,12 +575,19 @@ def _validate_compare_target(
     side_name: str,
     plan_path: str,
 ) -> None:
-    mode = str(target.get("mode", "")).strip()
-    if mode not in {"reference_artifact", "external_url"}:
+    driver_kind = str(target.get("driver_kind", "")).strip()
+    if not driver_kind:
         raise ValueError(
             _prefix_plan_error(
                 plan_path,
-                f"Run plan has unsupported compare target mode `{mode or 'missing'}` for `{side_name}`.",
+                f"Run plan is missing compare target driver_kind for `{side_name}`.",
+            )
+        )
+    if not isinstance(target.get("driver_config"), dict):
+        raise ValueError(
+            _prefix_plan_error(
+                plan_path,
+                f"Run plan compare target `{side_name}` is missing a driver_config object.",
             )
         )
     if not str(target.get("label", "")).strip():

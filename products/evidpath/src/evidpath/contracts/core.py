@@ -18,7 +18,6 @@ from ..schema import (
     SessionTrace,
     Slate,
     SlateItem,
-    TargetMode,
     TraceStep,
     UtilityBreakdown,
 )
@@ -41,7 +40,6 @@ __all__ = [
     "SessionTrace",
     "Slate",
     "SlateItem",
-    "TargetMode",
     "TraceStep",
     "UtilityBreakdown",
 ]

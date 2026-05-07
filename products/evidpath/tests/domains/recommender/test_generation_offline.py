@@ -583,13 +583,13 @@ def test_population_pack_can_be_reused_for_regression_runs(tmp_path: Path) -> No
     result = run_regression_audit(
         baseline_target=RegressionTarget(
             label="baseline",
-            mode="reference_artifact",
-            service_artifact_dir=str(artifact_dir),
+            driver_kind="http_native_reference",
+            driver_config={"artifact_dir": str(artifact_dir)},
         ),
         candidate_target=RegressionTarget(
             label="candidate",
-            mode="reference_artifact",
-            service_artifact_dir=str(artifact_dir),
+            driver_kind="http_native_reference",
+            driver_config={"artifact_dir": str(artifact_dir)},
         ),
         base_seed=2,
         rerun_count=1,

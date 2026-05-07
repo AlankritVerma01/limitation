@@ -380,21 +380,28 @@ class StandardDomainRunner:
                 "adapter_base_url": adapter_base_url,
                 "service_mode": run_config.rollout.service_mode,
                 "service_artifact_dir": run_config.rollout.service_artifact_dir or "",
-                "target_mode": (
-                    "external_url"
+                "target_driver_kind": (
+                    "http_native_external"
                     if run_config.rollout.adapter_base_url is not None
-                    else "reference_artifact"
+                    else "http_native_reference"
                 ),
                 "target_identity": self.definition.build_target_identity(
                     RegressionTarget(
                         label=run_config.run_name,
-                        mode=(
-                            "external_url"
+                        driver_kind=(
+                            "http_native_external"
                             if run_config.rollout.adapter_base_url is not None
-                            else "reference_artifact"
+                            else "http_native_reference"
                         ),
-                        service_artifact_dir=run_config.rollout.service_artifact_dir,
-                        adapter_base_url=run_config.rollout.adapter_base_url,
+                        driver_config=(
+                            {"base_url": run_config.rollout.adapter_base_url}
+                            if run_config.rollout.adapter_base_url is not None
+                            else {
+                                "artifact_dir": (
+                                    run_config.rollout.service_artifact_dir or ""
+                                )
+                            }
+                        ),
                     )
                 ),
                 "scenarios": ",".join(config.name for config in run_config.scenarios),

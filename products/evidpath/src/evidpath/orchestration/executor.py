@@ -380,12 +380,19 @@ def execute_compare_plan(
 
 
 def _regression_target_from_plan(payload: dict[str, object]) -> RegressionTarget:
-    mode = str(payload.get("mode", ""))
-    if mode not in {"reference_artifact", "external_url"}:
-        raise SystemExit(f"Saved plan has unsupported compare target mode `{mode}`.")
+    driver_kind = str(payload.get("driver_kind", ""))
+    if not driver_kind:
+        raise SystemExit("Saved plan compare target is missing `driver_kind`.")
+    raw_config = payload.get("driver_config") or {}
+    if not isinstance(raw_config, dict):
+        raise SystemExit("Saved plan compare target has invalid `driver_config`.")
+    driver_config: dict[str, str | int | float | bool] = {
+        str(key): value
+        for key, value in raw_config.items()
+        if isinstance(value, (str, int, float, bool))
+    }
     return RegressionTarget(
         label=str(payload.get("label", "")),
-        mode=mode,
-        service_artifact_dir=optional_text(payload.get("service_artifact_dir")),
-        adapter_base_url=optional_text(payload.get("adapter_base_url")),
+        driver_kind=driver_kind,
+        driver_config=driver_config,
     )

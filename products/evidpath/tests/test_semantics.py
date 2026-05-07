@@ -185,10 +185,14 @@ def test_fixture_semantic_mode_writes_regression_outputs(tmp_path: Path) -> None
     ensure_reference_artifacts(artifact_dir)
     result = run_regression_audit(
         baseline_target=RegressionTarget(
-            "baseline", "reference_artifact", str(artifact_dir)
+            "baseline",
+            "http_native_reference",
+            {"artifact_dir": str(artifact_dir)},
         ),
         candidate_target=RegressionTarget(
-            "candidate", "reference_artifact", str(artifact_dir)
+            "candidate",
+            "http_native_reference",
+            {"artifact_dir": str(artifact_dir)},
         ),
         base_seed=5,
         rerun_count=2,
@@ -212,10 +216,14 @@ def test_regression_semantics_explain_only_selected_notable_traces(
     _build_modified_candidate_artifacts(baseline_dir, candidate_dir)
     result = run_regression_audit(
         baseline_target=RegressionTarget(
-            "baseline", "reference_artifact", str(baseline_dir)
+            "baseline",
+            "http_native_reference",
+            {"artifact_dir": str(baseline_dir)},
         ),
         candidate_target=RegressionTarget(
-            "candidate", "reference_artifact", str(candidate_dir)
+            "candidate",
+            "http_native_reference",
+            {"artifact_dir": str(candidate_dir)},
         ),
         base_seed=6,
         rerun_count=2,

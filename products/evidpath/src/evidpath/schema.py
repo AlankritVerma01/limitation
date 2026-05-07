@@ -7,7 +7,6 @@ from typing import Literal
 
 ActionName = Literal["click", "skip", "abandon"]
 RiskSeverity = Literal["low", "medium", "high"]
-TargetMode = Literal["reference_artifact", "external_url"]
 RegressionDecisionStatus = Literal["pass", "warn", "fail"]
 ScenarioGeneratorMode = Literal["provider", "fixture"]
 PopulationGeneratorMode = Literal["provider", "fixture"]
@@ -503,9 +502,8 @@ class RunResult:
 @dataclass(frozen=True)
 class RegressionTarget:
     label: str
-    mode: TargetMode
-    service_artifact_dir: str | None = None
-    adapter_base_url: str | None = None
+    driver_kind: str
+    driver_config: dict[str, str | int | float | bool] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

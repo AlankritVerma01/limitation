@@ -633,13 +633,13 @@ def _build_compare_target(
     if has_artifact:
         return RegressionTarget(
             label=label,
-            mode="reference_artifact",
-            service_artifact_dir=artifact_dir,
+            driver_kind="http_native_reference",
+            driver_config={"artifact_dir": artifact_dir or ""},
         )
     return RegressionTarget(
         label=label,
-        mode="external_url",
-        adapter_base_url=url,
+        driver_kind="http_native_external",
+        driver_config={"base_url": url or ""},
     )
 
 
@@ -656,12 +656,11 @@ def _build_direct_target_plan_config(
     }
 
 
-def _build_compare_target_plan_config(target: RegressionTarget) -> dict[str, str]:
+def _build_compare_target_plan_config(target: RegressionTarget) -> dict[str, object]:
     return {
         "label": target.label,
-        "mode": target.mode,
-        "service_artifact_dir": target.service_artifact_dir or "",
-        "adapter_base_url": target.adapter_base_url or "",
+        "driver_kind": target.driver_kind,
+        "driver_config": dict(target.driver_config),
     }
 
 

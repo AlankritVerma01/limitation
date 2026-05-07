@@ -81,7 +81,7 @@ def write_run_manifest(
         },
         "service": {
             "service_kind": str(run_result.metadata.get("service_kind", "")),
-            "target_mode": str(run_result.metadata.get("target_mode", "")),
+            "target_driver_kind": str(run_result.metadata.get("target_driver_kind", "")),
             "target_identity": str(run_result.metadata.get("target_identity", "")),
             "target_endpoint_host": str(
                 run_result.metadata.get("target_endpoint_host", "")
@@ -217,7 +217,7 @@ def write_regression_manifest(
         "policy_mode": str(regression_diff.metadata.get("policy_mode", "")),
         "baseline": {
             "label": regression_diff.baseline_summary.target.label,
-            "target_mode": regression_diff.baseline_summary.target.mode,
+            "target_driver_kind": regression_diff.baseline_summary.target.driver_kind,
             "target_identity": str(
                 regression_diff.metadata.get("baseline_target_identity", "")
             ),
@@ -239,7 +239,7 @@ def write_regression_manifest(
         },
         "candidate": {
             "label": regression_diff.candidate_summary.target.label,
-            "target_mode": regression_diff.candidate_summary.target.mode,
+            "target_driver_kind": regression_diff.candidate_summary.target.driver_kind,
             "target_identity": str(
                 regression_diff.metadata.get("candidate_target_identity", "")
             ),

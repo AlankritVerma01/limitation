@@ -36,7 +36,7 @@ def test_default_reference_audit_smoke(tmp_path: Path) -> None:
     payload = json.loads(Path(paths["results_path"]).read_text(encoding="utf-8"))
 
     assert payload["metadata"]["service_kind"] == "reference"
-    assert payload["metadata"]["target_mode"] == "reference_artifact"
+    assert payload["metadata"]["target_driver_kind"] == "http_native_reference"
     assert payload["summary"]["trace_count"] > 0
 
 
