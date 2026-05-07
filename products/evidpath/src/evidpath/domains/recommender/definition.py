@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
 
 from ...regression_policy import default_regression_policy
@@ -13,7 +14,14 @@ from ..base import (
     StandardDomainRunner,
 )
 from .analyzer import RecommenderAnalyzer
-from .drivers import HttpNativeDriverConfig, HttpNativeRecommenderDriver
+from .drivers import (
+    HttpNativeDriverConfig,
+    HttpNativeRecommenderDriver,
+    HttpSchemaMappedDriverConfig,
+    HttpSchemaMappedRecommenderDriver,
+    InProcessDriverConfig,
+    InProcessRecommenderDriver,
+)
 from .generation import (
     build_fixture_recommender_population_candidates,
     build_fixture_recommender_scenarios,
@@ -108,6 +116,8 @@ def build_recommender_run_config(
     service_mode: str = "reference",
     service_artifact_dir: str | None = None,
     adapter_base_url: str | None = None,
+    driver_kind: str | None = None,
+    driver_config: Mapping[str, object] | None = None,
     run_name: str | None = None,
 ) -> tuple[RunConfig, ResolvedRuntimeInputs]:
     """Resolve recommender runtime inputs, then build a run config from them."""
@@ -130,6 +140,8 @@ def build_recommender_run_config(
         service_mode=service_mode,
         service_artifact_dir=resolved_service_artifact_dir,
         adapter_base_url=adapter_base_url,
+        driver_kind=driver_kind,
+        driver_config=driver_config,
         run_name=run_name,
     )
     return run_config, resolved_inputs
@@ -145,13 +157,28 @@ def build_recommender_runtime_scenarios(
 
 
 def build_recommender_driver(
-    base_url: str,
+    driver_kind: str,
+    driver_config: Mapping[str, object],
+    base_url: str | None,
     timeout_seconds: float,
-) -> HttpNativeRecommenderDriver:
-    """Build the recommender driver for one running target endpoint."""
-    return HttpNativeRecommenderDriver(
-        HttpNativeDriverConfig(base_url=base_url, timeout_seconds=timeout_seconds)
-    )
+):
+    """Construct one recommender driver from driver kind plus config."""
+    if driver_kind in {"http_native_external", "http_native_reference", "http_native_mock"}:
+        if not base_url:
+            raise ValueError(f"Driver kind `{driver_kind}` requires a base URL.")
+        return HttpNativeRecommenderDriver(
+            HttpNativeDriverConfig(base_url=base_url, timeout_seconds=timeout_seconds)
+        )
+    if driver_kind == "in_process":
+        return InProcessRecommenderDriver(InProcessDriverConfig.from_dict(driver_config))
+    if driver_kind == "http_schema_mapped":
+        return HttpSchemaMappedRecommenderDriver(
+            HttpSchemaMappedDriverConfig.from_dict(
+                driver_config,
+                timeout_seconds=timeout_seconds,
+            )
+        )
+    raise ValueError(f"Unsupported recommender driver kind: {driver_kind}")
 
 
 def summarize_recommender_run_metrics(run_result: RunResult) -> dict[str, float]:

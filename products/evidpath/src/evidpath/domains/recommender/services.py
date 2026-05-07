@@ -18,6 +18,27 @@ from .scenarios import build_scenarios, resolve_built_in_recommender_scenarios
 
 def open_recommender_service_context(run_config: RunConfig):
     """Open the correct recommender service context for one run config."""
+    if run_config.rollout.driver_kind == "in_process":
+        return nullcontext(
+            (
+                None,
+                {
+                    "service_kind": "in_process",
+                    "service_metadata_status": "in_process",
+                },
+            )
+        )
+    if run_config.rollout.driver_kind == "http_schema_mapped":
+        base_url = str((run_config.rollout.driver_config or {}).get("base_url", ""))
+        return nullcontext(
+            (
+                base_url.rstrip("/") or None,
+                {
+                    "service_kind": "http_schema_mapped",
+                    "service_metadata_status": "not_provided",
+                },
+            )
+        )
     if run_config.rollout.adapter_base_url is not None:
         normalized_url = run_config.rollout.adapter_base_url.rstrip("/")
         parsed = urlparse(normalized_url)
@@ -56,6 +77,17 @@ def build_recommender_target_identity(target: RegressionTarget) -> str:
         label = "mock"
         raw_identity = "mock"
         prefix = "mock"
+    elif target.driver_kind == "in_process":
+        import_path = str(target.driver_config.get("import_path", "in_process"))
+        label = slugify_name(import_path)
+        raw_identity = import_path
+        prefix = "in-proc"
+    elif target.driver_kind == "http_schema_mapped":
+        base_url = str(target.driver_config.get("base_url", "")).rstrip("/")
+        parsed = urlparse(base_url)
+        label = slugify_name(parsed.netloc or parsed.path or "schema-mapped")
+        raw_identity = base_url
+        prefix = "schema"
     else:
         raise NotImplementedError(
             f"Unsupported recommender driver kind: {target.driver_kind}"
@@ -84,6 +116,16 @@ def build_recommender_target_audit_kwargs(target: RegressionTarget) -> dict[str,
         return {"adapter_base_url": base_url}
     if target.driver_kind == "http_native_mock":
         return {"service_mode": "mock"}
+    if target.driver_kind == "in_process":
+        return {
+            "driver_kind": "in_process",
+            "driver_config": dict(target.driver_config),
+        }
+    if target.driver_kind == "http_schema_mapped":
+        return {
+            "driver_kind": "http_schema_mapped",
+            "driver_config": dict(target.driver_config),
+        }
     raise NotImplementedError(
         f"Unsupported recommender driver kind: {target.driver_kind}"
     )

@@ -14,6 +14,7 @@ Practical rule:
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -81,6 +82,8 @@ class DomainRunner(Protocol):
         service_mode: str = "reference",
         service_artifact_dir: str | None = None,
         adapter_base_url: str | None = None,
+        driver_kind: str | None = None,
+        driver_config: Mapping[str, object] | None = None,
         run_name: str | None = None,
         semantic_mode: str = "off",
         semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
@@ -144,9 +147,12 @@ class DomainDefinition:
     build_runtime_scenarios: Callable[[tuple[ScenarioConfig, ...]], tuple[Scenario, ...]]
     open_service_context: Callable[
         [RunConfig],
-        AbstractContextManager[tuple[str, dict[str, str | int | float]]],
+        AbstractContextManager[tuple[str | None, dict[str, str | int | float]]],
     ]
-    build_driver: Callable[[str, float], MetadataAdapter]
+    build_driver: Callable[
+        [str, Mapping[str, object], str | None, float],
+        MetadataAdapter,
+    ]
     build_policy: Callable[[], AgentPolicy]
     build_judge: Callable[[], Judge]
     build_analyzer: Callable[[], Analyzer]
@@ -196,6 +202,8 @@ class StandardDomainRunner:
         service_mode: str = "reference",
         service_artifact_dir: str | None = None,
         adapter_base_url: str | None = None,
+        driver_kind: str | None = None,
+        driver_config: Mapping[str, object] | None = None,
         run_name: str | None = None,
         semantic_mode: str = "off",
         semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
@@ -219,6 +227,8 @@ class StandardDomainRunner:
             service_mode=resolved_service_mode,
             service_artifact_dir=service_artifact_dir,
             adapter_base_url=adapter_base_url,
+            driver_kind=driver_kind,
+            driver_config=driver_config,
             run_name=run_name,
         )
         policy = self.definition.build_policy()
@@ -286,7 +296,7 @@ class StandardDomainRunner:
         policy: AgentPolicy,
         judge: Judge,
         analyzer: Analyzer,
-        adapter_base_url: str,
+        adapter_base_url: str | None,
         context_metadata: dict[str, str | int | float] | None = None,
         resolved_input_metadata: dict[str, str | int] | None = None,
         semantic_mode: str = "off",
@@ -295,7 +305,15 @@ class StandardDomainRunner:
         progress_callback: ProgressCallback | None = None,
     ) -> RunResult:
         """Execute one audit against an already running domain driver."""
+        driver_kind = run_config.rollout.driver_kind or _legacy_driver_kind(
+            run_config.rollout
+        )
+        driver_config = run_config.rollout.driver_config or _legacy_driver_config(
+            run_config.rollout
+        )
         driver = self.definition.build_driver(
+            driver_kind,
+            driver_config,
             adapter_base_url,
             run_config.rollout.service_timeout_seconds,
         )
@@ -377,31 +395,16 @@ class StandardDomainRunner:
                 "audit_report_title": self.definition.audit_report_title,
                 "regression_report_title": self.definition.regression_report_title,
                 "adapter": type(driver).__name__,
-                "adapter_base_url": adapter_base_url,
+                "adapter_base_url": adapter_base_url or "",
                 "service_mode": run_config.rollout.service_mode,
                 "service_artifact_dir": run_config.rollout.service_artifact_dir or "",
-                "target_driver_kind": (
-                    "http_native_external"
-                    if run_config.rollout.adapter_base_url is not None
-                    else "http_native_reference"
-                ),
+                "target_driver_kind": driver_kind,
+                "target_driver_config": dict(driver_config),
                 "target_identity": self.definition.build_target_identity(
                     RegressionTarget(
                         label=run_config.run_name,
-                        driver_kind=(
-                            "http_native_external"
-                            if run_config.rollout.adapter_base_url is not None
-                            else "http_native_reference"
-                        ),
-                        driver_config=(
-                            {"base_url": run_config.rollout.adapter_base_url}
-                            if run_config.rollout.adapter_base_url is not None
-                            else {
-                                "artifact_dir": (
-                                    run_config.rollout.service_artifact_dir or ""
-                                )
-                            }
-                        ),
+                        driver_kind=driver_kind,
+                        driver_config=dict(driver_config),
                     )
                 ),
                 "scenarios": ",".join(config.name for config in run_config.scenarios),
@@ -450,14 +453,32 @@ class StandardDomainRunner:
             semantic_interpretation=semantic_interpretation,
             metadata={
                 **base_run_result.metadata,
-                "semantic_provider_name": (
-                    semantic_interpretation.provider_name if semantic_interpretation else ""
-                ),
+                "semantic_provider_name": semantic_interpretation.provider_name
+                if semantic_interpretation
+                else "",
                 "semantic_model_profile": (
                     semantic_interpretation.model_profile if semantic_interpretation else ""
                 ),
             },
         )
+
+
+def _legacy_driver_kind(rollout) -> str:
+    """Infer driver kind from legacy rollout fields."""
+    if rollout.adapter_base_url is not None:
+        return "http_native_external"
+    if rollout.service_mode == "mock":
+        return "http_native_mock"
+    return "http_native_reference"
+
+
+def _legacy_driver_config(rollout) -> dict[str, object]:
+    """Build driver config from legacy rollout fields."""
+    if rollout.adapter_base_url is not None:
+        return {"base_url": rollout.adapter_base_url}
+    if rollout.service_mode == "mock":
+        return {}
+    return {"artifact_dir": rollout.service_artifact_dir or ""}
 
 
 def _build_run_id(run_config: RunConfig, service_metadata: dict[str, str | int | float]) -> str:

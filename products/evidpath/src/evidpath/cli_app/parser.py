@@ -137,6 +137,11 @@ def _build_compare_parser(
         help=f"Baseline {COMPARE_EXTERNAL_TARGET_HELP.lower()}",
     )
     parser.add_argument(
+        "--baseline-driver-config-path",
+        default=None,
+        help="Baseline JSON driver config path.",
+    )
+    parser.add_argument(
         "--candidate-artifact-dir",
         default=None,
         help=f"Candidate {COMPARE_REFERENCE_TARGET_HELP.lower()}",
@@ -145,6 +150,11 @@ def _build_compare_parser(
         "--candidate-url",
         default=None,
         help=f"Candidate {COMPARE_EXTERNAL_TARGET_HELP.lower()}",
+    )
+    parser.add_argument(
+        "--candidate-driver-config-path",
+        default=None,
+        help="Candidate JSON driver config path.",
     )
     parser.add_argument(
         "--rerun-count",
@@ -292,6 +302,11 @@ def _build_plan_run_parser(
         help=f"Baseline {COMPARE_EXTERNAL_TARGET_HELP.lower()}",
     )
     parser.add_argument(
+        "--baseline-driver-config-path",
+        default=None,
+        help="Baseline JSON driver config path.",
+    )
+    parser.add_argument(
         "--candidate-artifact-dir",
         default=None,
         help=f"Candidate {COMPARE_REFERENCE_TARGET_HELP.lower()}",
@@ -300,6 +315,11 @@ def _build_plan_run_parser(
         "--candidate-url",
         default=None,
         help=f"Candidate {COMPARE_EXTERNAL_TARGET_HELP.lower()}",
+    )
+    parser.add_argument(
+        "--candidate-driver-config-path",
+        default=None,
+        help="Candidate JSON driver config path.",
     )
     parser.add_argument(
         "--rerun-count",
@@ -657,6 +677,14 @@ def _add_direct_target_arguments(
         "--use-mock",
         action="store_true",
         help=INTERNAL_MOCK_TARGET_HELP,
+    )
+    parser.add_argument(
+        "--driver-config-path",
+        default=None,
+        help=(
+            "Path to a JSON driver config, as an alternative to target URL, "
+            "reference artifacts, or mock mode."
+        ),
     )
 
 

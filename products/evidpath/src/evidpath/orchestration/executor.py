@@ -43,6 +43,10 @@ def execute_saved_audit_plan(
             service_mode=str(target.get("service_mode", "")),
             service_artifact_dir=optional_text(target.get("service_artifact_dir")),
             adapter_base_url=optional_text(target.get("adapter_base_url")),
+            driver_kind=optional_text(target.get("driver_kind")),
+            driver_config=target.get("driver_config")
+            if isinstance(target.get("driver_config"), dict)
+            else None,
             seed=int(run_shaping["seed"]),
             output_dir=str(payload["planned_artifacts"]["output_dir"]),
             run_name=optional_text(run_shaping.get("run_name")),
@@ -85,6 +89,8 @@ def execute_audit_plan(
         service_mode=request.service_mode,
         service_artifact_dir=request.service_artifact_dir,
         adapter_base_url=request.adapter_base_url,
+        driver_kind=request.driver_kind,
+        driver_config=request.driver_config,
         run_name=request.run_name,
         semantic_mode=plan.semantic_mode,
         semantic_model=plan.semantic_model,
@@ -164,6 +170,10 @@ def execute_saved_run_swarm_plan(
             service_mode=str(target.get("service_mode", "")),
             service_artifact_dir=optional_text(target.get("service_artifact_dir")),
             adapter_base_url=optional_text(target.get("adapter_base_url")),
+            driver_kind=optional_text(target.get("driver_kind")),
+            driver_config=target.get("driver_config")
+            if isinstance(target.get("driver_config"), dict)
+            else None,
             seed=int(run_shaping["seed"]),
             output_dir=str(payload["planned_artifacts"]["output_dir"]),
             run_name=optional_text(run_shaping.get("run_name")),
@@ -226,6 +236,8 @@ def execute_run_swarm_plan(
         service_mode=request.service_mode,
         service_artifact_dir=request.service_artifact_dir,
         adapter_base_url=request.adapter_base_url,
+        driver_kind=request.driver_kind,
+        driver_config=request.driver_config,
         run_name=request.run_name,
         semantic_mode=plan.semantic_mode,
         semantic_model=plan.semantic_model,

@@ -39,15 +39,10 @@ def regression_target_from_plan(payload: dict[str, object]) -> RegressionTarget:
     raw_config = payload.get("driver_config") or {}
     if not isinstance(raw_config, dict):
         raise SystemExit("Saved plan compare target has invalid `driver_config`.")
-    driver_config: dict[str, str | int | float | bool] = {
-        str(key): value
-        for key, value in raw_config.items()
-        if isinstance(value, (str, int, float, bool))
-    }
     return RegressionTarget(
         label=str(payload.get("label", "")),
         driver_kind=driver_kind,
-        driver_config=driver_config,
+        driver_config=dict(raw_config),
     )
 
 
