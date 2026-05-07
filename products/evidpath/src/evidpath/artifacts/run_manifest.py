@@ -7,6 +7,12 @@ from pathlib import Path
 from typing import Any
 
 from ..schema import RegressionDiff, RunResult
+from ._determinism import (
+    compute_deterministic_payload_hash,
+    hash_population,
+    hash_scenarios,
+)
+from ._environment import collect_environment_fingerprint
 
 
 def write_run_manifest(
@@ -121,6 +127,17 @@ def write_run_manifest(
         },
         "artifacts": dict(sorted(artifact_paths.items())),
         "workflow_metadata": dict(sorted((workflow_metadata or {}).items())),
+        "environment": collect_environment_fingerprint(),
+        "inputs": {
+            "scenario_hash": hash_scenarios(run_result.run_config.scenarios),
+            "population_hash": hash_population(run_result.run_config.agent_seeds),
+        },
+        "outputs": {
+            "deterministic_payload_hash": compute_deterministic_payload_hash(
+                results_path=Path(artifact_paths["results_path"]),
+                traces_path=Path(artifact_paths["traces_path"]),
+            ),
+        },
     }
     manifest_path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
