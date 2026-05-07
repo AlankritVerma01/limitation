@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import json
 from contextlib import suppress
+from dataclasses import dataclass
+from pathlib import Path
 
 from ..artifacts.run_plan import load_run_plan
 from ..config import default_output_dir
@@ -136,6 +139,8 @@ def handle_audit_command(
             service_mode=context.service_mode,
             service_artifact_dir=context.service_artifact_dir,
             adapter_base_url=context.adapter_base_url,
+            driver_kind=context.driver_kind,
+            driver_config=context.driver_config,
             seed=args.seed,
             output_dir=args.output_dir,
             run_name=args.run_name,
@@ -180,6 +185,8 @@ def handle_run_swarm_command(
             service_mode=context.service_mode,
             service_artifact_dir=context.service_artifact_dir,
             adapter_base_url=context.adapter_base_url,
+            driver_kind=context.driver_kind,
+            driver_config=context.driver_config,
             seed=args.seed,
             output_dir=args.output_dir,
             run_name=args.run_name,
@@ -468,10 +475,23 @@ def handle_serve_reference_command(
     }
 
 
+@dataclass(frozen=True)
+class _DriverConfigSelection:
+    driver_kind: str
+    driver_config: dict[str, object]
+
+
+@dataclass(frozen=True)
+class _LegacySelection:
+    service_mode: str
+    service_artifact_dir: str | None
+    adapter_base_url: str | None
+
+
 def _build_run_swarm_plan_from_args(args: argparse.Namespace):
     if not args.brief:
         raise SystemExit("`plan-run --workflow run-swarm` requires `--brief`.")
-    service_mode, service_artifact_dir, adapter_base_url = _resolve_target_selection(
+    selection = _resolve_target_selection(
         args,
         domain_name=args.domain,
     )
@@ -482,11 +502,7 @@ def _build_run_swarm_plan_from_args(args: argparse.Namespace):
             brief=args.brief,
             generation_mode=args.generation_mode,
             output_root=output_root,
-            target_config=_build_direct_target_plan_config(
-                service_mode=service_mode,
-                service_artifact_dir=service_artifact_dir,
-                adapter_base_url=adapter_base_url,
-            ),
+            target_config=_build_direct_target_plan_config(selection),
             explicit_inputs=_collect_explicit_run_swarm_inputs(args),
             scenario_pack_path=args.scenario_pack_path,
             population_pack_path=args.population_pack_path,
@@ -512,7 +528,7 @@ def _build_run_swarm_plan_from_args(args: argparse.Namespace):
 
 
 def _build_audit_plan_from_args(args: argparse.Namespace):
-    service_mode, service_artifact_dir, adapter_base_url = _resolve_target_selection(
+    selection = _resolve_target_selection(
         args,
         domain_name=args.domain,
     )
@@ -521,11 +537,7 @@ def _build_audit_plan_from_args(args: argparse.Namespace):
         AuditPlanRequest(
             domain_name=args.domain,
             output_root=output_root,
-            target_config=_build_direct_target_plan_config(
-                service_mode=service_mode,
-                service_artifact_dir=service_artifact_dir,
-                adapter_base_url=adapter_base_url,
-            ),
+            target_config=_build_direct_target_plan_config(selection),
             explicit_inputs=_collect_explicit_audit_inputs(args),
             scenario_name=args.scenario,
             scenario_pack_path=args.scenario_pack_path,
@@ -543,12 +555,14 @@ def _build_compare_plan_from_args(args: argparse.Namespace):
         label=args.baseline_label,
         artifact_dir=args.baseline_artifact_dir,
         url=args.baseline_url,
+        driver_config_path=args.baseline_driver_config_path,
         side_name="baseline",
     )
     candidate_target = _build_compare_target(
         label=args.candidate_label,
         artifact_dir=args.candidate_artifact_dir,
         url=args.candidate_url,
+        driver_config_path=args.candidate_driver_config_path,
         side_name="candidate",
     )
     output_root = args.output_dir or str(default_output_dir())
@@ -600,7 +614,14 @@ def _resolve_target_selection(
     args: argparse.Namespace,
     *,
     domain_name: str,
-) -> tuple[str, str | None, str | None]:
+) -> "_LegacySelection | _DriverConfigSelection":
+    if getattr(args, "driver_config_path", None) is not None:
+        if any([args.target_url, args.reference_artifact_dir, args.use_mock]):
+            raise SystemExit(
+                "--driver-config-path cannot be combined with --target-url, "
+                "--reference-artifact-dir, or --use-mock."
+            )
+        return _load_driver_config_selection(args.driver_config_path)
     if args.target_url is not None and args.use_mock:
         raise SystemExit("--target-url cannot be combined with --use-mock.")
     if args.target_url is not None and args.reference_artifact_dir is not None:
@@ -608,13 +629,30 @@ def _resolve_target_selection(
     if args.use_mock:
         if domain_name != "recommender":
             raise SystemExit("--use-mock is only supported for the recommender domain.")
-        return "mock", None, None
+        return _LegacySelection("mock", None, None)
     if args.target_url is not None:
-        # The domain runtime still represents external HTTP targets as the
-        # reference service mode plus an adapter URL. Keep that runtime contract
-        # unchanged while keeping the CLI wording explicit about the customer path.
-        return "reference", None, args.target_url
-    return "reference", args.reference_artifact_dir, None
+        return _LegacySelection("reference", None, args.target_url)
+    return _LegacySelection("reference", args.reference_artifact_dir, None)
+
+
+def _load_driver_config_selection(path: str) -> _DriverConfigSelection:
+    try:
+        config = json.loads(Path(path).read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise SystemExit(f"Could not read driver config at `{path}`: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"Driver config at `{path}` is not valid JSON.") from exc
+    if not isinstance(config, dict) or "driver_kind" not in config:
+        raise SystemExit(
+            f"Driver config at `{path}` must be a JSON object containing `driver_kind`."
+        )
+    raw_driver_config = config.get("driver_config") or {}
+    if not isinstance(raw_driver_config, dict):
+        raise SystemExit(f"Driver config at `{path}` has invalid `driver_config`.")
+    return _DriverConfigSelection(
+        driver_kind=str(config["driver_kind"]),
+        driver_config=dict(raw_driver_config),
+    )
 
 
 def _build_compare_target(
@@ -622,13 +660,26 @@ def _build_compare_target(
     label: str,
     artifact_dir: str | None,
     url: str | None,
+    driver_config_path: str | None,
     side_name: str,
 ) -> RegressionTarget:
     has_artifact = artifact_dir is not None
     has_url = url is not None
-    if has_artifact == has_url:
+    has_driver_config = driver_config_path is not None
+    if sum(1 for item in (has_artifact, has_url, has_driver_config) if item) != 1:
+        if not has_driver_config:
+            raise SystemExit(
+                f"compare requires exactly one of --{side_name}-artifact-dir or --{side_name}-url."
+            )
         raise SystemExit(
-            f"compare requires exactly one of --{side_name}-artifact-dir or --{side_name}-url."
+            f"compare requires exactly one {side_name} target flag."
+        )
+    if has_driver_config:
+        selection = _load_driver_config_selection(driver_config_path or "")
+        return RegressionTarget(
+            label=label,
+            driver_kind=selection.driver_kind,
+            driver_config=dict(selection.driver_config),
         )
     if has_artifact:
         return RegressionTarget(
@@ -644,15 +695,17 @@ def _build_compare_target(
 
 
 def _build_direct_target_plan_config(
-    *,
-    service_mode: str,
-    service_artifact_dir: str | None,
-    adapter_base_url: str | None,
-) -> dict[str, str]:
+    selection: "_LegacySelection | _DriverConfigSelection",
+) -> dict[str, object]:
+    if isinstance(selection, _DriverConfigSelection):
+        return {
+            "driver_kind": selection.driver_kind,
+            "driver_config": dict(selection.driver_config),
+        }
     return {
-        "service_mode": service_mode,
-        "service_artifact_dir": service_artifact_dir or "",
-        "adapter_base_url": adapter_base_url or "",
+        "service_mode": selection.service_mode,
+        "service_artifact_dir": selection.service_artifact_dir or "",
+        "adapter_base_url": selection.adapter_base_url or "",
     }
 
 
@@ -681,6 +734,7 @@ def _collect_explicit_run_swarm_inputs(args: argparse.Namespace) -> dict[str, ob
         ("--target-url", "target_url"),
         ("--reference-artifact-dir", "reference_artifact_dir"),
         ("--use-mock", "use_mock"),
+        ("--driver-config-path", "driver_config_path"),
         ("--run-name", "run_name"),
         ("--include-slice-membership", "include_slice_membership"),
     ):
@@ -702,6 +756,7 @@ def _collect_explicit_audit_inputs(args: argparse.Namespace) -> dict[str, object
         ("--target-url", "target_url"),
         ("--reference-artifact-dir", "reference_artifact_dir"),
         ("--use-mock", "use_mock"),
+        ("--driver-config-path", "driver_config_path"),
         ("--run-name", "run_name"),
     ):
         if flag in args.provided_options:
@@ -727,8 +782,10 @@ def _collect_explicit_compare_inputs(args: argparse.Namespace) -> dict[str, obje
         ("--rerun-count", "rerun_count"),
         ("--baseline-artifact-dir", "baseline_artifact_dir"),
         ("--baseline-url", "baseline_url"),
+        ("--baseline-driver-config-path", "baseline_driver_config_path"),
         ("--candidate-artifact-dir", "candidate_artifact_dir"),
         ("--candidate-url", "candidate_url"),
+        ("--candidate-driver-config-path", "candidate_driver_config_path"),
         ("--baseline-label", "baseline_label"),
         ("--candidate-label", "candidate_label"),
         ("--policy-mode", "policy_mode"),
@@ -750,8 +807,10 @@ def _validate_audit_plan_arguments(args: argparse.Namespace) -> None:
         "--rerun-count",
         "--baseline-artifact-dir",
         "--baseline-url",
+        "--baseline-driver-config-path",
         "--candidate-artifact-dir",
         "--candidate-url",
+        "--candidate-driver-config-path",
         "--baseline-label",
         "--candidate-label",
         "--policy-mode",

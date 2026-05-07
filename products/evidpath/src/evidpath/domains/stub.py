@@ -6,6 +6,7 @@ supported recommender product story.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from contextlib import nullcontext
 from dataclasses import dataclass, replace
 from hashlib import sha1
@@ -105,6 +106,8 @@ def build_stub_run_config(
     service_mode: str = "reference",
     service_artifact_dir: str | None = None,
     adapter_base_url: str | None = None,
+    driver_kind: str | None = None,
+    driver_config: Mapping[str, object] | None = None,
     run_name: str | None = None,
 ) -> tuple[RunConfig, ResolvedRuntimeInputs]:
     """Resolve stub inputs, then build an explicit generic run config."""
@@ -121,6 +124,8 @@ def build_stub_run_config(
         service_mode=service_mode,
         service_artifact_dir=service_artifact_dir,
         adapter_base_url=adapter_base_url,
+        driver_kind=driver_kind,
+        driver_config=driver_config,
         run_name=run_name or "stub-audit",
     )
     return run_config, resolved_inputs
@@ -128,7 +133,11 @@ def build_stub_run_config(
 
 def build_stub_target_identity(target: RegressionTarget) -> str:
     """Return a short stable identity for stub-domain targets."""
-    if target.driver_kind == "http_native_external":
+    if target.driver_kind == "in_process":
+        raw = str(target.driver_config.get("import_path", "in_process"))
+        label = slugify_name(raw)
+        prefix = "in-proc"
+    elif target.driver_kind == "http_native_external":
         raw = str(target.driver_config.get("base_url", ""))
         label = slugify_name(raw or "external")
         prefix = "url"
@@ -155,6 +164,11 @@ def build_stub_target_audit_kwargs(target: RegressionTarget) -> dict[str, object
                 "http_native_external targets require driver_config.base_url."
             )
         return {"adapter_base_url": base_url}
+    if target.driver_kind == "in_process":
+        return {
+            "driver_kind": "in_process",
+            "driver_config": dict(target.driver_config),
+        }
     raise NotImplementedError(f"Unsupported stub driver kind: {target.driver_kind}")
 
 
@@ -176,9 +190,15 @@ def open_stub_service_context(run_config: RunConfig):
     return nullcontext((base_url, metadata))
 
 
-def build_stub_driver(base_url: str, timeout_seconds: float) -> "StubDriver":
+def build_stub_driver(
+    driver_kind: str,
+    driver_config: Mapping[str, object],
+    base_url: str | None,
+    timeout_seconds: float,
+) -> "StubDriver":
     """Build the local in-memory stub driver."""
-    return StubDriver(base_url=base_url, timeout_seconds=timeout_seconds)
+    del driver_kind, driver_config
+    return StubDriver(base_url=base_url or "stub://local", timeout_seconds=timeout_seconds)
 
 
 def summarize_stub_run_metrics(run_result: RunResult) -> dict[str, float]:

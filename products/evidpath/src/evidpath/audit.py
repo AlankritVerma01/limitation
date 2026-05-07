@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 
 from .cli_app.progress import ProgressCallback, emit_progress
@@ -28,6 +29,8 @@ def execute_domain_audit(
     service_mode: str = "reference",
     service_artifact_dir: str | None = None,
     adapter_base_url: str | None = None,
+    driver_kind: str | None = None,
+    driver_config: Mapping[str, object] | None = None,
     run_name: str | None = None,
     semantic_mode: str = "off",
     semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
@@ -47,6 +50,8 @@ def execute_domain_audit(
         service_mode=service_mode,
         service_artifact_dir=service_artifact_dir,
         adapter_base_url=adapter_base_url,
+        driver_kind=driver_kind,
+        driver_config=driver_config,
         run_name=run_name,
         semantic_mode=semantic_mode,
         semantic_model=semantic_model,
@@ -65,6 +70,8 @@ def execute_recommender_audit(
     service_mode: str = "reference",
     service_artifact_dir: str | None = None,
     adapter_base_url: str | None = None,
+    driver_kind: str | None = None,
+    driver_config: Mapping[str, object] | None = None,
     run_name: str | None = None,
     semantic_mode: str = "off",
     semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
@@ -82,6 +89,8 @@ def execute_recommender_audit(
         service_mode=service_mode,
         service_artifact_dir=service_artifact_dir,
         adapter_base_url=adapter_base_url,
+        driver_kind=driver_kind,
+        driver_config=driver_config,
         run_name=run_name,
         semantic_mode=semantic_mode,
         semantic_model=semantic_model,
@@ -138,6 +147,8 @@ def run_recommender_audit(
     service_mode: str = "reference",
     service_artifact_dir: str | None = None,
     adapter_base_url: str | None = None,
+    driver_kind: str | None = None,
+    driver_config: Mapping[str, object] | None = None,
     run_name: str | None = None,
     include_slice_membership: bool = False,
     semantic_mode: str = "off",
@@ -155,6 +166,8 @@ def run_recommender_audit(
         service_mode=service_mode,
         service_artifact_dir=service_artifact_dir,
         adapter_base_url=adapter_base_url,
+        driver_kind=driver_kind,
+        driver_config=driver_config,
         run_name=run_name,
         semantic_mode=semantic_mode,
         semantic_model=semantic_model,

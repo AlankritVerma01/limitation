@@ -11,7 +11,16 @@ from .definition import (
     build_recommender_domain_definition,
     build_recommender_run_config,
 )
-from .drivers import HttpNativeDriverConfig, HttpNativeRecommenderDriver
+from .drivers import (
+    EndpointMapping,
+    HttpNativeDriverConfig,
+    HttpNativeRecommenderDriver,
+    HttpSchemaMappedDriverConfig,
+    HttpSchemaMappedRecommenderDriver,
+    InProcessDriverConfig,
+    InProcessRecommenderDriver,
+    ResponseMapping,
+)
 from .inputs import (
     project_recommender_population,
     project_recommender_scenarios,
@@ -49,12 +58,18 @@ __all__ = [
     "CATALOG",
     "BUILT_IN_RECOMMENDER_SCENARIOS",
     "BUILT_IN_RECOMMENDER_SCENARIO_NAMES",
+    "EndpointMapping",
     "HttpNativeDriverConfig",
     "HttpNativeRecommenderDriver",
+    "HttpSchemaMappedDriverConfig",
+    "HttpSchemaMappedRecommenderDriver",
+    "InProcessDriverConfig",
+    "InProcessRecommenderDriver",
     "RecommenderAnalyzer",
     "RecommenderAgentPolicy",
     "RecommenderJudge",
     "RecommenderScenario",
+    "ResponseMapping",
     "build_reference_artifacts",
     "build_recommender_domain_definition",
     "build_recommender_run_config",

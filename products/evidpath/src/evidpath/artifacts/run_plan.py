@@ -559,6 +559,16 @@ def _validate_direct_target(
     workflow_type: str,
     plan_path: str,
 ) -> None:
+    driver_kind = str(target.get("driver_kind", "")).strip()
+    if driver_kind:
+        if not isinstance(target.get("driver_config"), dict):
+            raise ValueError(
+                _prefix_plan_error(
+                    plan_path,
+                    f"Run plan {workflow_type} target with driver_kind requires a driver_config object.",
+                )
+            )
+        return
     service_mode = str(target.get("service_mode", "")).strip()
     if service_mode not in {"reference", "mock"}:
         raise ValueError(

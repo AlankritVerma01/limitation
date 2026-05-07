@@ -1,0 +1,7 @@
+{
+  "driver_kind": "in_process",
+  "driver_config": {
+    "import_path": "examples.recommender_in_process.recsys:predict",
+    "backend_name": "popularity-baseline-v1"
+  }
+}

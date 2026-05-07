@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -313,6 +314,8 @@ class RolloutConfig:
     service_artifact_dir: str | None
     adapter_base_url: str | None
     service_timeout_seconds: float
+    driver_kind: str | None = None
+    driver_config: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -496,14 +499,14 @@ class RunResult:
         default_factory=lambda: SliceDiscoveryResult(())
     )
     semantic_interpretation: SemanticRunInterpretation | None = None
-    metadata: dict[str, str | int | float] = field(default_factory=dict)
+    metadata: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class RegressionTarget:
     label: str
     driver_kind: str
-    driver_config: dict[str, str | int | float | bool] = field(default_factory=dict)
+    driver_config: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
