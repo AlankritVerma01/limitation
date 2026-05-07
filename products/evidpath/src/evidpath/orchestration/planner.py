@@ -171,9 +171,13 @@ def plan_audit(request: AuditPlanRequest) -> AuditPlanContext:
             semantic_artifact_path=optional_str(semantic_advisory["artifact_path"]),
             semantic_rationale=str(semantic_advisory["rationale"]),
         ),
-        service_mode=request.target_config["service_mode"],
+        service_mode=str(request.target_config.get("service_mode", "")),
         service_artifact_dir=optional_str(request.target_config.get("service_artifact_dir")),
         adapter_base_url=optional_str(request.target_config.get("adapter_base_url")),
+        driver_kind=optional_str(request.target_config.get("driver_kind")),
+        driver_config=request.target_config.get("driver_config")
+        if isinstance(request.target_config.get("driver_config"), dict)
+        else None,
         output_root=request.output_root,
     )
 
@@ -355,9 +359,13 @@ def plan_run_swarm(request: RunSwarmPlanRequest) -> RunSwarmPlanContext:
             semantic_artifact_path=optional_str(semantic_advisory["artifact_path"]),
             semantic_rationale=str(semantic_advisory["rationale"]),
         ),
-        service_mode=request.target_config["service_mode"],
+        service_mode=str(request.target_config.get("service_mode", "")),
         service_artifact_dir=optional_str(request.target_config.get("service_artifact_dir")),
         adapter_base_url=optional_str(request.target_config.get("adapter_base_url")),
+        driver_kind=optional_str(request.target_config.get("driver_kind")),
+        driver_config=request.target_config.get("driver_config")
+        if isinstance(request.target_config.get("driver_config"), dict)
+        else None,
         output_root=request.output_root,
     )
 

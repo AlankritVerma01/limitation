@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,7 +14,7 @@ from ..schema import RegressionTarget, RunResult
 class AuditPlanRequest:
     domain_name: str
     output_root: str
-    target_config: dict[str, str]
+    target_config: dict[str, object]
     explicit_inputs: dict[str, Any]
     scenario_name: str
     scenario_pack_path: str | None
@@ -30,7 +31,7 @@ class RunSwarmPlanRequest:
     brief: str
     generation_mode: str
     output_root: str
-    target_config: dict[str, str]
+    target_config: dict[str, object]
     explicit_inputs: dict[str, Any]
     scenario_pack_path: str | None
     population_pack_path: str | None
@@ -51,8 +52,8 @@ class ComparePlanRequest:
     brief: str | None
     generation_mode: str
     output_root: str
-    baseline_target_config: dict[str, str]
-    candidate_target_config: dict[str, str]
+    baseline_target_config: dict[str, object]
+    candidate_target_config: dict[str, object]
     explicit_inputs: dict[str, Any]
     scenario_pack_path: str | None
     population_pack_path: str | None
@@ -78,6 +79,8 @@ class RunSwarmPlanContext:
     service_artifact_dir: str | None
     adapter_base_url: str | None
     output_root: str
+    driver_kind: str | None = None
+    driver_config: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -95,6 +98,8 @@ class AuditPlanContext:
     service_artifact_dir: str | None
     adapter_base_url: str | None
     output_root: str
+    driver_kind: str | None = None
+    driver_config: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -107,6 +112,8 @@ class AuditExecutionRequest:
     seed: int
     output_dir: str | None
     run_name: str | None
+    driver_kind: str | None = None
+    driver_config: Mapping[str, object] | None = None
     include_slice_membership: bool = False
 
 
@@ -121,6 +128,8 @@ class RunSwarmExecutionRequest:
     seed: int
     output_dir: str | None
     run_name: str | None
+    driver_kind: str | None = None
+    driver_config: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True)

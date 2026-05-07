@@ -82,6 +82,9 @@ def write_run_manifest(
         "service": {
             "service_kind": str(run_result.metadata.get("service_kind", "")),
             "target_driver_kind": str(run_result.metadata.get("target_driver_kind", "")),
+            "target_driver_config": dict(
+                run_result.metadata.get("target_driver_config", {})
+            ),
             "target_identity": str(run_result.metadata.get("target_identity", "")),
             "target_endpoint_host": str(
                 run_result.metadata.get("target_endpoint_host", "")

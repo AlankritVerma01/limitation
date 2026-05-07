@@ -1,0 +1,31 @@
+{
+  "driver_kind": "http_schema_mapped",
+  "driver_config": {
+    "base_url": "http://127.0.0.1:8071",
+    "timeout_seconds": 2.0,
+    "predict": {
+      "method": "POST",
+      "path": "/v1/predict",
+      "headers": {"Content-Type": "application/json"},
+      "body": {
+        "user_id": "${agent_id}",
+        "history": "${history_item_ids}",
+        "n": 5
+      },
+      "response": {
+        "items_path": "predictions",
+        "item_id_field": "movie_id",
+        "score_field": "confidence",
+        "title_field": "title"
+      }
+    },
+    "health": {"method": "GET", "path": "/healthz"},
+    "metadata": {
+      "method": "GET",
+      "path": "/v1/info",
+      "response": {
+        "flat_field_map": {"model_kind": "model.name"}
+      }
+    }
+  }
+}

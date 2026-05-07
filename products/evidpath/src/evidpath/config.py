@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from pathlib import Path
 
 from .schema import AgentSeed, RolloutConfig, RunConfig, ScenarioConfig, ScoringConfig
@@ -35,6 +36,9 @@ def build_run_config(
     service_mode: str = "reference",
     service_artifact_dir: str | None = None,
     adapter_base_url: str | None = None,
+    service_timeout_seconds: float = 2.0,
+    driver_kind: str | None = None,
+    driver_config: Mapping[str, object] | None = None,
     run_name: str | None = None,
 ) -> RunConfig:
     """Build a run config from explicit runtime inputs without domain defaulting."""
@@ -48,7 +52,9 @@ def build_run_config(
         service_mode=service_mode,
         service_artifact_dir=service_artifact_dir,
         adapter_base_url=adapter_base_url,
-        service_timeout_seconds=2.0,
+        service_timeout_seconds=service_timeout_seconds,
+        driver_kind=driver_kind,
+        driver_config=dict(driver_config) if driver_config else None,
     )
     return RunConfig(
         run_name=resolved_run_name,

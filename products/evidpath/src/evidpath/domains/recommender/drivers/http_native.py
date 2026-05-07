@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from urllib import request
-from urllib.error import HTTPError, URLError
 
 from ....schema import (
     AdapterRequest,
@@ -137,22 +136,11 @@ class HttpNativeRecommenderDriver:
         return AdapterResponse(request_id=request_id, items=items)
 
     def _request_json(self, req: request.Request, *, purpose: str) -> dict:
-        try:
-            with request.urlopen(req, timeout=self.timeout_seconds) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except HTTPError as exc:
+        from ._http import request_json
+
+        body = request_json(req, timeout=self.timeout_seconds, purpose=purpose)
+        if not isinstance(body, dict):
             raise RuntimeError(
-                f"Recommender target failed during {purpose}: HTTP {exc.code} from {self.base_url}."
-            ) from exc
-        except URLError as exc:
-            raise RuntimeError(
-                f"Recommender target was unreachable during {purpose}: {self.base_url}."
-            ) from exc
-        except TimeoutError as exc:
-            raise RuntimeError(
-                f"Recommender target timed out during {purpose}: {self.base_url}."
-            ) from exc
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(
-                f"Recommender target returned malformed JSON during {purpose}: {self.base_url}."
-            ) from exc
+                f"Recommender target returned an invalid JSON payload: {self.base_url}."
+            )
+        return body
