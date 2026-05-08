@@ -22,6 +22,7 @@ from ..schema import (
     SlateItem,
     TraceStep,
     UtilityBreakdown,
+    trace_metric,
 )
 
 __all__ = [
@@ -46,4 +47,5 @@ __all__ = [
     "SlateItem",
     "TraceStep",
     "UtilityBreakdown",
+    "trace_metric",
 ]

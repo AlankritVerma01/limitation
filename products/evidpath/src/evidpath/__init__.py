@@ -55,6 +55,7 @@ from .schema import (
     TraceScore,
     TraceStep,
     UtilityBreakdown,
+    trace_metric,
 )
 
 
@@ -122,4 +123,5 @@ __all__ = [
     "register_domain_definition",
     "run_domain_regression_audit",
     "run_regression_audit",
+    "trace_metric",
 ]

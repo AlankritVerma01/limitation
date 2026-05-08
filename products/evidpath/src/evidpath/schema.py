@@ -410,6 +410,20 @@ class TraceScore:
     dominant_failure_mode: FailureMode = "no_major_failure"
     trace_risk_score: float = 0.0
     failure_evidence_summary: str = ""
+    domain_metrics: Mapping[str, float | int | str] = field(default_factory=dict)
+
+
+def trace_metric(
+    trace_score: TraceScore,
+    metric_name: str,
+    default: float | int | str = 0.0,
+) -> float | int | str:
+    """Read a trace metric from common fields or domain metrics."""
+    if hasattr(trace_score, metric_name):
+        value = getattr(trace_score, metric_name)
+        if isinstance(value, (float, int, str)):
+            return value
+    return trace_score.domain_metrics.get(metric_name, default)
 
 
 @dataclass(frozen=True)
