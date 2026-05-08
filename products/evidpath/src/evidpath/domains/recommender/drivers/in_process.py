@@ -109,3 +109,33 @@ class InProcessRecommenderDriver:
             raise ImportError(
                 f"Module `{module_path}` has no attribute `{attr}`. Public names: {public_names!r}."
             ) from None
+
+    @classmethod
+    def from_callable(
+        cls,
+        target: object,
+        *,
+        backend_name: str | None = None,
+    ) -> "InProcessRecommenderDriver":
+        """Construct an in-process driver from a callable, class, or instance."""
+        instance = cls.__new__(cls)
+        if isinstance(target, type):
+            impl = target()
+            call_predict = impl.predict
+            resolved_backend = backend_name or target.__name__
+        elif callable(target) and not hasattr(target, "predict"):
+            impl = target
+            call_predict = target
+            resolved_backend = backend_name or getattr(target, "__name__", "<inline>")
+        elif hasattr(target, "predict") and callable(target.predict):
+            impl = target
+            call_predict = target.predict
+            resolved_backend = backend_name or type(target).__name__
+        else:
+            raise TypeError(
+                f"`{type(target).__name__}` is not a callable, class, or class instance with .predict."
+            )
+        instance._impl = impl
+        instance._call_predict = call_predict
+        instance._backend_name = resolved_backend
+        return instance

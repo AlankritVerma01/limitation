@@ -81,6 +81,10 @@ jobs:
         run: |
           uv run --locked pytest products/evidpath/tests/domains/recommender/test_drivers_in_process_slow.py::test_in_process_audit_is_deterministic_across_twin_runs --run-slow -v
 
+      - name: Run Python-API determinism check
+        run: |
+          uv run --locked pytest products/evidpath/tests/test_audit_python_api_slow.py::test_python_api_audit_is_deterministic_across_twin_runs --run-slow -v
+
   slow-tests:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest

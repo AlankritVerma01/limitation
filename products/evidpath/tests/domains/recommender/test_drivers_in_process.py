@@ -151,6 +151,60 @@ def test_in_process_driver_runs_through_audit(tmp_path: Path) -> None:
     assert run_result.trace_scores
 
 
+def test_from_callable_accepts_function() -> None:
+    def predict(request):
+        return AdapterResponse(
+            request_id=request.request_id,
+            items=(
+                SlateItem(
+                    item_id="x",
+                    title="",
+                    genre="",
+                    score=1.0,
+                    rank=1,
+                    popularity=0.0,
+                    novelty=0.0,
+                ),
+            ),
+        )
+
+    driver = InProcessRecommenderDriver.from_callable(predict)
+    metadata = driver.get_service_metadata()
+    assert metadata["service_kind"] == "in_process"
+    assert metadata["backend_name"] == "predict"
+
+
+def test_from_callable_accepts_class_instance() -> None:
+    class Recsys:
+        service_metadata = {"model_kind": "popularity"}
+
+        def predict(self, request):
+            return AdapterResponse(
+                request_id=request.request_id,
+                items=(),
+            )
+
+    instance = Recsys()
+    driver = InProcessRecommenderDriver.from_callable(instance, backend_name="my-recsys")
+    metadata = driver.get_service_metadata()
+    assert metadata["backend_name"] == "my-recsys"
+    assert metadata["model_kind"] == "popularity"
+
+
+def test_from_callable_accepts_class_type_and_instantiates() -> None:
+    class Recsys:
+        def predict(self, request):
+            return AdapterResponse(request_id=request.request_id, items=())
+
+    driver = InProcessRecommenderDriver.from_callable(Recsys)
+    assert driver.get_service_metadata()["backend_name"] == "Recsys"
+
+
+def test_from_callable_rejects_non_callable() -> None:
+    with pytest.raises(TypeError, match="callable"):
+        InProcessRecommenderDriver.from_callable(42)
+
+
 def _register_module(name: str, attrs: dict[str, object]) -> None:
     module = ModuleType(name)
     for key, value in attrs.items():

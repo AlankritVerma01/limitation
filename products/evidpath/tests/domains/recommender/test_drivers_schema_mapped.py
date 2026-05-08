@@ -81,6 +81,45 @@ def test_resolve_dot_path_and_extract_items() -> None:
     assert extract_items(payload, mapping)[0].title == "Heat"
 
 
+def test_extract_items_uses_jsonpath_when_path_starts_with_dollar() -> None:
+    payload = {
+        "buckets": [
+            {"name": "main", "items": [{"movie_id": "m1", "confidence": 0.9}]},
+            {"name": "fallback", "items": [{"movie_id": "m2", "confidence": 0.5}]},
+        ]
+    }
+    mapping = ResponseMapping(
+        items_path="$.buckets[?(@.name=='main')].items[*]",
+        item_id_field="movie_id",
+        score_field="confidence",
+    )
+    items = extract_items(payload, mapping)
+    assert len(items) == 1
+    assert items[0].item_id == "m1"
+    assert items[0].score == pytest.approx(0.9)
+
+
+def test_extract_items_dot_path_unchanged_for_non_dollar_paths() -> None:
+    payload = {"predictions": [{"movie_id": "m1", "confidence": 0.91}]}
+    mapping = ResponseMapping(
+        items_path="predictions",
+        item_id_field="movie_id",
+        score_field="confidence",
+    )
+    items = extract_items(payload, mapping)
+    assert items[0].item_id == "m1"
+
+
+def test_extract_items_jsonpath_parse_error_surfaces() -> None:
+    mapping = ResponseMapping(
+        items_path="$.items[?(@.name!='x')]",
+        item_id_field="id",
+        score_field="s",
+    )
+    with pytest.raises(ResponseExtractionError, match="JSONPath"):
+        extract_items({"items": []}, mapping)
+
+
 def test_resolve_dot_path_missing_segment_raises_with_path() -> None:
     with pytest.raises(ResponseExtractionError, match="items.5"):
         resolve_dot_path({"items": [{"id": "x"}]}, "items.5.id")

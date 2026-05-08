@@ -1,0 +1,19 @@
+{
+  "driver_kind": "http_schema_mapped",
+  "driver_config": {
+    "base_url": "http://127.0.0.1:8073",
+    "timeout_seconds": 2.0,
+    "predict": {
+      "method": "POST",
+      "path": "/v1/predict",
+      "headers": {"Content-Type": "application/json"},
+      "body": {"user_id": "${agent_id}"},
+      "response": {
+        "items_path": "$.buckets[?(@.name=='main')].items[*]",
+        "item_id_field": "movie_id",
+        "score_field": "confidence",
+        "title_field": "title"
+      }
+    }
+  }
+}

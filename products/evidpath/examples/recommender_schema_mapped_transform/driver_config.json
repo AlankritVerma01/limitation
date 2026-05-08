@@ -1,0 +1,19 @@
+{
+  "driver_kind": "http_schema_mapped",
+  "driver_config": {
+    "base_url": "http://127.0.0.1:8074",
+    "timeout_seconds": 2.0,
+    "predict": {
+      "method": "POST",
+      "path": "/v1/predict",
+      "headers": {"Content-Type": "application/json"},
+      "body": {},
+      "response": {
+        "items_path": "predictions",
+        "item_id_field": "movie_id",
+        "score_field": "confidence"
+      }
+    },
+    "transform_request_module": "examples.recommender_schema_mapped_transform.evidpath_transform"
+  }
+}
