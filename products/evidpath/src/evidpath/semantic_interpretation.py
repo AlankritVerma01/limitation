@@ -23,6 +23,7 @@ from .schema import (
     SemanticRegressionInterpretation,
     SemanticRunInterpretation,
     SemanticTraceExplanation,
+    trace_metric,
 )
 
 
@@ -323,10 +324,10 @@ def _run_trace_contexts(run_result: RunResult) -> tuple[dict[str, object], ...]:
                 "scenario_name": trace.scenario_name,
                 "scenario_profile": _scenario_profile(trace),
                 "archetype_label": trace.agent_seed.archetype_label,
-                "dominant_failure_mode": score.dominant_failure_mode,
-                "session_utility": score.session_utility,
-                "trust_delta": score.trust_delta,
-                "skip_rate": score.skip_rate,
+                "dominant_failure_mode": trace_metric(score, "dominant_failure_mode", ""),
+                "session_utility": trace_metric(score, "session_utility"),
+                "trust_delta": trace_metric(score, "trust_delta"),
+                "skip_rate": trace_metric(score, "skip_rate"),
                 "abandoned": score.abandoned,
                 "failure_evidence_summary": score.failure_evidence_summary,
                 "slice_signatures": _trace_slice_signatures(run_result, trace.trace_id),

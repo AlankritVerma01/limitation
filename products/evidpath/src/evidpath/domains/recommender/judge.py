@@ -13,7 +13,9 @@ class RecommenderJudge:
         session_trace: SessionTrace,
         scoring_config: ScoringConfig,
     ) -> TraceScore:
-        exposures = [item for step in session_trace.steps for item in step.slate.items]
+        exposures = [
+            item for step in session_trace.steps for item in step.ranked_list.items
+        ]
         exposure_ids = [item.item_id for item in exposures]
         repeated_exposures = len(exposure_ids) - len(set(exposure_ids))
         repetition = repeated_exposures / len(exposures) if exposures else 0.0
@@ -46,7 +48,7 @@ class RecommenderJudge:
             clicked = next(
                 (
                     item
-                    for item in step.slate.items
+                    for item in step.ranked_list.items
                     if item.item_id == step.action.selected_item_id
                 ),
                 None,
@@ -405,7 +407,9 @@ class RecommenderJudge:
         opportunities = 0
         acceptances = 0
         for step in session_trace.steps:
-            high_novelty_items = [item for item in step.slate.items if item.novelty >= 0.65]
+            high_novelty_items = [
+                item for item in step.ranked_list.items if item.novelty >= 0.65
+            ]
             if not high_novelty_items:
                 continue
             opportunities += 1
@@ -485,5 +489,8 @@ class RecommenderJudge:
         )
         if top_item_id is None:
             return None
-        top_item = next((item for item in step.slate.items if item.item_id == top_item_id), None)
+        top_item = next(
+            (item for item in step.ranked_list.items if item.item_id == top_item_id),
+            None,
+        )
         return top_item.novelty if top_item is not None else None

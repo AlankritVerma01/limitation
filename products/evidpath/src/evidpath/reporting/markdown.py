@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..contracts.core import RunResult
+from ..contracts.core import RunResult, trace_metric
 from .base import ReportBulletSection, ReportTableSection
 
 _RISK_ORDER = {"low": 0, "medium": 1, "high": 2}
@@ -245,10 +245,13 @@ class MarkdownReportWriter:
             "| --- | --- | --- | --- | --- | --- | --- |",
         ]
         for score in run_result.trace_scores:
+            session_utility = float(trace_metric(score, "session_utility"))
+            trace_risk_score = float(trace_metric(score, "trace_risk_score"))
+            failure_mode = str(trace_metric(score, "dominant_failure_mode", ""))
             lines.append(
                 f"| {score.trace_id} | {score.scenario_name} | {score.archetype_label} | "
-                f"{score.session_utility:.3f} | {score.dominant_failure_mode} | "
-                f"{score.trace_risk_score:.3f} | "
+                f"{session_utility:.3f} | {failure_mode} | "
+                f"{trace_risk_score:.3f} | "
                 f"{score.abandoned} |"
             )
         return lines
@@ -377,7 +380,7 @@ class MarkdownReportWriter:
         lines: list[str] = []
         for step in trace.steps[:3]:
             selected = step.action.selected_item_id or "none"
-            top_titles = ", ".join(item.title for item in step.slate.items[:3])
+            top_titles = ", ".join(item.title for item in step.ranked_list.items[:3])
             explanation = step.decision_explanation
             reason = explanation.reason if explanation is not None else step.action.reason
             dominant = (
@@ -387,7 +390,7 @@ class MarkdownReportWriter:
             )
             lines.append(
                 f"- Step {step.step_index + 1}: action `{step.action.name}` "
-                f"(`{selected}`), top slate: {top_titles}"
+                f"(`{selected}`), top ranked list: {top_titles}"
             )
             lines.append(
                 f"  reason: `{reason}` via `{dominant}`; {step.state_delta_summary}"
