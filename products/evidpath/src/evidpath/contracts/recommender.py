@@ -1,6 +1,8 @@
 """Recommender-domain contract exports layered on top of the shared core."""
 
 from ..schema import (
+    AdapterRequest,
+    AdapterResponse,
     AgentSeed,
     AgentState,
     AnalysisResult,
@@ -24,9 +26,14 @@ from ..schema import (
     TraceScore,
 )
 
+RecommenderRequest = AdapterRequest
+RecommenderResponse = AdapterResponse
+
 __all__ = [
     "AgentSeed",
     "AgentState",
+    "RecommenderRequest",
+    "RecommenderResponse",
     "AnalysisResult",
     "CohortSummary",
     "FailureMode",
@@ -47,4 +54,3 @@ __all__ = [
     "TraceDelta",
     "TraceScore",
 ]
-

@@ -283,7 +283,7 @@ class StubDriver:
         self.base_url = base_url
         self.timeout_seconds = timeout_seconds
 
-    def get_slate(
+    def get_ranked_list(
         self,
         agent_state: AgentState,
         observation: Observation,
@@ -315,6 +315,15 @@ class StubDriver:
             step_index=observation.step_index,
             items=items,
         )
+
+    def get_slate(
+        self,
+        agent_state: AgentState,
+        observation: Observation,
+        scenario_config: ScenarioConfig,
+    ) -> Slate:
+        """Return a stub slate for compatibility with existing callers."""
+        return self.get_ranked_list(agent_state, observation, scenario_config)
 
     def get_service_metadata(self) -> dict[str, str | int | float]:
         return {

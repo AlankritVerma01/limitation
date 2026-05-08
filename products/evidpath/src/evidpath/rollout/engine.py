@@ -48,10 +48,14 @@ def run_rollouts(
             abandoned = False
 
             while not scenario.should_stop(observation):
-                slate = adapter.get_slate(agent_state, observation, matching_config)
+                ranked_list = adapter.get_ranked_list(
+                    agent_state,
+                    observation,
+                    matching_config,
+                )
                 decision = agent_policy.choose_action(
                     agent_state,
-                    slate,
+                    ranked_list,
                     observation,
                     matching_config,
                     rng,
@@ -59,7 +63,7 @@ def run_rollouts(
                 updated_state = agent_policy.update_state(
                     agent_state,
                     decision,
-                    slate,
+                    ranked_list,
                     observation,
                     rng,
                 )
@@ -73,7 +77,7 @@ def run_rollouts(
                     TraceStep(
                         step_index=observation.step_index,
                         observation=observation,
-                        slate=slate,
+                        ranked_list=ranked_list,
                         action=decision.action,
                         agent_state_before=agent_state,
                         agent_state_after=updated_state,

@@ -10,9 +10,9 @@ from ..schema import (
     AgentSeed,
     AgentState,
     Observation,
+    RankedList,
     ScenarioConfig,
     ScenarioContext,
-    Slate,
 )
 
 
@@ -28,7 +28,7 @@ class AgentPolicy(Protocol):
     def choose_action(
         self,
         agent_state: AgentState,
-        slate: Slate,
+        ranked_list: RankedList,
         observation: Observation,
         scenario_config: ScenarioConfig,
         rng: Random,
@@ -38,7 +38,7 @@ class AgentPolicy(Protocol):
         self,
         agent_state: AgentState,
         decision: ActionDecision,
-        slate: Slate,
+        ranked_list: RankedList,
         observation: Observation,
         rng: Random,
     ) -> AgentState: ...

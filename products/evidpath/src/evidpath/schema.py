@@ -35,7 +35,7 @@ class Item:
 
 
 @dataclass(frozen=True)
-class SlateItem:
+class RankedItem:
     item_id: str
     title: str
     genre: str
@@ -43,13 +43,24 @@ class SlateItem:
     rank: int
     popularity: float
     novelty: float
+    item_type: str = ""
+    metadata: Mapping[str, str | int | float | bool] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
-class Slate:
+class RankedList:
     slate_id: str
     step_index: int
-    items: tuple[SlateItem, ...]
+    items: tuple[RankedItem, ...]
+
+    @property
+    def ranked_list_id(self) -> str:
+        """Return the domain-neutral identifier for this ranked list."""
+        return self.slate_id
+
+
+SlateItem = RankedItem
+Slate = RankedList
 
 
 @dataclass(frozen=True)
@@ -206,16 +217,48 @@ class AdapterResponse:
     items: tuple[SlateItem, ...]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class TraceStep:
     step_index: int
     observation: Observation
-    slate: Slate
+    ranked_list: RankedList
     action: Action
     agent_state_before: AgentState
     agent_state_after: AgentState
     decision_explanation: DecisionExplanation | None = None
     state_delta_summary: str = ""
+
+    def __init__(
+        self,
+        *,
+        step_index: int,
+        observation: Observation,
+        action: Action,
+        agent_state_before: AgentState,
+        agent_state_after: AgentState,
+        ranked_list: RankedList | None = None,
+        slate: RankedList | None = None,
+        decision_explanation: DecisionExplanation | None = None,
+        state_delta_summary: str = "",
+    ) -> None:
+        if ranked_list is None and slate is None:
+            raise TypeError("TraceStep requires `ranked_list`.")
+        if ranked_list is not None and slate is not None and ranked_list != slate:
+            raise TypeError("TraceStep accepts either `ranked_list` or `slate`, not both.")
+        resolved_ranked_list = ranked_list if ranked_list is not None else slate
+        object.__setattr__(self, "step_index", step_index)
+        object.__setattr__(self, "observation", observation)
+        object.__setattr__(self, "ranked_list", resolved_ranked_list)
+        object.__setattr__(self, "action", action)
+        object.__setattr__(self, "agent_state_before", agent_state_before)
+        object.__setattr__(self, "agent_state_after", agent_state_after)
+        object.__setattr__(self, "decision_explanation", decision_explanation)
+        object.__setattr__(self, "state_delta_summary", state_delta_summary)
+
+    @property
+    def slate(self) -> RankedList:
+        """Return the ranked list using the legacy recommender term."""
+        return self.ranked_list
 
 
 @dataclass(frozen=True)

@@ -7,6 +7,8 @@ from ..schema import (
     AdapterResponse,
     DecisionExplanation,
     Observation,
+    RankedItem,
+    RankedList,
     RegressionDiff,
     RegressionTarget,
     RolloutConfig,
@@ -31,6 +33,8 @@ __all__ = [
     "Observation",
     "RegressionDiff",
     "RegressionTarget",
+    "RankedItem",
+    "RankedList",
     "RolloutConfig",
     "RunArtifactPaths",
     "RunConfig",
@@ -43,4 +47,3 @@ __all__ = [
     "TraceStep",
     "UtilityBreakdown",
 ]
-
