@@ -194,6 +194,73 @@ def test_search_schema_mapped_driver_percent_encodes_get_query_path() -> None:
         server.shutdown()
 
 
+def test_search_schema_mapped_driver_encodes_reserved_chars_in_get_query_value() -> None:
+    captured = {}
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            captured["path"] = self.path
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(
+                json.dumps(
+                    {
+                        "hits": [
+                            {
+                                "id": "r1",
+                                "headline": "Sale Search",
+                                "summary": "Results for a reserved-character query.",
+                                "link": "https://example.com/sale",
+                                "kind": "commerce",
+                                "score": 0.91,
+                            }
+                        ]
+                    }
+                ).encode("utf-8")
+            )
+
+        def log_message(self, *args):
+            pass
+
+    server, base_url = _start_mock_server(Handler)
+    try:
+        driver = HttpSchemaMappedSearchDriver(
+            HttpSchemaMappedSearchDriverConfig.from_dict(
+                {
+                    "base_url": base_url,
+                    "search": {
+                        "method": "GET",
+                        "path": "/v1/search?q=${query}&source=test",
+                        "response": {
+                            "results_path": "hits",
+                            "result_id_field": "id",
+                            "title_field": "headline",
+                            "snippet_field": "summary",
+                            "url_field": "link",
+                            "type_field": "kind",
+                            "relevance_score_field": "score",
+                        },
+                    },
+                }
+            )
+        )
+
+        ranked_list = driver.get_ranked_list(
+            _dummy_state(),
+            _dummy_observation("AT&T 50% off a&b=c"),
+            _dummy_scenario(),
+        )
+
+        assert (
+            captured["path"]
+            == "/v1/search?q=AT%26T%2050%25%20off%20a%26b%3Dc&source=test"
+        )
+        assert ranked_list.items[0].item_id == "r1"
+    finally:
+        server.shutdown()
+
+
 def test_search_template_substitute_preserves_pure_marker_type() -> None:
     assert substitute({"query": "${query}"}, {"query": "weather alerts"}) == {
         "query": "weather alerts"
@@ -234,7 +301,7 @@ def _dummy_state() -> AgentState:
     )
 
 
-def _dummy_observation() -> Observation:
+def _dummy_observation(context_hint: str = "weather alerts") -> Observation:
     return Observation(
         session_id="session-1",
         step_index=0,
@@ -247,7 +314,7 @@ def _dummy_observation() -> Observation:
             description="",
             scenario_id="search-scenario",
             runtime_profile="",
-            context_hint="weather alerts",
+            context_hint=context_hint,
         ),
     )
 
