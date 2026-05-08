@@ -9,9 +9,11 @@ from __future__ import annotations
 
 from .domains.base import DomainDefinition
 from .domains.recommender import build_recommender_domain_definition
+from .domains.search import build_search_domain_definition
 
 _DOMAIN_DEFINITIONS: dict[str, DomainDefinition] = {
     "recommender": build_recommender_domain_definition(),
+    "search": build_search_domain_definition(),
 }
 
 
