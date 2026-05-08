@@ -25,9 +25,9 @@ Evidpath is built for a simple job:
 - save a report and machine-readable output
 - compare a baseline and a candidate before launch
 
-For `0.1.0`, the primary supported path is an external recommender endpoint.
-The built-in reference target is still useful for demos, onboarding, and local
-development, but it is not the main packaged-user path.
+For `0.1.0`, the main supported paths are an external recommender endpoint
+and an in-process Python callable. The built-in reference target is still
+useful for demos, onboarding, and local development.
 
 ## Who It Is For
 
@@ -45,9 +45,9 @@ Typical users:
 You need:
 
 - Python `3.11+`
-- a recommender HTTP endpoint you want to test
-- an endpoint that follows the request and response shape in
-  [EXTERNAL_TARGET_CONTRACT.md](./EXTERNAL_TARGET_CONTRACT.md)
+- a recommender HTTP endpoint, or a Python callable/class you want to test
+- for native HTTP targets, an endpoint that follows the request and response
+  shape in [EXTERNAL_TARGET_CONTRACT.md](./EXTERNAL_TARGET_CONTRACT.md)
 
 Install the package:
 
@@ -154,25 +154,59 @@ need.
 
 ## Using Your Own Recommender
 
-The main user path is an external HTTP target.
+### Native HTTP Target
 
-In practice that means:
+If your service already speaks Evidpath's native contract:
 
 - your team owns the recommender service
 - Evidpath calls that service over HTTP
 - the service returns recommendation slates and metadata in the documented shape
 
-Most teams do not need to hand Evidpath their model files or training data.
-They just need a reachable endpoint.
-
 Start here if you want the exact contract:
 
 - [EXTERNAL_TARGET_CONTRACT.md](./EXTERNAL_TARGET_CONTRACT.md)
 
-If you want a local service that behaves like a customer-owned endpoint, use:
+If you want a local service that behaves like a customer-owned endpoint:
 
 - [examples/recommender_http_service/README.md](./examples/recommender_http_service/README.md)
 - [examples/hf_recommender_service/README.md](./examples/hf_recommender_service/README.md)
+
+### Existing HTTP Shape
+
+If your service has a different request or response shape, use the
+schema-mapped driver instead of rewriting the service:
+
+- [examples/recommender_external_shape/README.md](./examples/recommender_external_shape/README.md)
+- [examples/recommender_schema_mapped_jsonpath/README.md](./examples/recommender_schema_mapped_jsonpath/README.md)
+- [examples/recommender_schema_mapped_transform/README.md](./examples/recommender_schema_mapped_transform/README.md)
+
+Schema-mapped response `items_path` supports dot paths such as `predictions`
+and a small JSONPath subset for selecting nested arrays, for example
+`$.buckets[?(@.name=='main')].items[*]`. If declarative mapping is not enough,
+`transform_request_module` and `transform_response_module` can point at Python
+functions named `transform_request` and `transform_response`.
+
+### Python Callable
+
+If your recommender is already a Python function, class, or class instance,
+call it directly:
+
+```python
+from evidpath import audit
+
+result = audit(callable=predict, seed=0)
+```
+
+Start here:
+
+- [examples/recommender_in_process_python_api/README.md](./examples/recommender_in_process_python_api/README.md)
+- [examples/recommender_in_process/README.md](./examples/recommender_in_process/README.md)
+
+Optional adapters are available for common framework objects:
+
+- `pip install evidpath[huggingface]` for `evidpath.adapters.huggingface.wrap_pipeline`
+- `pip install evidpath[mlflow]` for `evidpath.adapters.mlflow.wrap_pyfunc`
+- `pip install evidpath[sklearn]` for `evidpath.adapters.sklearn.wrap_classifier`
 
 ## Reference, Demo, And Mock Paths
 

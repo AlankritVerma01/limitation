@@ -47,11 +47,20 @@ evidpath compare --domain recommender --baseline-url http://127.0.0.1:8051 --can
 
 ## What You Need
 
-- a recommender HTTP endpoint
-- the request and response shape described in the
+- a recommender HTTP endpoint, or a Python callable/class
+- for native HTTP targets, the request and response shape described in the
   [external target contract](https://github.com/NDETERMINA/limitation/blob/main/products/evidpath/EXTERNAL_TARGET_CONTRACT.md)
 
-The external endpoint path is the main packaged-user path for `0.1.0`.
+If your HTTP service has a different shape, use a schema-mapped driver config
+with dot paths, JSONPath `items_path`, or small Python transforms. If your
+recommender is local Python code, use `evidpath.audit(callable=predict, ...)`.
+
+Optional extras provide adapters for common in-process objects:
+
+- `evidpath[huggingface]`
+- `evidpath[mlflow]`
+- `evidpath[sklearn]`
+
 The reference target remains available in the repo for demos and local
 onboarding.
 

@@ -1,11 +1,12 @@
 # External Target Contract
 
-This document describes the v1 customer integration path for recommender
+This document describes the native HTTP integration contract for recommender
 systems.
 
 ## What The Customer Provides
 
-In v1, the real customer path is an external HTTP target.
+The simplest service integration is an external HTTP target that already speaks
+Evidpath's native request and response contract.
 
 A customer typically provides:
 
@@ -14,18 +15,22 @@ A customer typically provides:
 - returned item metadata in the expected shape
 - any deployment details needed to keep that service reachable
 
-This first pass does **not** require:
+This path does **not** require:
 
 - dataset handoff into the harness
 - raw model files
 - direct model loading inside the harness
 - auth support
 
-If a team already has a served recommender, the harness integrates at that
-service boundary. If a team only has model code or artifacts, the recommended
-path is to wrap them behind this HTTP contract rather than teaching the harness
-to load them directly. The repo includes both a basic wrapper example and a
-Hugging Face-backed wrapper example under `examples/`.
+If your service uses a different HTTP shape, use the schema-mapped driver
+instead of changing your service. It supports dot-path extraction, a small
+JSONPath subset for `items_path`, and optional Python request/response
+transforms. If your recommender is local Python code, use
+`evidpath.audit(callable=...)` or the in-process driver.
+
+The repo includes examples for the native HTTP contract, schema-mapped HTTP
+targets, in-process Python callables, and framework adapters under
+`examples/`.
 
 ## Supported Endpoints
 
@@ -111,10 +116,13 @@ uv run python -m evidpath check-target --domain recommender \
 ## Mental Model
 
 - external target = real customer path
+- schema-mapped target = existing customer HTTP shape
+- in-process target = local Python callable/class path
 - reference target = product-owned local/demo path
 - mock target = internal-only fixture/debug path
 
-The harness uses the same adapter flow for both, but the external target is the
-main path for real usage. The reference target exists to make demos,
-onboarding, CI, and local proof runs easy. The mock target exists only for
-narrow internal tests and debug loops.
+The native external target is the smallest service integration when your API
+can speak this contract. Schema-mapped and in-process targets cover teams that
+already have a different HTTP shape or local Python model code. The reference
+target exists to make demos, onboarding, CI, and local proof runs easy. The
+mock target exists only for narrow internal tests and debug loops.
