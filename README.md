@@ -10,8 +10,8 @@ tests, saving clear evidence, and comparing two versions before they ship.
 
 ## What Evidpath Helps You Do
 
-- check that your recommender endpoint is wired correctly
-- run a repeatable audit against a real target URL
+- check that your recommender endpoint or Python callable is wired correctly
+- run a repeatable audit against a real target URL or in-process target
 - open a report that shows who struggled and why
 - compare a baseline and a candidate before launch
 
@@ -113,6 +113,9 @@ large:
 ```bash
 uv sync --group hf-example
 ```
+
+Framework adapters for in-process audits are also optional package extras:
+`evidpath[huggingface]`, `evidpath[mlflow]`, and `evidpath[sklearn]`.
 
 ## Background
 
