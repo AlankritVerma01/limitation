@@ -37,6 +37,7 @@ from .schema import (
     RunResult,
     SliceDelta,
     TraceDelta,
+    trace_metric,
 )
 from .semantic_interpretation import interpret_regression_semantics
 
@@ -485,7 +486,10 @@ def _summarize_target_runs(
         metrics = domain_definition.summarize_run_metrics(run_result)
         for metric_name, value in metrics.items():
             metric_values[metric_name].append(value)
-        failure_mode_counts.update(score.dominant_failure_mode for score in run_result.trace_scores)
+        failure_mode_counts.update(
+            str(trace_metric(score, "dominant_failure_mode", "no_major_failure"))
+            for score in run_result.trace_scores
+        )
 
     metric_summaries = tuple(
         _build_metric_summary(metric_name, tuple(values))
@@ -779,9 +783,16 @@ def _aggregate_trace_scores(run_results: tuple[RunResult, ...]) -> dict[str, dic
             bucket = aggregate[score.trace_id]
             bucket["scenario_name"] = score.scenario_name
             bucket["archetype_label"] = score.archetype_label
-            bucket["session_utility_values"].append(score.session_utility)
-            bucket["trace_risk_score_values"].append(score.trace_risk_score)
-            bucket["failure_modes"][score.dominant_failure_mode] += 1
+            bucket["session_utility_values"].append(
+                float(trace_metric(score, "session_utility"))
+            )
+            bucket["trace_risk_score_values"].append(
+                float(trace_metric(score, "trace_risk_score"))
+            )
+            failure_mode = str(
+                trace_metric(score, "dominant_failure_mode", "no_major_failure")
+            )
+            bucket["failure_modes"][failure_mode] += 1
     resolved: dict[str, dict[str, object]] = {}
     for trace_id, bucket in aggregate.items():
         resolved[trace_id] = {
