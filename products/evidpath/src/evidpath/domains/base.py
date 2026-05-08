@@ -89,6 +89,7 @@ class DomainRunner(Protocol):
         semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
         semantic_profile: str = DEFAULT_PROVIDER_PROFILE,
         progress_callback: ProgressCallback | None = None,
+        driver_instance: MetadataAdapter | None = None,
     ) -> RunResult:
         """Run one audit and return the in-memory result."""
 
@@ -209,6 +210,7 @@ class StandardDomainRunner:
         semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
         semantic_profile: str = DEFAULT_PROVIDER_PROFILE,
         progress_callback: ProgressCallback | None = None,
+        driver_instance: MetadataAdapter | None = None,
     ) -> RunResult:
         """Run one audit using only the domain-owned plug-in hooks."""
         resolved_service_mode = "external" if adapter_base_url is not None else service_mode
@@ -248,6 +250,22 @@ class StandardDomainRunner:
             message="Preparing target",
             stage="start",
         )
+        if driver_instance is not None:
+            return self._execute_with_driver(
+                run_config=run_config,
+                scenarios=scenarios,
+                policy=policy,
+                judge=judge,
+                analyzer=analyzer,
+                adapter_base_url=None,
+                context_metadata={"service_kind": "in_process"},
+                resolved_input_metadata=resolved_inputs.metadata,
+                semantic_mode=semantic_mode,
+                semantic_model=semantic_model,
+                semantic_profile=semantic_profile,
+                progress_callback=progress_callback,
+                driver_instance=driver_instance,
+            )
         with self.definition.open_service_context(run_config) as (base_url, context_metadata):
             return self._execute_with_driver(
                 run_config=run_config,
@@ -303,20 +321,30 @@ class StandardDomainRunner:
         semantic_model: str = DEFAULT_SEMANTIC_PROVIDER_MODEL,
         semantic_profile: str = DEFAULT_PROVIDER_PROFILE,
         progress_callback: ProgressCallback | None = None,
+        driver_instance: MetadataAdapter | None = None,
     ) -> RunResult:
         """Execute one audit against an already running domain driver."""
-        driver_kind = run_config.rollout.driver_kind or _legacy_driver_kind(
-            run_config.rollout
-        )
-        driver_config = run_config.rollout.driver_config or _legacy_driver_config(
-            run_config.rollout
-        )
-        driver = self.definition.build_driver(
-            driver_kind,
-            driver_config,
-            adapter_base_url,
-            run_config.rollout.service_timeout_seconds,
-        )
+        if driver_instance is not None:
+            driver = driver_instance
+            driver_kind = "in_process"
+            driver_config: dict[str, object] = {
+                "import_path": "<inline>",
+                "backend_name": getattr(driver, "_backend_name", "<inline>"),
+            }
+        else:
+            driver_kind = run_config.rollout.driver_kind or _legacy_driver_kind(
+                run_config.rollout
+            )
+            driver_config = dict(
+                run_config.rollout.driver_config
+                or _legacy_driver_config(run_config.rollout)
+            )
+            driver = self.definition.build_driver(
+                driver_kind,
+                driver_config,
+                adapter_base_url,
+                run_config.rollout.service_timeout_seconds,
+            )
         service_metadata = driver.get_service_metadata()
         emit_progress(
             progress_callback,

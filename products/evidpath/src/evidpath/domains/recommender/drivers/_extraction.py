@@ -1,4 +1,4 @@
-"""Dot-path response extraction for the schema-mapped recommender driver."""
+"""Dot-path and JSONPath response extraction for the schema-mapped driver."""
 
 from __future__ import annotations
 
@@ -6,10 +6,16 @@ from collections.abc import Mapping
 from typing import Any
 
 from ....schema import SlateItem
+from ._jsonpath import (
+    JsonPathEvalError,
+    JsonPathParseError,
+    evaluate,
+    parse_jsonpath,
+)
 
 
 class ResponseExtractionError(RuntimeError):
-    """Raised when a configured dot-path cannot be resolved."""
+    """Raised when a configured path cannot be resolved."""
 
 
 def resolve_dot_path(payload: Any, dot_path: str) -> Any:
@@ -48,7 +54,9 @@ def resolve_dot_path(payload: Any, dot_path: str) -> Any:
 
 def extract_items(payload: Any, mapping) -> tuple[SlateItem, ...]:
     """Resolve a response payload into slate items."""
-    items_payload = resolve_dot_path(payload, mapping.items_path) if mapping.items_path else payload
+    items_payload = (
+        _resolve_items_path(payload, mapping.items_path) if mapping.items_path else payload
+    )
     if not isinstance(items_payload, list):
         raise ResponseExtractionError(
             f"Items path `{mapping.items_path or '.'}` resolved to {type(items_payload).__name__}, not a list."
@@ -74,6 +82,29 @@ def extract_items(payload: Any, mapping) -> tuple[SlateItem, ...]:
             )
         )
     return tuple(items)
+
+
+def _resolve_items_path(payload: Any, path: str) -> list[Any]:
+    """Resolve an items_path using either dot-path or JSONPath."""
+    if path.startswith("$"):
+        try:
+            expr = parse_jsonpath(path)
+        except JsonPathParseError as exc:
+            raise ResponseExtractionError(
+                f"JSONPath `{path}` failed to parse: {exc}"
+            ) from exc
+        try:
+            return evaluate(expr, payload)
+        except JsonPathEvalError as exc:
+            raise ResponseExtractionError(
+                f"JSONPath `{path}` failed to evaluate: {exc}"
+            ) from exc
+    resolved = resolve_dot_path(payload, path)
+    if not isinstance(resolved, list):
+        raise ResponseExtractionError(
+            f"Items path `{path}` resolved to {type(resolved).__name__}, not a list."
+        )
+    return resolved
 
 
 def _extract_field(raw_item: Any, dot_path: str, *, label: str) -> Any:

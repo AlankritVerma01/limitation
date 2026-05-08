@@ -55,6 +55,14 @@ from .schema import (
     UtilityBreakdown,
 )
 
+
+def audit(**kwargs):
+    """Run one audit against a Python callable, class, or class instance."""
+    from .api import audit as _audit
+
+    return _audit(**kwargs)
+
+
 __all__ = [
     "Action",
     "ActionDecision",
@@ -63,6 +71,7 @@ __all__ = [
     "AnalysisResult",
     "AgentSeed",
     "AgentState",
+    "audit",
     "CohortSummary",
     "DecisionExplanation",
     "FailureMode",

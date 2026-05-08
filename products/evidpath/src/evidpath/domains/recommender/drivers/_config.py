@@ -113,9 +113,14 @@ class HttpSchemaMappedDriverConfig:
     predict: EndpointMapping
     health: EndpointMapping | None = None
     metadata: EndpointMapping | None = None
+    transform_request_module: str | None = None
+    transform_response_module: str | None = None
 
     def __post_init__(self) -> None:
         from ._templating import discover_field_references
+
+        if self.transform_request_module is not None:
+            return
 
         known_fields = frozenset(f.name for f in dataclasses.fields(AdapterRequest))
         used_fields: set[str] = set()
@@ -155,6 +160,12 @@ class HttpSchemaMappedDriverConfig:
             metadata=EndpointMapping.from_dict(payload["metadata"])
             if isinstance(payload.get("metadata"), Mapping)
             else None,
+            transform_request_module=_optional_str(
+                payload.get("transform_request_module")
+            ),
+            transform_response_module=_optional_str(
+                payload.get("transform_response_module")
+            ),
         )
 
 

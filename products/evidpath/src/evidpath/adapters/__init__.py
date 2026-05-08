@@ -1,1 +1,1 @@
-"""Adapter implementations and interfaces."""
+"""Framework-specific in-process adapters."""

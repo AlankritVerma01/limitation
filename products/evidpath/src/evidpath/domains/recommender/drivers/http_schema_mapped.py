@@ -6,11 +6,19 @@ import json
 from dataclasses import asdict
 from urllib import request
 
-from ....schema import AdapterRequest, AgentState, Observation, ScenarioConfig, Slate
+from ....schema import (
+    AdapterRequest,
+    AdapterResponse,
+    AgentState,
+    Observation,
+    ScenarioConfig,
+    Slate,
+)
 from ._config import EndpointMapping, HttpSchemaMappedDriverConfig
 from ._extraction import extract_items, resolve_dot_path
 from ._http import request_json
 from ._templating import substitute
+from ._transform import load_request_transform, load_response_transform
 
 
 class HttpSchemaMappedRecommenderDriver:
@@ -20,6 +28,16 @@ class HttpSchemaMappedRecommenderDriver:
         self._config = config
         self._base_url = config.base_url.rstrip("/")
         self._timeout = config.timeout_seconds
+        self._request_transform = (
+            load_request_transform(config.transform_request_module)
+            if config.transform_request_module
+            else None
+        )
+        self._response_transform = (
+            load_response_transform(config.transform_response_module)
+            if config.transform_response_module
+            else None
+        )
 
     def get_slate(
         self,
@@ -38,11 +56,18 @@ class HttpSchemaMappedRecommenderDriver:
             recent_exposure_ids=agent_state.recent_exposure_ids,
             preferred_genres=agent_state.preferred_genres,
         )
-        body = self._invoke_endpoint(
-            self._config.predict,
-            adapter_request,
-            purpose="recommendation request",
-        )
+        body = self._invoke_predict(adapter_request)
+        if self._response_transform is not None:
+            response = self._response_transform(body, adapter_request)
+            if not isinstance(response, AdapterResponse):
+                raise RuntimeError(
+                    "transform_response must return an AdapterResponse instance."
+                )
+            return Slate(
+                slate_id=f"{scenario_config.scenario_id or scenario_config.name}-{agent_state.agent_id}-{observation.step_index}",
+                step_index=observation.step_index,
+                items=response.items,
+            )
         if self._config.predict.response is None:
             raise RuntimeError("Schema-mapped predict endpoint missing `response` mapping.")
         return Slate(
@@ -50,6 +75,32 @@ class HttpSchemaMappedRecommenderDriver:
             step_index=observation.step_index,
             items=extract_items(body, self._config.predict.response),
         )
+
+    def _invoke_predict(self, source: AdapterRequest):
+        endpoint = self._config.predict
+        if self._request_transform is None:
+            return self._invoke_endpoint(
+                endpoint,
+                source,
+                purpose="recommendation request",
+            )
+        source_payload = asdict(source)
+        rendered_path = substitute(endpoint.path, source_payload)
+        rendered_headers = {
+            key: str(substitute(value, source_payload))
+            for key, value in endpoint.headers.items()
+        }
+        rendered_headers.setdefault("Content-Type", "application/json")
+        body_obj = self._request_transform(source)
+        if not isinstance(body_obj, dict):
+            raise RuntimeError("transform_request must return a dict.")
+        req = request.Request(
+            f"{self._base_url}{rendered_path}",
+            data=json.dumps(body_obj).encode("utf-8"),
+            headers=rendered_headers,
+            method=endpoint.method,
+        )
+        return request_json(req, timeout=self._timeout, purpose="recommendation request")
 
     def get_service_metadata(self) -> dict[str, str | int | float]:
         if self._config.metadata is None:
