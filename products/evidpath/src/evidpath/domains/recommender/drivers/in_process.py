@@ -5,9 +5,11 @@ from __future__ import annotations
 import importlib
 from collections.abc import Mapping
 
+from ....contracts.recommender import (
+    RecommenderRequest,
+    RecommenderResponse,
+)
 from ....schema import (
-    AdapterRequest,
-    AdapterResponse,
     AgentState,
     Observation,
     ScenarioConfig,
@@ -37,13 +39,13 @@ class InProcessRecommenderDriver:
             )
         self._backend_name = config.backend_name or config.import_path
 
-    def get_slate(
+    def get_ranked_list(
         self,
         agent_state: AgentState,
         observation: Observation,
         scenario_config: ScenarioConfig,
     ) -> Slate:
-        adapter_request = AdapterRequest(
+        adapter_request = RecommenderRequest(
             request_id=f"{agent_state.agent_id}-{observation.scenario_context.scenario_id or observation.scenario_context.scenario_name}-{observation.step_index}",
             agent_id=agent_state.agent_id,
             scenario_name=observation.scenario_context.scenario_name,
@@ -55,15 +57,24 @@ class InProcessRecommenderDriver:
             preferred_genres=agent_state.preferred_genres,
         )
         adapter_response = self._call_predict(adapter_request)
-        if not isinstance(adapter_response, AdapterResponse):
+        if not isinstance(adapter_response, RecommenderResponse):
             raise TypeError(
-                f"In-process recsys returned {type(adapter_response).__name__}; expected AdapterResponse."
+                f"In-process recsys returned {type(adapter_response).__name__}; expected RecommenderResponse."
             )
         return Slate(
             slate_id=f"{scenario_config.scenario_id or scenario_config.name}-{agent_state.agent_id}-{observation.step_index}",
             step_index=observation.step_index,
             items=adapter_response.items,
         )
+
+    def get_slate(
+        self,
+        agent_state: AgentState,
+        observation: Observation,
+        scenario_config: ScenarioConfig,
+    ) -> Slate:
+        """Return a recommender slate for compatibility with existing callers."""
+        return self.get_ranked_list(agent_state, observation, scenario_config)
 
     def get_service_metadata(self) -> dict[str, str | int | float]:
         base: dict[str, str | int | float] = {

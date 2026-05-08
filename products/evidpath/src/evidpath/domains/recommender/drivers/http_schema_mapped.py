@@ -6,9 +6,11 @@ import json
 from dataclasses import asdict
 from urllib import request
 
+from ....contracts.recommender import (
+    RecommenderRequest,
+    RecommenderResponse,
+)
 from ....schema import (
-    AdapterRequest,
-    AdapterResponse,
     AgentState,
     Observation,
     ScenarioConfig,
@@ -39,13 +41,13 @@ class HttpSchemaMappedRecommenderDriver:
             else None
         )
 
-    def get_slate(
+    def get_ranked_list(
         self,
         agent_state: AgentState,
         observation: Observation,
         scenario_config: ScenarioConfig,
     ) -> Slate:
-        adapter_request = AdapterRequest(
+        adapter_request = RecommenderRequest(
             request_id=f"{agent_state.agent_id}-{observation.scenario_context.scenario_id or observation.scenario_context.scenario_name}-{observation.step_index}",
             agent_id=agent_state.agent_id,
             scenario_name=observation.scenario_context.scenario_name,
@@ -59,9 +61,9 @@ class HttpSchemaMappedRecommenderDriver:
         body = self._invoke_predict(adapter_request)
         if self._response_transform is not None:
             response = self._response_transform(body, adapter_request)
-            if not isinstance(response, AdapterResponse):
+            if not isinstance(response, RecommenderResponse):
                 raise RuntimeError(
-                    "transform_response must return an AdapterResponse instance."
+                    "transform_response must return a RecommenderResponse instance."
                 )
             return Slate(
                 slate_id=f"{scenario_config.scenario_id or scenario_config.name}-{agent_state.agent_id}-{observation.step_index}",
@@ -76,7 +78,16 @@ class HttpSchemaMappedRecommenderDriver:
             items=extract_items(body, self._config.predict.response),
         )
 
-    def _invoke_predict(self, source: AdapterRequest):
+    def get_slate(
+        self,
+        agent_state: AgentState,
+        observation: Observation,
+        scenario_config: ScenarioConfig,
+    ) -> Slate:
+        """Return a recommender slate for compatibility with existing callers."""
+        return self.get_ranked_list(agent_state, observation, scenario_config)
+
+    def _invoke_predict(self, source: RecommenderRequest):
         endpoint = self._config.predict
         if self._request_transform is None:
             return self._invoke_endpoint(
@@ -153,7 +164,7 @@ class HttpSchemaMappedRecommenderDriver:
     def _invoke_endpoint(
         self,
         endpoint: EndpointMapping,
-        source: AdapterRequest,
+        source: RecommenderRequest,
         *,
         purpose: str,
     ):
@@ -190,8 +201,8 @@ class HttpSchemaMappedRecommenderDriver:
         return result
 
 
-def _empty_request() -> AdapterRequest:
-    return AdapterRequest(
+def _empty_request() -> RecommenderRequest:
+    return RecommenderRequest(
         request_id="metadata-or-health",
         agent_id="",
         scenario_name="",

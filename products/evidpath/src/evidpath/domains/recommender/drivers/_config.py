@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from ....schema import AdapterRequest
+from ....contracts.recommender import RecommenderRequest
 
 
 @dataclass(frozen=True)
@@ -122,7 +122,7 @@ class HttpSchemaMappedDriverConfig:
         if self.transform_request_module is not None:
             return
 
-        known_fields = frozenset(f.name for f in dataclasses.fields(AdapterRequest))
+        known_fields = frozenset(f.name for f in dataclasses.fields(RecommenderRequest))
         used_fields: set[str] = set()
         if self.predict.body is not None:
             used_fields.update(discover_field_references(self.predict.body))
@@ -132,7 +132,7 @@ class HttpSchemaMappedDriverConfig:
         unknown = used_fields - known_fields
         if unknown:
             raise ValueError(
-                f"Unknown AdapterRequest fields referenced: {sorted(unknown)}."
+                f"Unknown RecommenderRequest fields referenced: {sorted(unknown)}."
             )
 
     @classmethod

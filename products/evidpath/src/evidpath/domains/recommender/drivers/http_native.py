@@ -6,9 +6,11 @@ import json
 from dataclasses import asdict
 from urllib import request
 
+from ....contracts.recommender import (
+    RecommenderRequest,
+    RecommenderResponse,
+)
 from ....schema import (
-    AdapterRequest,
-    AdapterResponse,
     AgentState,
     Observation,
     ScenarioConfig,
@@ -25,13 +27,13 @@ class HttpNativeRecommenderDriver:
         self.base_url = config.base_url.rstrip("/")
         self.timeout_seconds = config.timeout_seconds
 
-    def get_slate(
+    def get_ranked_list(
         self,
         agent_state: AgentState,
         observation: Observation,
         scenario_config: ScenarioConfig,
     ) -> Slate:
-        adapter_request = AdapterRequest(
+        adapter_request = RecommenderRequest(
             request_id=f"{agent_state.agent_id}-{observation.scenario_context.scenario_id or observation.scenario_context.scenario_name}-{observation.step_index}",
             agent_id=agent_state.agent_id,
             scenario_name=observation.scenario_context.scenario_name,
@@ -56,6 +58,15 @@ class HttpNativeRecommenderDriver:
             step_index=observation.step_index,
             items=adapter_response.items,
         )
+
+    def get_slate(
+        self,
+        agent_state: AgentState,
+        observation: Observation,
+        scenario_config: ScenarioConfig,
+    ) -> Slate:
+        """Return a recommender slate for compatibility with existing callers."""
+        return self.get_ranked_list(agent_state, observation, scenario_config)
 
     def get_service_metadata(self) -> dict[str, str | int | float]:
         return self._get_service_metadata(strict=False)
@@ -109,7 +120,7 @@ class HttpNativeRecommenderDriver:
             if isinstance(value, (str, int, float))
         }
 
-    def _normalize_response(self, payload: dict) -> AdapterResponse:
+    def _normalize_response(self, payload: dict) -> RecommenderResponse:
         try:
             request_id = payload["request_id"]
             raw_items = payload["items"]
@@ -133,7 +144,7 @@ class HttpNativeRecommenderDriver:
             raise RuntimeError(
                 "Recommender target returned an invalid response payload: item fields could not be normalized."
             ) from exc
-        return AdapterResponse(request_id=request_id, items=items)
+        return RecommenderResponse(request_id=request_id, items=items)
 
     def _request_json(self, req: request.Request, *, purpose: str) -> dict:
         from ._http import request_json

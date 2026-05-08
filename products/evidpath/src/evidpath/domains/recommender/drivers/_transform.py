@@ -6,7 +6,7 @@ import importlib
 from collections.abc import Callable
 from typing import Any
 
-from ....schema import AdapterRequest, AdapterResponse
+from ....contracts.recommender import RecommenderRequest, RecommenderResponse
 
 
 class TransformLoadError(RuntimeError):
@@ -15,14 +15,14 @@ class TransformLoadError(RuntimeError):
 
 def load_request_transform(
     import_path: str,
-) -> Callable[[AdapterRequest], dict[str, Any]]:
+) -> Callable[[RecommenderRequest], dict[str, Any]]:
     """Load `transform_request` from `import_path`."""
     return _load(import_path, "transform_request")
 
 
 def load_response_transform(
     import_path: str,
-) -> Callable[[dict[str, Any], AdapterRequest], AdapterResponse]:
+) -> Callable[[dict[str, Any], RecommenderRequest], RecommenderResponse]:
     """Load `transform_response` from `import_path`."""
     return _load(import_path, "transform_response")
 
