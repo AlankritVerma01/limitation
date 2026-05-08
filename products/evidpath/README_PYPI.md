@@ -5,8 +5,8 @@
 [Releases](https://github.com/NDETERMINA/limitation/releases) |
 [Issues](https://github.com/NDETERMINA/limitation/issues)
 
-Evidpath helps teams check a recommender before launch. Point it at a
-recommender endpoint, run an audit, and open a report that shows what happened.
+Evidpath helps teams check recommender and search rankers before launch. Point
+it at an endpoint, run an audit, and open a report that shows what happened.
 
 ## Install
 
@@ -20,7 +20,7 @@ Requirements:
 
 ## First Run
 
-Check that your endpoint responds in the expected shape:
+Check that your recommender endpoint responds in the expected shape:
 
 ```bash
 evidpath check-target --domain recommender --target-url http://127.0.0.1:8051
@@ -30,6 +30,12 @@ Run one audit:
 
 ```bash
 evidpath audit --domain recommender --target-url http://127.0.0.1:8051 --scenario returning-user-home-feed --seed 7
+```
+
+For search rankers, use `--domain search`:
+
+```bash
+evidpath audit --domain search --scenario navigational-query --seed 7
 ```
 
 By default, Evidpath writes an `evidpath-output/` folder in your current
@@ -47,13 +53,13 @@ evidpath compare --domain recommender --baseline-url http://127.0.0.1:8051 --can
 
 ## What You Need
 
-- a recommender HTTP endpoint, or a Python callable/class
+- a recommender or search HTTP endpoint, or a Python callable/class
 - for native HTTP targets, the request and response shape described in the
-  [external target contract](https://github.com/NDETERMINA/limitation/blob/main/products/evidpath/EXTERNAL_TARGET_CONTRACT.md)
+  recommender or search external target contract
 
 If your HTTP service has a different shape, use a schema-mapped driver config
 with dot paths, JSONPath `items_path`, or small Python transforms. If your
-recommender is local Python code, use `evidpath.audit(callable=predict, ...)`.
+ranker is local Python code, use `evidpath.audit(callable=predict, ...)`.
 
 Optional extras provide adapters for common in-process objects:
 

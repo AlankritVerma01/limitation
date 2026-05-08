@@ -48,6 +48,14 @@ class ReferenceSearchBackend:
         )
         return SearchResponse(request_id=request.request_id, results=results)
 
+    def get_service_metadata(self) -> dict[str, str]:
+        """Return stable metadata for reference-mode audit artifacts."""
+        return {
+            "service_kind": "reference_search",
+            "backend_name": "reference-search",
+            "model_kind": "deterministic_fixture",
+        }
+
 
 def search(request: SearchRequest) -> SearchResponse:
     """Search the deterministic reference corpus."""

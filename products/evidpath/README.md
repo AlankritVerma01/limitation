@@ -9,25 +9,26 @@
 [TestPyPI](https://test.pypi.org/project/evidpath/) |
 [Releases](https://github.com/NDETERMINA/limitation/releases) |
 [Issues](https://github.com/NDETERMINA/limitation/issues) |
-[External target contract](./EXTERNAL_TARGET_CONTRACT.md)
+[Recommender target contract](./EXTERNAL_TARGET_CONTRACT.md) |
+[Search target contract](./EXTERNAL_TARGET_CONTRACT_SEARCH.md)
 
-Evidpath helps teams evaluate a recommender before launch. You point it at a
-recommender endpoint, run a few commands, and get a report that shows what
-happened, who struggled, and whether a candidate looks safer or riskier than a
-baseline.
+Evidpath helps teams evaluate recommender and search rankers before launch.
+You point it at an endpoint or Python callable, run a few commands, and get a
+report that shows what happened, who struggled, and whether a candidate looks
+safer or riskier than a baseline.
 
 ## What It Does
 
 Evidpath is built for a simple job:
 
-- check that your recommender endpoint responds in the expected shape
+- check that your recommender or search endpoint responds in the expected shape
 - run a repeatable audit against that endpoint
 - save a report and machine-readable output
 - compare a baseline and a candidate before launch
 
-For `0.1.0`, the main supported paths are an external recommender endpoint
-and an in-process Python callable. The built-in reference target is still
-useful for demos, onboarding, and local development.
+For `0.2.0`, the supported public domains are `recommender` and `search`.
+Both support native HTTP targets, schema-mapped HTTP targets, in-process
+Python targets, and local reference runs.
 
 ## Who It Is For
 
@@ -45,9 +46,9 @@ Typical users:
 You need:
 
 - Python `3.11+`
-- a recommender HTTP endpoint, or a Python callable/class you want to test
+- a recommender or search HTTP endpoint, or a Python callable/class you want to test
 - for native HTTP targets, an endpoint that follows the request and response
-  shape in [EXTERNAL_TARGET_CONTRACT.md](./EXTERNAL_TARGET_CONTRACT.md)
+  shape in the relevant target contract
 
 Install the package:
 
@@ -94,6 +95,9 @@ working directory. The most useful files in a single audit are:
 ```bash
 evidpath compare --domain recommender --baseline-url http://127.0.0.1:8051 --candidate-url http://127.0.0.1:8052 --baseline-label current-prod --candidate-label next-build --rerun-count 2
 ```
+
+For search rankers, use `--domain search` and search scenario names such as
+`navigational-query`, `time-sensitive-query`, or `ambiguous-query`.
 
 This writes a regression bundle with files such as:
 
@@ -152,7 +156,7 @@ Use this when you want Evidpath to expand one testing goal into a broader saved
 coverage bundle. This is powerful, but it is not the first command most users
 need.
 
-## Using Your Own Recommender
+## Using Your Own Recommender Or Search Ranker
 
 ### Native HTTP Target
 
@@ -165,6 +169,7 @@ If your service already speaks Evidpath's native contract:
 Start here if you want the exact contract:
 
 - [EXTERNAL_TARGET_CONTRACT.md](./EXTERNAL_TARGET_CONTRACT.md)
+- [EXTERNAL_TARGET_CONTRACT_SEARCH.md](./EXTERNAL_TARGET_CONTRACT_SEARCH.md)
 
 If you want a local service that behaves like a customer-owned endpoint:
 

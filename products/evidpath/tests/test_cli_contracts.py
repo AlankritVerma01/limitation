@@ -93,3 +93,24 @@ def test_public_cli_domain_choices_hide_stub(capsys) -> None:
             pass
     captured = capsys.readouterr()
     assert "stub" not in captured.out
+
+
+def test_search_domain_is_available_through_cli_audit(tmp_path: Path, capsys) -> None:
+    result = main(
+        [
+            "audit",
+            "--domain",
+            "search",
+            "--seed",
+            "7",
+            "--scenario",
+            "navigational-query",
+            "--output-dir",
+            str(tmp_path / "search-audit"),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert "Audit complete:" in captured.out
+    assert "reference_search" in captured.out
+    assert Path(str(result["report_path"])).exists()
