@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from urllib import request
 from urllib.parse import quote
 
@@ -18,6 +19,8 @@ from ._config import EndpointMapping, HttpSchemaMappedSearchDriverConfig
 from ._extraction import extract_results, resolve_dot_path
 from ._http import request_json
 from ._templating import substitute
+
+_PATH_MARKER = re.compile(r"\$\{([^}]+)\}")
 
 
 class HttpSchemaMappedSearchDriver:
@@ -122,10 +125,7 @@ class HttpSchemaMappedSearchDriver:
         purpose: str,
     ):
         source_payload = request_to_payload(source)
-        rendered_path = quote(
-            str(substitute(endpoint.path, source_payload)),
-            safe="/:?&=%",
-        )
+        rendered_path = _substitute_url_path(endpoint.path, source_payload)
         rendered_headers = {
             key: str(substitute(value, source_payload))
             for key, value in endpoint.headers.items()
@@ -164,3 +164,16 @@ def _empty_request():
         request_id="metadata-or-health",
         query="",
     )
+
+
+def _substitute_url_path(path_template: str, source_payload: dict[str, object]) -> str:
+    """Render a URL path while encoding substituted values, not delimiters."""
+    rendered_parts: list[str] = []
+    cursor = 0
+    for match in _PATH_MARKER.finditer(path_template):
+        rendered_parts.append(quote(path_template[cursor : match.start()], safe="/:?&=%"))
+        rendered_value = substitute(match.group(0), source_payload)
+        rendered_parts.append(quote(str(rendered_value), safe=""))
+        cursor = match.end()
+    rendered_parts.append(quote(path_template[cursor:], safe="/:?&=%"))
+    return "".join(rendered_parts)
