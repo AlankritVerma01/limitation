@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from evidpath import RankedItem, RankedList
+from evidpath import RankedItem, RankedList, TraceScore, trace_metric
 
 _ROOT = Path(__file__).resolve().parents[1] / "src" / "evidpath"
 _SHARED_MODULES = (
@@ -34,3 +34,22 @@ def test_shared_adapter_protocol_uses_ranked_list_vocabulary() -> None:
 def test_shared_ranked_output_contracts_are_exported() -> None:
     assert RankedItem.__name__ == "RankedItem"
     assert RankedList.__name__ == "RankedList"
+
+
+def test_trace_metric_reads_common_and_domain_metrics() -> None:
+    score = TraceScore(
+        trace_id="t1",
+        scenario_name="s1",
+        archetype_label="a1",
+        steps_completed=1,
+        abandoned=False,
+        click_count=0,
+        session_utility=0.5,
+        repetition=0.0,
+        concentration=0.0,
+        engagement=0.0,
+        frustration=0.0,
+        domain_metrics={"freshness_percentile": 0.75},
+    )
+    assert trace_metric(score, "session_utility") == 0.5
+    assert trace_metric(score, "freshness_percentile") == 0.75

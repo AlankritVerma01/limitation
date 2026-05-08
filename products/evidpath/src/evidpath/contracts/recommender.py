@@ -24,6 +24,7 @@ from ..schema import (
     ScenarioPackMetadata,
     TraceDelta,
     TraceScore,
+    trace_metric,
 )
 
 RecommenderRequest = AdapterRequest
@@ -53,4 +54,5 @@ __all__ = [
     "ScenarioPackMetadata",
     "TraceDelta",
     "TraceScore",
+    "trace_metric",
 ]
