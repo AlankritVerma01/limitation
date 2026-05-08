@@ -1,0 +1,84 @@
+{
+  "documents": [
+    {
+      "result_id": "doc-nike-login",
+      "title": "Nike Member Login",
+      "snippet": "Sign in to your Nike account, manage orders, and view member benefits.",
+      "url": "https://example.com/nike/login",
+      "result_type": "navigational",
+      "freshness_timestamp": "2026-04-18T12:00:00Z",
+      "freshness_score": 0.82,
+      "keywords": ["nike", "login", "account", "member", "orders"]
+    },
+    {
+      "result_id": "doc-python-caching",
+      "title": "Guide to Python Cache Invalidation",
+      "snippet": "A long-form technical guide covering cache keys, invalidation windows, and stale reads.",
+      "url": "https://example.com/guides/python-cache-invalidation",
+      "result_type": "article",
+      "freshness_timestamp": "2025-12-03T09:00:00Z",
+      "freshness_score": 0.55,
+      "keywords": ["python", "cache", "caching", "invalidation", "stale", "technical"]
+    },
+    {
+      "result_id": "doc-weather-alerts",
+      "title": "Live Weather Alerts for Toronto",
+      "snippet": "Current weather warnings, short-term radar, and emergency updates for Toronto.",
+      "url": "https://example.com/weather/toronto/alerts",
+      "result_type": "news",
+      "freshness_timestamp": "2026-05-06T16:30:00Z",
+      "freshness_score": 0.97,
+      "keywords": ["weather", "alert", "alerts", "toronto", "live", "current"]
+    },
+    {
+      "result_id": "doc-jaguar-car",
+      "title": "Jaguar Electric SUV Review",
+      "snippet": "Specs, range estimates, and buying advice for the latest Jaguar electric SUV.",
+      "url": "https://example.com/autos/jaguar-electric-suv",
+      "result_type": "review",
+      "freshness_timestamp": "2026-02-15T08:15:00Z",
+      "freshness_score": 0.74,
+      "keywords": ["jaguar", "car", "electric", "suv", "review", "range"]
+    },
+    {
+      "result_id": "doc-jaguar-animal",
+      "title": "Jaguar Habitat and Conservation",
+      "snippet": "Background on jaguar habitats, conservation status, and migration corridors.",
+      "url": "https://example.com/science/jaguar-conservation",
+      "result_type": "article",
+      "freshness_timestamp": "2025-07-22T10:00:00Z",
+      "freshness_score": 0.42,
+      "keywords": ["jaguar", "habitat", "conservation", "animal", "science"]
+    },
+    {
+      "result_id": "doc-cheap-flights",
+      "title": "Cheap Flights to Lisbon",
+      "snippet": "Compare fares, flexible dates, and travel alerts for flights to Lisbon.",
+      "url": "https://example.com/travel/flights/lisbon",
+      "result_type": "commerce",
+      "freshness_timestamp": "2026-05-02T11:45:00Z",
+      "freshness_score": 0.91,
+      "keywords": ["cheap", "flights", "flight", "lisbon", "travel", "fare"]
+    },
+    {
+      "result_id": "doc-password-reset",
+      "title": "Reset Your Account Password",
+      "snippet": "Recover access with email verification, backup codes, or support-assisted reset.",
+      "url": "https://example.com/account/password-reset",
+      "result_type": "help",
+      "freshness_timestamp": "2026-01-10T13:20:00Z",
+      "freshness_score": 0.67,
+      "keywords": ["password", "reset", "account", "recover", "support"]
+    },
+    {
+      "result_id": "doc-machine-learning-personalized",
+      "title": "Personalized Machine Learning Recommendations",
+      "snippet": "How user context changes ranking quality in personalized machine learning systems.",
+      "url": "https://example.com/ml/personalized-ranking",
+      "result_type": "article",
+      "freshness_timestamp": "2026-03-28T15:00:00Z",
+      "freshness_score": 0.79,
+      "keywords": ["personalized", "machine", "learning", "ranking", "user", "context"]
+    }
+  ]
+}

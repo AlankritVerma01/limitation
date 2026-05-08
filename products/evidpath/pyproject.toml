@@ -71,6 +71,7 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
 "evidpath.domains.recommender" = ["reference_backend_artifacts.json"]
+"evidpath.domains.search" = ["reference_search_artifacts.json"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
